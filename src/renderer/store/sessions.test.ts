@@ -3,6 +3,7 @@ import { useSessionStore } from './sessions'
 import { PANEL_IDS, DEFAULT_TOOLBAR_PANELS } from '../panels/types'
 import { getLoadedSessionCount } from './sessionPersistence'
 import { setLoadedCounts } from './configPersistence'
+import { allowConsoleError, allowConsoleWarn } from '../../test/console-guard'
 
 describe('useSessionStore', () => {
   beforeEach(() => {
@@ -65,6 +66,7 @@ describe('useSessionStore', () => {
         userTerminalHeight: 192,
         diffPanelWidth: 320,
         reviewPanelWidth: 320,
+        tutorialPanelWidth: 320,
       },
       explorerFilter: 'files' as const,
       lastMessage: null,
@@ -182,6 +184,8 @@ describe('useSessionStore', () => {
     })
 
     it('sets empty UI state on config.load failure without updating loadedSessionCount', async () => {
+      allowConsoleError()
+      allowConsoleWarn()
       // First load some sessions so loadedSessionCount > 0
       vi.mocked(window.config.load).mockResolvedValue({
         agents: [],
@@ -204,6 +208,7 @@ describe('useSessionStore', () => {
     })
 
     it('loads remaining sessions when git.getBranch fails for one session', async () => {
+      allowConsoleWarn()
       vi.mocked(window.config.load).mockResolvedValue({
         agents: [],
         sessions: [
@@ -455,6 +460,62 @@ describe('useSessionStore', () => {
     it('setSidebarWidth updates width', () => {
       useSessionStore.getState().setSidebarWidth(300)
       expect(useSessionStore.getState().sidebarWidth).toBe(300)
+    })
+  })
+
+  describe('setPlanFile', () => {
+    it('sets planFilePath on a session', () => {
+      const s1 = createTestSession({ id: 's1' })
+      useSessionStore.setState({ sessions: [s1], isLoading: false })
+
+      useSessionStore.getState().setPlanFile('s1', '/plan.md')
+      expect(useSessionStore.getState().sessions[0].planFilePath).toBe('/plan.md')
+    })
+
+    it('clears planFilePath when set to null', () => {
+      const s1 = { ...createTestSession({ id: 's1' }), planFilePath: '/plan.md' }
+      useSessionStore.setState({ sessions: [s1], isLoading: false })
+
+      useSessionStore.getState().setPlanFile('s1', null)
+      expect(useSessionStore.getState().sessions[0].planFilePath).toBeNull()
+    })
+
+    it('does not affect other sessions', () => {
+      const s1 = createTestSession({ id: 's1' })
+      const s2 = createTestSession({ id: 's2' })
+      useSessionStore.setState({ sessions: [s1, s2], isLoading: false })
+
+      useSessionStore.getState().setPlanFile('s1', '/plan.md')
+      expect(useSessionStore.getState().sessions[1].planFilePath).toBeNull()
+    })
+  })
+
+  describe('setAgentPtyId', () => {
+    it('sets agentPtyId on a session', () => {
+      const s1 = createTestSession({ id: 's1' })
+      useSessionStore.setState({ sessions: [s1], isLoading: false })
+
+      useSessionStore.getState().setAgentPtyId('s1', 'pty-123')
+      expect(useSessionStore.getState().sessions[0].agentPtyId).toBe('pty-123')
+    })
+
+    it('does not affect other sessions', () => {
+      const s1 = createTestSession({ id: 's1' })
+      const s2 = createTestSession({ id: 's2' })
+      useSessionStore.setState({ sessions: [s1, s2], isLoading: false })
+
+      useSessionStore.getState().setAgentPtyId('s1', 'pty-123')
+      expect(useSessionStore.getState().sessions[1].agentPtyId).toBeUndefined()
+    })
+  })
+
+  describe('markHasHadCommits', () => {
+    it('sets hasHadCommits to true', () => {
+      const s1 = createTestSession({ id: 's1' })
+      useSessionStore.setState({ sessions: [s1], isLoading: false })
+
+      useSessionStore.getState().markHasHadCommits('s1')
+      expect(useSessionStore.getState().sessions[0].hasHadCommits).toBe(true)
     })
   })
 
@@ -997,6 +1058,7 @@ describe('useSessionStore', () => {
     })
 
     it('refuses to save empty sessions when sessions were previously loaded', async () => {
+      allowConsoleWarn()
       // Load 2 sessions from config
       vi.mocked(window.config.load).mockResolvedValue({
         agents: [],
