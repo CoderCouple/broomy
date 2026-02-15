@@ -128,7 +128,6 @@ describe('sessionCoreActions', () => {
       vi.mocked(window.git.isGitRepo).mockResolvedValue(true)
       await useSessionStore.getState().addSession('/test/repo1', null)
       await useSessionStore.getState().addSession('/test/repo2', null)
-      useSessionStore.getState().sessions
       const activeId = useSessionStore.getState().activeSessionId
 
       useSessionStore.getState().removeSession(activeId!)

@@ -80,7 +80,7 @@ describe('CloneView', () => {
     expect(screen.getByText('Claude')).toBeTruthy()
     // Shell Only is always an option
     const selectEl = screen.getByRole('combobox')
-    const options = Array.from(selectEl.options).map(o => o.text)
+    const options = Array.from((selectEl as HTMLSelectElement).options).map((o: HTMLOptionElement) => o.text)
     expect(options).toContain('Shell Only')
   })
 
@@ -89,7 +89,7 @@ describe('CloneView', () => {
     vi.mocked(window.git.defaultBranch).mockResolvedValue('main')
     vi.mocked(window.git.remoteUrl).mockResolvedValue('https://github.com/user/test.git')
     vi.mocked(window.gh.hasWriteAccess).mockResolvedValue(false)
-    vi.mocked(window.config.load).mockResolvedValue({ repos: [{ id: 'repo-1', name: 'test' }] })
+    vi.mocked(window.config.load).mockResolvedValue({ agents: [], sessions: [], repos: [{ id: 'repo-1', name: 'test', remoteUrl: 'https://github.com/user/test.git', rootDir: '~/repos/test', defaultBranch: 'main' }] })
 
     const onComplete = vi.fn()
     render(<CloneView onBack={vi.fn()} onComplete={onComplete} />)

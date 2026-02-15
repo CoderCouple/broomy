@@ -138,11 +138,11 @@ describe('SCWorkingView', () => {
     const changesProps = {
       ...defaultProps,
       gitStatus: [
-        { path: 'src/index.ts', status: 'modified', staged: false, indexStatus: ' ', workingDirStatus: 'M' },
-        { path: 'src/app.ts', status: 'added', staged: true, indexStatus: 'A', workingDirStatus: ' ' },
+        { path: 'src/index.ts', status: 'modified' as const, staged: false, indexStatus: ' ', workingDirStatus: 'M' },
+        { path: 'src/app.ts', status: 'added' as const, staged: true, indexStatus: 'A', workingDirStatus: ' ' },
       ],
-      stagedFiles: [{ path: 'src/app.ts', status: 'added', staged: true, indexStatus: 'A', workingDirStatus: ' ' }],
-      unstagedFiles: [{ path: 'src/index.ts', status: 'modified', staged: false, indexStatus: ' ', workingDirStatus: 'M' }],
+      stagedFiles: [{ path: 'src/app.ts', status: 'added' as const, staged: true, indexStatus: 'A', workingDirStatus: ' ' }],
+      unstagedFiles: [{ path: 'src/index.ts', status: 'modified' as const, staged: false, indexStatus: ' ', workingDirStatus: 'M' }],
     }
 
     it('shows commit input and button', () => {

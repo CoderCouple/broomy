@@ -148,7 +148,7 @@ describe('useSourceControlActions', () => {
       vi.mocked(window.git.commit).mockResolvedValue({ success: true })
       const onGitStatusRefresh = vi.fn()
       const data = makeData({
-        stagedFiles: [{ path: 'src/index.ts', status: 'modified', staged: true }],
+        stagedFiles: [{ path: 'src/index.ts', status: 'modified' as const, staged: true, indexStatus: 'M', workingDirStatus: ' ' }],
         commitMessage: 'fix: stuff',
       })
 
@@ -185,7 +185,7 @@ describe('useSourceControlActions', () => {
     it('shows error on commit failure', async () => {
       vi.mocked(window.git.commit).mockResolvedValue({ success: false, error: 'hook failed' })
       const data = makeData({
-        stagedFiles: [{ path: 'src/index.ts', status: 'modified', staged: true }],
+        stagedFiles: [{ path: 'src/index.ts', status: 'modified' as const, staged: true, indexStatus: 'M', workingDirStatus: ' ' }],
         commitMessage: 'fix: stuff',
       })
 
@@ -383,7 +383,7 @@ describe('useSourceControlActions', () => {
       vi.mocked(window.gh.replyToComment).mockResolvedValue({ success: true })
       vi.mocked(window.gh.prComments).mockResolvedValue([])
       const data = makeData({
-        prStatus: { number: 42, title: 'Test', state: 'OPEN', url: 'https://example.com' },
+        prStatus: { number: 42, title: 'Test', state: 'OPEN' as const, url: 'https://example.com', headRefName: 'feature', baseRefName: 'main' },
         replyText: { 1: 'My reply' },
       })
 
@@ -402,7 +402,7 @@ describe('useSourceControlActions', () => {
     it('shows error when reply fails with error result', async () => {
       vi.mocked(window.gh.replyToComment).mockResolvedValue({ success: false, error: 'forbidden' })
       const data = makeData({
-        prStatus: { number: 42, title: 'Test', state: 'OPEN', url: 'https://example.com' },
+        prStatus: { number: 42, title: 'Test', state: 'OPEN' as const, url: 'https://example.com', headRefName: 'feature', baseRefName: 'main' },
         replyText: { 1: 'My reply' },
       })
 
@@ -420,7 +420,7 @@ describe('useSourceControlActions', () => {
     it('shows error when reply throws', async () => {
       vi.mocked(window.gh.replyToComment).mockRejectedValue(new Error('network error'))
       const data = makeData({
-        prStatus: { number: 42, title: 'Test', state: 'OPEN', url: 'https://example.com' },
+        prStatus: { number: 42, title: 'Test', state: 'OPEN' as const, url: 'https://example.com', headRefName: 'feature', baseRefName: 'main' },
         replyText: { 1: 'My reply' },
       })
 
@@ -466,7 +466,7 @@ describe('useSourceControlActions', () => {
 
     it('shows error when there are uncommitted changes', async () => {
       const data = makeData({
-        gitStatus: [{ path: 'src/index.ts', status: 'modified', staged: false }],
+        gitStatus: [{ path: 'src/index.ts', status: 'modified' as const, staged: false, indexStatus: ' ', workingDirStatus: 'M' }],
       })
 
       const { result } = renderHook(() =>
@@ -777,7 +777,7 @@ describe('useSourceControlActions', () => {
       const onGitStatusRefresh = vi.fn()
       const data = makeData({
         stagedFiles: [],
-        unstagedFiles: [{ path: 'src/index.ts', status: 'modified', staged: false }],
+        unstagedFiles: [{ path: 'src/index.ts', status: 'modified' as const, staged: false, indexStatus: ' ', workingDirStatus: 'M' }],
         commitMessage: 'fix: stuff',
       })
 
@@ -798,7 +798,7 @@ describe('useSourceControlActions', () => {
       vi.mocked(window.menu.popup).mockResolvedValue(null)
       const data = makeData({
         stagedFiles: [],
-        unstagedFiles: [{ path: 'src/index.ts', status: 'modified', staged: false }],
+        unstagedFiles: [{ path: 'src/index.ts', status: 'modified' as const, staged: false, indexStatus: ' ', workingDirStatus: 'M' }],
         commitMessage: 'fix: stuff',
       })
 
@@ -816,7 +816,7 @@ describe('useSourceControlActions', () => {
     it('handles commit exception', async () => {
       vi.mocked(window.git.commit).mockRejectedValue(new Error('commit error'))
       const data = makeData({
-        stagedFiles: [{ path: 'src/index.ts', status: 'modified', staged: true }],
+        stagedFiles: [{ path: 'src/index.ts', status: 'modified' as const, staged: true, indexStatus: 'M', workingDirStatus: ' ' }],
         commitMessage: 'fix: stuff',
       })
 

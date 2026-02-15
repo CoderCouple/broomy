@@ -20,7 +20,7 @@ describe('useSourceControlData', () => {
   const defaultProps = {
     directory: '/repos/project',
     gitStatus: [],
-    syncStatus: { current: 'feature/test', tracking: 'origin/feature/test', ahead: 0, behind: 0 },
+    syncStatus: { current: 'feature/test', tracking: 'origin/feature/test', ahead: 0, behind: 0, files: [] },
     scView: 'working' as const,
   }
 
@@ -39,9 +39,9 @@ describe('useSourceControlData', () => {
 
   it('computes staged and unstaged files', () => {
     const gitStatus = [
-      { path: 'src/index.ts', status: 'modified', staged: true },
-      { path: 'src/app.ts', status: 'added', staged: false },
-      { path: 'src/utils.ts', status: 'modified', staged: true },
+      { path: 'src/index.ts', status: 'modified' as const, staged: true, indexStatus: 'M', workingDirStatus: ' ' },
+      { path: 'src/app.ts', status: 'added' as const, staged: false, indexStatus: ' ', workingDirStatus: 'A' },
+      { path: 'src/utils.ts', status: 'modified' as const, staged: true, indexStatus: 'M', workingDirStatus: ' ' },
     ]
     const { result } = renderHook(() =>
       useSourceControlData({ ...defaultProps, gitStatus })
@@ -188,7 +188,7 @@ describe('useSourceControlData', () => {
   })
 
   it('provides the gitStatus from props', () => {
-    const gitStatus = [{ path: 'src/index.ts', status: 'modified', staged: false }]
+    const gitStatus = [{ path: 'src/index.ts', status: 'modified' as const, staged: false, indexStatus: ' ', workingDirStatus: 'M' }]
     const { result } = renderHook(() =>
       useSourceControlData({ ...defaultProps, gitStatus })
     )
@@ -202,6 +202,8 @@ describe('useSourceControlData', () => {
       title: 'Test PR',
       state: 'OPEN',
       url: 'https://github.com/test/pr/42',
+      headRefName: '',
+      baseRefName: '',
     })
     vi.mocked(window.gh.hasWriteAccess).mockResolvedValue(true)
     vi.mocked(window.git.headCommit).mockResolvedValue('abc123')
@@ -218,6 +220,8 @@ describe('useSourceControlData', () => {
       title: 'Test PR',
       state: 'OPEN',
       url: 'https://github.com/test/pr/42',
+      headRefName: '',
+      baseRefName: '',
     })
     expect(result.current.hasWriteAccess).toBe(true)
   })
@@ -242,6 +246,8 @@ describe('useSourceControlData', () => {
       title: 'Test PR',
       state: 'OPEN',
       url: 'https://github.com/test/pr/42',
+      headRefName: '',
+      baseRefName: '',
     })
     vi.mocked(window.gh.hasWriteAccess).mockResolvedValue(true)
     vi.mocked(window.git.headCommit).mockResolvedValue('abc123')
@@ -276,11 +282,13 @@ describe('useSourceControlData', () => {
       title: 'Test PR',
       state: 'OPEN',
       url: 'https://github.com/test/pr/42',
+      headRefName: '',
+      baseRefName: '',
     })
     vi.mocked(window.gh.hasWriteAccess).mockResolvedValue(true)
     vi.mocked(window.git.headCommit).mockResolvedValue('abc123')
     vi.mocked(window.gh.prComments).mockResolvedValue([
-      { id: 1, body: 'Review comment', author: 'reviewer' },
+      { id: 1, body: 'Review comment', author: 'reviewer', path: '', line: null, side: 'RIGHT' as const, createdAt: '', url: '' },
     ])
 
     const { result } = renderHook(() =>
@@ -292,7 +300,7 @@ describe('useSourceControlData', () => {
     })
 
     expect(result.current.prComments).toEqual([
-      { id: 1, body: 'Review comment', author: 'reviewer' },
+      { id: 1, body: 'Review comment', author: 'reviewer', path: '', line: null, side: 'RIGHT' as const, createdAt: '', url: '' },
     ])
   })
 
@@ -302,6 +310,8 @@ describe('useSourceControlData', () => {
       title: 'Test PR',
       state: 'OPEN',
       url: 'https://github.com/test/pr/42',
+      headRefName: '',
+      baseRefName: '',
     })
     vi.mocked(window.gh.hasWriteAccess).mockResolvedValue(true)
     vi.mocked(window.git.headCommit).mockResolvedValue('abc123')
