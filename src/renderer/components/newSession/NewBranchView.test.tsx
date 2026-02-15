@@ -94,7 +94,7 @@ describe('NewBranchView', () => {
     render(
       <NewBranchView repo={mockRepo} issue={issue} onBack={vi.fn()} onComplete={vi.fn()} />
     )
-    const input = screen.getByPlaceholderText('feature/my-feature') as HTMLInputElement
+    const input = screen.getByPlaceholderText('feature/my-feature')
     expect(input.value).toContain('42')
   })
 

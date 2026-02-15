@@ -27,7 +27,7 @@ describe('sessionTerminalTabs', () => {
     vi.useRealTimers()
   })
 
-  function addTestSession(id: string = 'test-session') {
+  function addTestSession(id = 'test-session') {
     const session = {
       id,
       name: 'test',
