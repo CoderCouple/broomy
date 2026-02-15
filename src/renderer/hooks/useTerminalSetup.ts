@@ -5,9 +5,9 @@ import { SerializeAddon } from '@xterm/addon-serialize'
 import { useErrorStore } from '../store/errors'
 import { useSessionStore } from '../store/sessions'
 import { terminalBufferRegistry } from '../utils/terminalBufferRegistry'
-import { evaluateActivity } from '../utils/terminalActivityDetector'
 import { useTerminalKeyboard } from './useTerminalKeyboard'
 import { usePlanDetection } from './usePlanDetection'
+import { createPtyDataHandler } from './ptyDataHandler'
 
 export interface TerminalConfig {
   sessionId: string | undefined
@@ -387,8 +387,6 @@ export function useTerminalSetup(
     const helpers = createViewportHelpers(terminal, viewportEl)
     const scrollTracking = createScrollTracking(terminal, viewportEl, helpers, s.isFollowingRef, s.setShowScrollButton)
 
-    let syncCheckTimeout: ReturnType<typeof setTimeout> | null = null
-
     terminal.onRender(() => {
       const atBottom = helpers.isAtBottom()
       s.setShowScrollButton(!atBottom && terminal.buffer.active.baseY > 0)
@@ -422,110 +420,16 @@ export function useTerminalSetup(
           void window.pty.write(id, data)
         })
 
-        // ── Data write diagnostic state ──
-        let lastWriteViewportY = -1
-        let writeJumpCount = 0
-
-        const removeDataListener = window.pty.onData(id, (data: string) => {
-          // Capture state BEFORE xterm processes the write
-          const preWriteViewportY = terminal.buffer.active.viewportY
-          const preWriteBaseY = terminal.buffer.active.baseY
-          const preWriteScrollTop = viewportEl?.scrollTop ?? 0
-
-          // Detect cursor-movement escape sequences in the data
-          const hasCursorUp = /\x1b\[\d*A/.test(data) || /\x1b\[\d*F/.test(data)
-          const hasCursorMove = hasCursorUp || /\r(?!\n)/.test(data) || /\x1b\[\d*G/.test(data)
-          const hasEraseInLine = /\x1b\[\d*K/.test(data)
-
-          terminal.write(data, () => {
-            const postViewportY = terminal.buffer.active.viewportY
-            const postBaseY = terminal.buffer.active.baseY
-            const postScrollTop = viewportEl?.scrollTop ?? 0
-
-            // Detect viewport jumps caused by data writes (not user scrolling)
-            if (lastWriteViewportY >= 0) {
-              const viewportDelta = Math.abs(postViewportY - lastWriteViewportY)
-              // A jump of >3 lines within a single write is suspicious
-              if (viewportDelta > 3 && !helpers.isAtBottom()) {
-                writeJumpCount++
-                // Only log first 20 to avoid flooding
-                if (writeJumpCount <= 20) {
-                  console.log(`[scroll-diag] WRITE JUMP #${writeJumpCount}`, JSON.stringify({
-                    pre: { viewportY: preWriteViewportY, baseY: preWriteBaseY, scrollTop: preWriteScrollTop },
-                    post: { viewportY: postViewportY, baseY: postBaseY, scrollTop: postScrollTop },
-                    viewportDelta,
-                    hasCursorUp, hasCursorMove, hasEraseInLine,
-                    dataLen: data.length,
-                    dataSample: data.length > 200 ? data.slice(0, 100) + '...' + data.slice(-100) : data,
-                    isFollowing: s.isFollowingRef.current,
-                  }))
-                }
-              }
-            }
-            lastWriteViewportY = postViewportY
-
-            if (s.isFollowingRef.current) {
-              const preScrollBottom = viewportEl?.scrollTop ?? 0
-              terminal.scrollToBottom()
-              const postScrollBottom = viewportEl?.scrollTop ?? 0
-              // Log when scrollToBottom causes a visible jump
-              if (Math.abs(postScrollBottom - preScrollBottom) > 50) {
-                console.log(`[scroll-diag] scrollToBottom jump`, JSON.stringify({
-                  scrollTopBefore: preScrollBottom,
-                  scrollTopAfter: postScrollBottom,
-                  delta: postScrollBottom - preScrollBottom,
-                  viewportY: terminal.buffer.active.viewportY,
-                  baseY: terminal.buffer.active.baseY,
-                  hasCursorUp, hasCursorMove,
-                }))
-              }
-              if (!helpers.isAtBottom()) {
-                scrollTracking.logScrollDiag?.('scrollToBottom not at bottom after write, scheduling rAF retry')
-                scrollTracking.state.pendingScrollRAF = requestAnimationFrame(() => {
-                  scrollTracking.state.pendingScrollRAF = 0
-                  if (s.isFollowingRef.current) terminal.scrollToBottom()
-                })
-              }
-            }
-          })
-
-          if (!syncCheckTimeout) {
-            syncCheckTimeout = setTimeout(() => {
-              syncCheckTimeout = null
-              if (helpers.isViewportDesynced() || helpers.isScrollStuck(1) || helpers.isScrollStuck(-1)) {
-                scrollTracking.logScrollDiag?.('sync check: forcing viewport sync', {
-                  desynced: helpers.isViewportDesynced(),
-                  stuckDown: helpers.isScrollStuck(1),
-                  stuckUp: helpers.isScrollStuck(-1),
-                })
-                helpers.forceViewportSync()
-              }
-            }, 500)
-          }
-
-          if (isAgent) {
-            s.processPlanDetection(data)
-            const now = Date.now()
-            const result = evaluateActivity(data.length, now, {
-              lastUserInput: s.lastUserInputRef.current,
-              lastInteraction: s.lastInteractionRef.current,
-              lastStatus: s.lastStatusRef.current,
-              startTime: effectStartTime,
-            })
-            if (result.status === 'working') {
-              if (s.idleTimeoutRef.current) clearTimeout(s.idleTimeoutRef.current)
-              s.lastStatusRef.current = 'working'
-              s.scheduleUpdate({ status: 'working' })
-            }
-            if (result.scheduleIdle) {
-              if (result.status !== 'working' && s.idleTimeoutRef.current) clearTimeout(s.idleTimeoutRef.current)
-              s.idleTimeoutRef.current = setTimeout(() => {
-                s.lastStatusRef.current = 'idle'
-                s.scheduleUpdate({ status: 'idle' })
-              }, 1000)
-            }
-          }
+        const dataHandler = createPtyDataHandler({
+          terminal,
+          viewportEl,
+          helpers,
+          scrollTracking,
+          isAgent,
+          state: s,
+          effectStartTime,
         })
+        const removeDataListener = window.pty.onData(id, dataHandler.handleData)
 
         const removeExitListener = window.pty.onExit(id, (exitCode: number) => {
           terminal.write(`\r\n[Process exited with code ${exitCode}]\r\n`)
@@ -535,7 +439,7 @@ export function useTerminalSetup(
           }
         })
 
-        s.cleanupRef.current = () => { removeDataListener(); removeExitListener() }
+        s.cleanupRef.current = () => { dataHandler.clearTimers(); removeDataListener(); removeExitListener() }
       })
       .catch((err: unknown) => {
         const errorMsg = `Failed to start terminal: ${err instanceof Error ? err.message : String(err)}`
@@ -574,7 +478,6 @@ export function useTerminalSetup(
       scrollContainer.removeEventListener('keydown', scrollTracking.handleKeyScroll)
       resizeObserver.disconnect()
       if (ptyResizeTimeout) clearTimeout(ptyResizeTimeout)
-      if (syncCheckTimeout) clearTimeout(syncCheckTimeout)
       if (scrollTracking.state.pendingScrollRAF) cancelAnimationFrame(scrollTracking.state.pendingScrollRAF)
       s.cleanupRef.current?.()
       if (s.ptyIdRef.current) { void window.pty.kill(s.ptyIdRef.current); s.ptyIdRef.current = null }
