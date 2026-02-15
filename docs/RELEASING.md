@@ -83,9 +83,30 @@ xcrun notarytool store-credentials "broomy-notarize" \
   --password "xxxx-xxxx-xxxx-xxxx"
 ```
 
-## Building a Signed Release
+## Full Release (Recommended)
 
-### Quick Method
+The easiest way to cut a release is the all-in-one script:
+
+```bash
+pnpm release:all <patch|minor|major>
+```
+
+This runs the entire pipeline in order:
+
+1. Pre-flight checks (must be on `main`, clean working tree, signing credentials present)
+2. Lint, typecheck, and unit tests
+3. Version bump (`package.json` + `website/package.json`)
+4. Commit and tag (`vX.Y.Z`)
+5. Signed build with notarization (`pnpm dist:signed`)
+6. Confirmation prompt showing version, tag, and artifacts
+7. Push commit and tag to origin
+8. Create GitHub release with artifacts
+
+If anything fails, the script stops immediately. If you decline at the confirmation prompt, the commit and tag remain local-only (the script prints undo instructions).
+
+## Building a Signed Release (Without Publishing)
+
+If you only want to build without publishing:
 
 ```bash
 pnpm dist:signed
@@ -93,7 +114,7 @@ pnpm dist:signed
 
 This script loads your `.env`, enables notarization, and runs the full build. See [what it does](#what-dist-signed-does) below.
 
-### Manual Method
+## Manual Method
 
 If you prefer to run each step yourself:
 
@@ -110,29 +131,16 @@ pnpm build && electron-builder --mac -c.mac.notarize.teamId="$APPLE_TEAM_ID"
 # 3. Verify the result is signed and notarized
 codesign --verify --deep --strict dist/mac-arm64/Broomy.app
 spctl --assess --type execute dist/mac-arm64/Broomy.app
-```
 
-## Publishing a GitHub Release
-
-Once the signed artifacts are in `dist/`:
-
-```bash
-# 1. Bump the version in package.json (if you haven't already)
-# 2. Commit and tag
-git add package.json
+# 4. Bump the version, commit, tag, push
+pnpm version:bump patch
+git add package.json website/package.json
 git commit -m "Release v1.2.3"
 git tag v1.2.3
-
-# 3. Push
 git push && git push --tags
 
-# 4. Create the GitHub release
+# 5. Create the GitHub release
 pnpm release
-```
-
-The `release` script runs:
-```
-gh release create v$version dist/*.dmg dist/*.zip --title "Broomy v$version" --generate-notes
 ```
 
 ## What `dist:signed` Does
