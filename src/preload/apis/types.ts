@@ -106,7 +106,6 @@ export type LayoutSizesData = {
   fileViewerSize: number
   userTerminalHeight: number
   diffPanelWidth: number
-  reviewPanelWidth: number
   tutorialPanelWidth: number
 }
 
@@ -129,14 +128,12 @@ export type SessionData = {
   // New generic panel visibility
   panelVisibility?: PanelVisibility
   // Legacy fields for backwards compat
-  showAgentTerminal?: boolean
-  showUserTerminal?: boolean
   showExplorer?: boolean
   showFileViewer?: boolean
   showDiff?: boolean
   fileViewerPosition?: 'top' | 'left'
   layoutSizes?: LayoutSizesData
-  explorerFilter?: 'all' | 'changed' | 'files' | 'source-control' | 'search' | 'recent'
+  explorerFilter?: 'all' | 'changed' | 'files' | 'source-control' | 'search' | 'recent' | 'review'
   terminalTabs?: unknown
   // Push to main tracking
   pushedToMainAt?: number

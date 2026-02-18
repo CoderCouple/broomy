@@ -1,9 +1,10 @@
 import type { ExplorerProps } from './types'
-import { FileTreeIcon, SourceControlIcon, SearchIcon, RecentIcon } from './icons'
+import { FileTreeIcon, SourceControlIcon, SearchIcon, RecentIcon, ReviewIcon } from './icons'
 import { FileTree } from './FileTree'
 import { SourceControl } from './SourceControl'
 import { SearchPanel } from './SearchPanel'
 import { RecentFiles } from './RecentFiles'
+import ReviewPanel from '../review'
 
 export default function Explorer({
   directory,
@@ -25,7 +26,8 @@ export default function Explorer({
   onUpdatePrState,
   repoId,
   agentPtyId,
-  onOpenReview,
+  session,
+  repo,
 }: ExplorerProps) {
   if (!directory) {
     return (
@@ -85,6 +87,17 @@ export default function Explorer({
           >
             <RecentIcon />
           </button>
+          <button
+            onClick={() => onFilterChange('review')}
+            className={`p-1 rounded transition-colors ${
+              filter === 'review'
+                ? 'bg-accent text-white'
+                : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+            }`}
+            title="Review"
+          >
+            <ReviewIcon />
+          </button>
         </div>
       </div>
 
@@ -136,7 +149,7 @@ export default function Explorer({
             pushedToMainCommit={pushedToMainCommit}
             onRecordPushToMain={onRecordPushToMain}
             onClearPushToMain={onClearPushToMain}
-            onOpenReview={onOpenReview}
+            onOpenReview={() => onFilterChange('review')}
           />
         )}
 
@@ -153,6 +166,16 @@ export default function Explorer({
             onFileSelect={onFileSelect}
             selectedFilePath={selectedFilePath}
             directory={directory}
+          />
+        )}
+
+        {filter === 'review' && session && (
+          <ReviewPanel
+            session={session}
+            repo={repo}
+            onSelectFile={(filePath, openInDiffMode, scrollToLine, diffBaseRef) => {
+              onFileSelect?.({ filePath, openInDiffMode, scrollToLine, diffBaseRef })
+            }}
           />
         )}
       </div>

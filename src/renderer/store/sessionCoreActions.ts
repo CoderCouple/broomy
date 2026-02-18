@@ -18,33 +18,27 @@ const DEFAULT_LAYOUT_SIZES = {
   fileViewerSize: 300,
   userTerminalHeight: 192, // 12rem = 192px
   diffPanelWidth: 320, // 20rem = 320px
-  reviewPanelWidth: 320,
   tutorialPanelWidth: 320,
 }
 
 // Default panel visibility for new sessions
 const DEFAULT_PANEL_VISIBILITY: PanelVisibility = {
-  [PANEL_IDS.AGENT_TERMINAL]: true,
-  [PANEL_IDS.USER_TERMINAL]: true,
   [PANEL_IDS.EXPLORER]: true,
   [PANEL_IDS.FILE_VIEWER]: false,
 }
 
 // Panel visibility for review sessions
 const REVIEW_PANEL_VISIBILITY: PanelVisibility = {
-  [PANEL_IDS.AGENT_TERMINAL]: true,
-  [PANEL_IDS.USER_TERMINAL]: false,
-  [PANEL_IDS.EXPLORER]: false,
+  [PANEL_IDS.EXPLORER]: true,
   [PANEL_IDS.FILE_VIEWER]: false,
-  [PANEL_IDS.REVIEW]: true,
 }
 
-// Default terminal tabs - starts with one tab
+// Default terminal tabs - starts with one user tab, agent tab selected by default (null → agent)
 const createDefaultTerminalTabs = (): TerminalTabsState => {
   const id = `tab-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
   return {
     tabs: [{ id, name: 'Terminal' }],
-    activeTabId: id,
+    activeTabId: null,
   }
 }
 
@@ -155,8 +149,6 @@ export function createCoreActions(get: StoreGet, set: StoreSet) {
             prUrl: sessionData.prUrl,
             prBaseBranch: sessionData.prBaseBranch,
             panelVisibility,
-            showAgentTerminal: panelVisibility[PANEL_IDS.AGENT_TERMINAL] ?? true,
-            showUserTerminal: panelVisibility[PANEL_IDS.USER_TERMINAL] ?? false,
             showExplorer: panelVisibility[PANEL_IDS.EXPLORER] ?? false,
             showFileViewer: panelVisibility[PANEL_IDS.FILE_VIEWER] ?? false,
             showDiff: sessionData.showDiff ?? false,
@@ -251,8 +243,6 @@ export function createCoreActions(get: StoreGet, set: StoreSet) {
         agentId,
         ...extra,
         panelVisibility,
-        showAgentTerminal: panelVisibility[PANEL_IDS.AGENT_TERMINAL] ?? true,
-        showUserTerminal: panelVisibility[PANEL_IDS.USER_TERMINAL] ?? false,
         showExplorer: panelVisibility[PANEL_IDS.EXPLORER] ?? false,
         showFileViewer: panelVisibility[PANEL_IDS.FILE_VIEWER] ?? false,
         showDiff: false,
@@ -260,7 +250,7 @@ export function createCoreActions(get: StoreGet, set: StoreSet) {
         planFilePath: null,
         fileViewerPosition: 'top',
         layoutSizes: { ...DEFAULT_LAYOUT_SIZES },
-        explorerFilter: 'files',
+        explorerFilter: isReview ? 'review' : 'files',
         lastMessage: null,
         lastMessageTime: null,
         isUnread: false,
@@ -274,24 +264,12 @@ export function createCoreActions(get: StoreGet, set: StoreSet) {
       const { sessions, globalPanelVisibility, sidebarWidth, toolbarPanels } = get()
       const updatedSessions = [...sessions, newSession]
 
-      let updatedToolbarPanels = toolbarPanels
-      if (extra?.sessionType === 'review' && !toolbarPanels.includes(PANEL_IDS.REVIEW)) {
-        const settingsIdx = toolbarPanels.indexOf(PANEL_IDS.SETTINGS)
-        updatedToolbarPanels = [...toolbarPanels]
-        if (settingsIdx >= 0) {
-          updatedToolbarPanels.splice(settingsIdx, 0, PANEL_IDS.REVIEW)
-        } else {
-          updatedToolbarPanels.push(PANEL_IDS.REVIEW)
-        }
-        set({ toolbarPanels: updatedToolbarPanels })
-      }
-
       set({
         sessions: updatedSessions,
         activeSessionId: id,
       })
 
-      debouncedSave(updatedSessions, globalPanelVisibility, sidebarWidth, updatedToolbarPanels)
+      debouncedSave(updatedSessions, globalPanelVisibility, sidebarWidth, toolbarPanels)
     },
 
     removeSession: (id: string) => {

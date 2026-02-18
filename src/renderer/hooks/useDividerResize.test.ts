@@ -2,22 +2,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useDividerResize } from './useDividerResize'
-import type { LayoutSizes } from '../store/sessions'
 
 function makeParams(overrides: Partial<Parameters<typeof useDividerResize>[0]> = {}) {
   return {
     fileViewerPosition: 'top' as const,
     sidebarWidth: 224,
     showSidebar: true,
-    showExplorer: true,
-    layoutSizes: {
-      explorerWidth: 250,
-      fileViewerSize: 300,
-      userTerminalHeight: 200,
-      diffPanelWidth: 400,
-      reviewPanelWidth: 350,
-      tutorialPanelWidth: 300,
-    } satisfies LayoutSizes,
     onSidebarWidthChange: vi.fn(),
     onLayoutSizeChange: vi.fn(),
     ...overrides,
@@ -126,59 +116,6 @@ describe('useDividerResize', () => {
     expect(params.onLayoutSizeChange).toHaveBeenCalledWith('explorerWidth', 300)
   })
 
-  // --- review drag ---
-  it('review drag accounts for sidebar and explorer width', () => {
-    const params = makeParams({
-      showSidebar: true,
-      sidebarWidth: 200,
-      showExplorer: true,
-      layoutSizes: {
-        explorerWidth: 250,
-        fileViewerSize: 300,
-        userTerminalHeight: 200,
-        diffPanelWidth: 400,
-        reviewPanelWidth: 350,
-        tutorialPanelWidth: 300,
-      },
-    })
-    const { result } = renderHook(() => useDividerResize(params))
-
-    Object.defineProperty(result.current.mainContentRef, 'current', {
-      value: { getBoundingClientRect: () => ({ left: 0, top: 0, right: 1200, bottom: 800, width: 1200, height: 800 }) },
-      writable: true,
-    })
-
-    act(() => {
-      result.current.handleMouseDown('review')({ preventDefault: vi.fn() } as unknown as React.MouseEvent)
-    })
-
-    // offset = 200 (sidebar) + 250 (explorer) = 450, clientX = 750, newWidth = 300
-    act(() => fireMouseEvent('mousemove', 750))
-    expect(params.onLayoutSizeChange).toHaveBeenCalledWith('reviewPanelWidth', 300)
-  })
-
-  it('review drag clamps to 250..600', () => {
-    const params = makeParams({ showSidebar: false, showExplorer: false })
-    const { result } = renderHook(() => useDividerResize(params))
-
-    Object.defineProperty(result.current.mainContentRef, 'current', {
-      value: { getBoundingClientRect: () => ({ left: 0, top: 0, right: 1200, bottom: 800, width: 1200, height: 800 }) },
-      writable: true,
-    })
-
-    act(() => {
-      result.current.handleMouseDown('review')({ preventDefault: vi.fn() } as unknown as React.MouseEvent)
-    })
-
-    // Below min -> 250
-    act(() => fireMouseEvent('mousemove', 100))
-    expect(params.onLayoutSizeChange).toHaveBeenCalledWith('reviewPanelWidth', 250)
-
-    // Above max -> 600
-    act(() => fireMouseEvent('mousemove', 900))
-    expect(params.onLayoutSizeChange).toHaveBeenCalledWith('reviewPanelWidth', 600)
-  })
-
   // --- fileViewer drag (top position) ---
   it('fileViewer drag in top position adjusts height', () => {
     const params = makeParams({ fileViewerPosition: 'top' })
@@ -259,47 +196,6 @@ describe('useDividerResize', () => {
     // Above max (600 - 200 = 400) -> 400
     act(() => fireMouseEvent('mousemove', 800))
     expect(params.onLayoutSizeChange).toHaveBeenCalledWith('fileViewerSize', 400)
-  })
-
-  // --- userTerminal drag ---
-  it('userTerminal drag adjusts height from bottom', () => {
-    const params = makeParams()
-    const { result } = renderHook(() => useDividerResize(params))
-
-    Object.defineProperty(result.current.containerRef, 'current', {
-      value: { getBoundingClientRect: () => ({ left: 0, top: 0, right: 1000, bottom: 800, width: 1000, height: 800 }) },
-      writable: true,
-    })
-
-    act(() => {
-      result.current.handleMouseDown('userTerminal')({ preventDefault: vi.fn() } as unknown as React.MouseEvent)
-    })
-
-    // bottom = 800, clientY = 500, newHeight = 300
-    act(() => fireMouseEvent('mousemove', 0, 500))
-    expect(params.onLayoutSizeChange).toHaveBeenCalledWith('userTerminalHeight', 300)
-  })
-
-  it('userTerminal drag clamps height 100..500', () => {
-    const params = makeParams()
-    const { result } = renderHook(() => useDividerResize(params))
-
-    Object.defineProperty(result.current.containerRef, 'current', {
-      value: { getBoundingClientRect: () => ({ left: 0, top: 0, right: 1000, bottom: 800, width: 1000, height: 800 }) },
-      writable: true,
-    })
-
-    act(() => {
-      result.current.handleMouseDown('userTerminal')({ preventDefault: vi.fn() } as unknown as React.MouseEvent)
-    })
-
-    // Below min: bottom=800, clientY=750, height=50 -> clamped to 100
-    act(() => fireMouseEvent('mousemove', 0, 750))
-    expect(params.onLayoutSizeChange).toHaveBeenCalledWith('userTerminalHeight', 100)
-
-    // Above max: bottom=800, clientY=100, height=700 -> clamped to 500
-    act(() => fireMouseEvent('mousemove', 0, 100))
-    expect(params.onLayoutSizeChange).toHaveBeenCalledWith('userTerminalHeight', 500)
   })
 
   // --- no ref available ---
