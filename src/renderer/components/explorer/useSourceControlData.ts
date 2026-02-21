@@ -205,7 +205,7 @@ export function useSourceControlData({
       setBehindMainCount(0)
       return
     }
-    if (branchStatus !== 'pushed' && branchStatus !== 'empty') {
+    if (branchStatus !== 'pushed' && branchStatus !== 'empty' && branchStatus !== 'open') {
       setBehindMainCount(0)
       return
     }

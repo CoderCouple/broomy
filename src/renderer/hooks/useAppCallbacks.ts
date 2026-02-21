@@ -5,6 +5,7 @@ import { PANEL_IDS } from '../panels'
 import type { AgentConfig } from '../store/agents'
 import type { PrState } from '../utils/branchStatus'
 import type { DuplicateSessionResult } from '../store/sessionCoreActions'
+import { focusAgentTerminal } from '../utils/focusHelpers'
 
 interface AppCallbacksDeps {
   sessions: Session[]
@@ -104,14 +105,7 @@ export function useAppCallbacks({
 
   const handleSelectSession = useCallback((id: string) => {
     setActiveSession(id)
-    requestAnimationFrame(() => {
-      const container = document.querySelector('[data-panel-id="terminal"]')
-      if (!container) return
-      const xtermTextarea = container.querySelector<HTMLElement>('.xterm-helper-textarea')
-      if (xtermTextarea) {
-        xtermTextarea.focus()
-      }
-    })
+    focusAgentTerminal()
   }, [setActiveSession])
 
   const handleDeleteSession = useCallback((id: string, deleteWorktree: boolean) => {
