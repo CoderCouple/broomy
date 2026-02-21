@@ -1,4 +1,5 @@
 import type { SourceControlData } from './useSourceControlData'
+import { focusAgentTerminal } from '../../utils/focusHelpers'
 
 export interface SourceControlActionsProps {
   directory?: string
@@ -62,6 +63,7 @@ function createGitActions(
       } else if (result.hasConflicts) {
         if (agentPtyId) {
           await window.pty.write(agentPtyId, 'resolve all merge conflicts\r')
+          focusAgentTerminal()
           setAgentMergeMessage('Asked agent to resolve merge conflicts. Wait for the agent to finish, then commit the merge.')
         } else {
           setGitOpError({ operation: 'Sync with main', message: 'Merge conflicts detected. Resolve them manually.' })

@@ -6,6 +6,7 @@ import { SearchPanel } from './SearchPanel'
 import { RecentFiles } from './RecentFiles'
 import ReviewPanel from '../review'
 import { IssuePlanChip } from './IssuePlanChip'
+import { focusSearchInput } from '../../utils/focusHelpers'
 import PanelErrorBoundary from '../PanelErrorBoundary'
 
 export default function Explorer({
@@ -70,7 +71,7 @@ export default function Explorer({
             <SourceControlIcon />
           </button>
           <button
-            onClick={() => onFilterChange('search')}
+            onClick={() => { onFilterChange('search'); focusSearchInput() }}
             className={`p-1 rounded transition-colors ${
               filter === 'search'
                 ? 'bg-accent text-white'
