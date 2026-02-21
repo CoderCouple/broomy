@@ -1,5 +1,6 @@
 import type { Session } from '../../store/sessions'
 import type { ManagedRepo } from '../../../preload/index'
+import { CollapsibleSection } from './CollapsibleSection'
 import { GitignoreModal } from './GitignoreModal'
 import { ReviewContent } from './ReviewContent'
 import { useReviewData } from './useReviewData'
@@ -12,18 +13,24 @@ interface ReviewPanelProps {
 }
 
 export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanelProps) {
-  const state = useReviewData(session.id, session.directory, session.prBaseBranch)
+  const state = useReviewData(session.id, session.directory, session.prBaseBranch, session.prNumber)
 
   const {
     reviewData,
     comments,
     comparison,
     waitingForAgent,
+    fetchingStatus,
     pushing,
     pushResult,
     error,
     showGitignoreModal,
     unpushedCount,
+    prDescription,
+    prGitHubComments,
+    prCommentsLoading,
+    prCommentsHasMore,
+    loadOlderComments,
   } = state
 
   const {
@@ -113,16 +120,41 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
         {waitingForAgent && !reviewData && (
           <div className="flex items-center justify-center h-full text-text-primary px-4">
             <div className="text-center max-w-xs">
-              <div className="text-sm mb-3">
-                Review instructions have been pasted into your agent terminal.
-              </div>
-              <div className="text-sm text-text-secondary mb-4">
-                Press <kbd className="px-1.5 py-0.5 rounded bg-bg-tertiary border border-border font-mono text-xs">Enter</kbd> in the agent terminal to start the review.
-              </div>
-              <div className="text-xs text-text-secondary">
-                The review will appear here once your agent writes it to <code className="font-mono bg-bg-tertiary px-1 rounded">.broomy/review.json</code>
-              </div>
+              {fetchingStatus === 'fetching' ? (
+                <>
+                  <div className="text-sm mb-3 flex items-center justify-center gap-2">
+                    <svg className="animate-spin w-4 h-4 text-text-secondary" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Fetching {session.prBaseBranch || 'main'} to compare...
+                  </div>
+                  <div className="text-xs text-text-secondary">
+                    Pulling the latest changes before generating the review.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-sm mb-3">
+                    Review instructions have been pasted into your agent terminal.
+                  </div>
+                  <div className="text-sm text-text-secondary mb-4">
+                    Press <kbd className="px-1.5 py-0.5 rounded bg-bg-tertiary border border-border font-mono text-xs">Enter</kbd> in the agent terminal to start the review.
+                  </div>
+                  <div className="text-xs text-text-secondary">
+                    The review will appear here once your agent writes it to <code className="font-mono bg-bg-tertiary px-1 rounded">.broomy/review.json</code>
+                  </div>
+                </>
+              )}
             </div>
+          </div>
+        )}
+
+        {prDescription && !reviewData && !waitingForAgent && (
+          <div className="px-3 py-2">
+            <CollapsibleSection title="PR Description" defaultOpen={true}>
+              <div className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">{prDescription}</div>
+            </CollapsibleSection>
           </div>
         )}
 
@@ -133,6 +165,11 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
             comments={comments}
             unpushedCount={unpushedCount}
             directory={session.directory}
+            prDescription={prDescription}
+            prGitHubComments={prGitHubComments}
+            prCommentsLoading={prCommentsLoading}
+            prCommentsHasMore={prCommentsHasMore}
+            onLoadOlderComments={loadOlderComments}
             onClickLocation={handleClickLocation}
             onDeleteComment={handleDeleteComment}
           />

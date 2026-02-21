@@ -1,11 +1,28 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ReviewData, PendingComment, ReviewComparison, ReviewHistory } from '../../types/review'
+import { useGitHubPrData } from './useGitHubPrData'
+import { useReviewFilePoller } from './useReviewFilePoller'
+
+export type FetchingStatus = 'fetching' | 'pasted' | null
+
+export interface NormalizedComment {
+  id: number
+  body: string
+  author: string
+  createdAt: string
+  url: string
+  type: 'issue' | 'review'
+  path?: string
+  line?: number | null
+  inReplyToId?: number
+}
 
 export interface ReviewDataState {
   reviewData: ReviewData | null
   comments: PendingComment[]
   comparison: ReviewComparison | null
   waitingForAgent: boolean
+  fetchingStatus: FetchingStatus
   pushing: boolean
   pushResult: string | null
   error: string | null
@@ -18,10 +35,16 @@ export interface ReviewDataState {
   commentsFilePath: string
   historyFilePath: string
   promptFilePath: string
+  prDescription: string | null
+  prGitHubComments: NormalizedComment[]
+  prCommentsLoading: boolean
+  prCommentsHasMore: boolean
+  loadOlderComments: () => void
   setReviewData: React.Dispatch<React.SetStateAction<ReviewData | null>>
   setComments: React.Dispatch<React.SetStateAction<PendingComment[]>>
   setComparison: React.Dispatch<React.SetStateAction<ReviewComparison | null>>
   setWaitingForAgent: React.Dispatch<React.SetStateAction<boolean>>
+  setFetchingStatus: React.Dispatch<React.SetStateAction<FetchingStatus>>
   setPushing: React.Dispatch<React.SetStateAction<boolean>>
   setPushResult: React.Dispatch<React.SetStateAction<string | null>>
   setError: React.Dispatch<React.SetStateAction<string | null>>
@@ -30,19 +53,26 @@ export interface ReviewDataState {
   setMergeBase: React.Dispatch<React.SetStateAction<string>>
 }
 
-export function useReviewData(sessionId: string, sessionDirectory: string, prBaseBranch?: string): ReviewDataState {
+export function useReviewData(sessionId: string, sessionDirectory: string, prBaseBranch?: string, prNumber?: number): ReviewDataState {
   const currentSessionRef = useRef<string>(sessionId)
 
   const [reviewData, setReviewData] = useState<ReviewData | null>(null)
   const [comments, setComments] = useState<PendingComment[]>([])
   const [comparison, setComparison] = useState<ReviewComparison | null>(null)
   const [waitingForAgent, setWaitingForAgent] = useState(false)
+  const [fetchingStatus, setFetchingStatus] = useState<FetchingStatus>(null)
   const [pushing, setPushing] = useState(false)
   const [pushResult, setPushResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showGitignoreModal, setShowGitignoreModal] = useState(false)
   const [pendingGenerate, setPendingGenerate] = useState(false)
   const [mergeBase, setMergeBase] = useState<string>('')
+
+  // GitHub PR data (description + comments)
+  const {
+    prDescription, prGitHubComments, prCommentsLoading,
+    prCommentsHasMore, loadOlderComments, resetGitHubPrData,
+  } = useGitHubPrData(sessionId, sessionDirectory, prNumber)
 
   // All files live in .broomy folder in the repo
   const broomyDir = `${sessionDirectory}/.broomy`
@@ -59,11 +89,13 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
       setComments([])
       setComparison(null)
       setWaitingForAgent(false)
+      setFetchingStatus(null)
       setError(null)
       setPushResult(null)
       setMergeBase('')
+      resetGitHubPrData()
     }
-  }, [sessionId])
+  }, [sessionId, resetGitHubPrData])
 
   // Compute merge-base for correct PR diffs
   useEffect(() => {
@@ -150,92 +182,12 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
   }, [reviewData, historyFilePath, broomyDir])
 
   // Poll for review.json and comments.json changes every second
-  const lastSeenGeneratedAtRef = useRef<string | null>(null)
-  const lastSeenCommentsRef = useRef<string | null>(null)
-
-  // Keep the ref in sync with loaded review data
-  useEffect(() => {
-    lastSeenGeneratedAtRef.current = reviewData?.generatedAt ?? null
-  }, [reviewData])
-
-  useEffect(() => {
-    const updateReviewHistory = async (data: ReviewData) => {
-      try {
-        let history: ReviewHistory = { reviews: [] }
-
-        const historyExists = await window.fs.exists(historyFilePath)
-        if (historyExists) {
-          const content = await window.fs.readFile(historyFilePath)
-          history = JSON.parse(content) as ReviewHistory
-        }
-
-        // Add this review to history if it has a different commit
-        const alreadyExists = history.reviews.some(r => r.headCommit === data.headCommit)
-        if (!alreadyExists && data.headCommit) {
-          history.reviews.unshift({
-            generatedAt: data.generatedAt,
-            headCommit: data.headCommit,
-            requestedChanges: data.requestedChanges || [],
-          })
-          // Keep only last 10 reviews
-          history.reviews = history.reviews.slice(0, 10)
-          await window.fs.writeFile(historyFilePath, JSON.stringify(history, null, 2))
-        }
-      } catch {
-        // Non-fatal
-      }
-    }
-
-    const interval = setInterval(() => {
-      void (async () => {
-        // Check for review.json changes
-        try {
-          const exists = await window.fs.exists(reviewFilePath)
-          if (exists) {
-            const content = await window.fs.readFile(reviewFilePath)
-            const data = JSON.parse(content) as ReviewData
-
-            // Only update if the review has changed
-            if (data.generatedAt !== lastSeenGeneratedAtRef.current) {
-              // Add head commit if not present
-              if (!data.headCommit) {
-                const headCommit = await window.git.headCommit(sessionDirectory)
-                if (headCommit) {
-                  data.headCommit = headCommit
-                  await window.fs.writeFile(reviewFilePath, JSON.stringify(data, null, 2))
-                }
-              }
-
-              await updateReviewHistory(data)
-              setReviewData(data)
-              setWaitingForAgent(false)
-            }
-          } else if (lastSeenGeneratedAtRef.current !== null) {
-            // File was deleted
-            setReviewData(null)
-          }
-        } catch {
-          // File may not exist yet or be partially written
-        }
-
-        // Check for comments.json changes
-        try {
-          const exists = await window.fs.exists(commentsFilePath)
-          if (exists) {
-            const content = await window.fs.readFile(commentsFilePath)
-            if (content !== lastSeenCommentsRef.current) {
-              lastSeenCommentsRef.current = content
-              setComments(JSON.parse(content))
-            }
-          }
-        } catch {
-          // Non-fatal
-        }
-      })()
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [reviewFilePath, commentsFilePath, sessionDirectory, historyFilePath])
+  useReviewFilePoller({
+    reviewFilePath, commentsFilePath, historyFilePath, sessionDirectory,
+    reviewData, setReviewData,
+    setComments: setComments as React.Dispatch<React.SetStateAction<unknown[]>>,
+    setWaitingForAgent,
+  })
 
   const unpushedCount = comments.filter(c => !c.pushed).length
 
@@ -244,6 +196,7 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
     comments,
     comparison,
     waitingForAgent,
+    fetchingStatus,
     pushing,
     pushResult,
     error,
@@ -252,6 +205,11 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
     mergeBase,
     unpushedCount,
     broomyDir,
+    prDescription,
+    prGitHubComments,
+    prCommentsLoading,
+    prCommentsHasMore,
+    loadOlderComments,
     reviewFilePath,
     commentsFilePath,
     historyFilePath,
@@ -260,6 +218,7 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
     setComments,
     setComparison,
     setWaitingForAgent,
+    setFetchingStatus,
     setPushing,
     setPushResult,
     setError,
