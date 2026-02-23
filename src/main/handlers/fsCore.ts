@@ -198,7 +198,11 @@ async function handleReadFile(ctx: HandlerContext, filePath: string) {
         '',
         '## Contributing',
         '',
-        'We welcome contributions from the community. Please read our contributing guidelines, set up your development environment following the instructions above, create a feature branch, write tests for your changes, and submit a pull request with a clear description of what you changed and why.',
+        'We welcome contributions from the community. Please read our [contributing guidelines](https://github.com/example/project/blob/main/CONTRIBUTING.md), set up your development environment following the instructions above, create a feature branch, write tests for your changes, and submit a pull request with a clear description of what you changed and why.',
+        '',
+        '## Resources',
+        '',
+        'For more information, see the [API documentation](https://docs.example.com/api) and the [project homepage](https://example.com).',
       ].join('\n')
     }
     // E2E mode: fake review data for ReviewPanel (non-screenshot mode)
