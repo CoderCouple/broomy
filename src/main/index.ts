@@ -218,7 +218,13 @@ function buildAppMenu() {
         { role: 'cut' },
         { role: 'copy' },
         { role: 'paste' },
-        { role: 'selectAll' },
+        {
+          label: 'Select All',
+          accelerator: 'CmdOrCtrl+A',
+          click: (_, browserWindow) => {
+            browserWindow?.webContents.send('menu:select-all')
+          },
+        },
       ],
     },
     {
