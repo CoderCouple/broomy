@@ -46,5 +46,8 @@ coverage/
 tests/features/*/index.html
 tests/features/index.html
 
+# Release screenshot comparison output
+release-compare/
+
 # Broomy review data
 .broomy/

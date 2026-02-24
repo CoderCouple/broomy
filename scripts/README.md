@@ -19,6 +19,13 @@ Development scripts are invoked by `package.json` commands (`pnpm dev`, `pnpm di
 |------|-------------|
 | `dist-signed.sh` | Builds, code-signs, and notarizes Broomy for macOS. Loads signing credentials from `.env`, verifies the signing identity in the keychain, runs `pnpm build`, then packages with `electron-builder` with notarization enabled. Verifies the output signature afterward. |
 
+## Release
+
+| File | Description |
+|------|-------------|
+| `release-screenshot-compare.sh` | Compares screenshots between the last release tag and current code. Checks out the last `v*` tag, runs all feature doc walkthroughs to generate baseline screenshots, switches back to the current branch, runs them again, then uses `compare-screenshots.cjs` to produce a pixel-diff HTML report in `release-compare/`. Run via `pnpm release:compare`. |
+| `compare-screenshots.cjs` | Node.js helper called by `release-screenshot-compare.sh`. Walks baseline and current screenshot directories, uses `pixelmatch` to compute pixel diffs, generates diff overlay images, and produces `comparison.json` + `index.html` in the output directory. |
+
 ## Fake Agents (E2E Testing)
 
 Shell scripts that simulate AI agent terminal output for E2E tests. Each script outputs a `FAKE_CLAUDE_READY` marker on start and a `FAKE_CLAUDE_IDLE` marker when it stops producing output, then sleeps indefinitely.
