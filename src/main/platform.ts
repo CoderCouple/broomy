@@ -7,6 +7,8 @@
  */
 import { chmodSync, existsSync } from 'fs'
 import { execFileSync } from 'child_process'
+import { homedir } from 'os'
+import { join } from 'path'
 
 export const isWindows = process.platform === 'win32'
 export const isMac = process.platform === 'darwin'
@@ -130,6 +132,42 @@ const WINDOWS_KNOWN_PATHS: Record<string, string[]> = {
 }
 
 /**
+ * Known install paths that depend on the user's home directory.
+ * Covers the default agents (claude, codex, gemini, copilot) and gh.
+ *
+ * Claude: native installer → %USERPROFILE%\.local\bin; npm → %APPDATA%\npm
+ * Codex:  npm only → %APPDATA%\npm
+ * Gemini: npm only → %APPDATA%\npm
+ * gh:     winget → WindowsApps; MSI → Program Files; scoop → scoop\shims
+ */
+function getWindowsKnownPaths(cmd: string): string[] {
+  const staticPaths = WINDOWS_KNOWN_PATHS[cmd] ?? []
+  const home = homedir()
+  const npmBin = join(home, 'AppData', 'Roaming', 'npm')
+  const localBin = join(home, '.local', 'bin')
+
+  const userPaths: Record<string, string[]> = {
+    claude: [
+      join(localBin, 'claude.exe'),
+      join(npmBin, 'claude.cmd'),
+    ],
+    codex: [
+      join(npmBin, 'codex.cmd'),
+    ],
+    gemini: [
+      join(npmBin, 'gemini.cmd'),
+    ],
+    gh: [
+      ...staticPaths,
+      join(home, 'AppData', 'Local', 'Microsoft', 'WindowsApps', 'gh.exe'),
+      join(home, 'scoop', 'shims', 'gh.exe'),
+    ],
+  }
+
+  return userPaths[cmd] ?? staticPaths
+}
+
+/**
  * Resolve a command to its full path on Windows.
  *
  * Tries `whichSync()` first (which uses `where`), then falls back to
@@ -144,8 +182,8 @@ export function resolveWindowsCommand(cmd: string): string | null {
   // On non-Windows, nothing more to try
   if (!isWindows) return null
 
-  // Check well-known install locations
-  const knownPaths = WINDOWS_KNOWN_PATHS[cmd] ?? []
+  // Check well-known install locations (includes user-relative paths)
+  const knownPaths = getWindowsKnownPaths(cmd)
   for (const p of knownPaths) {
     if (existsSync(p)) return p
   }

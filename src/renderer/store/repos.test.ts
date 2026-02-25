@@ -49,6 +49,18 @@ describe('useRepoStore', () => {
       expect(useRepoStore.getState().defaultCloneDir).toBe('/Users/test/projects')
     })
 
+    it('normalizes Windows backslashes in defaultCloneDir from config', async () => {
+      vi.mocked(window.config.load).mockResolvedValue({
+        agents: [],
+        sessions: [],
+        repos: [],
+        defaultCloneDir: 'C:\\Users\\isaac\\repos',
+      })
+
+      await useRepoStore.getState().loadRepos()
+      expect(useRepoStore.getState().defaultCloneDir).toBe('C:/Users/isaac/repos')
+    })
+
     it('defaults defaultCloneDir to ~/repos when not configured', async () => {
       vi.mocked(window.config.load).mockResolvedValue({
         agents: [],
@@ -173,6 +185,11 @@ describe('useRepoStore', () => {
     it('handles absolute paths', async () => {
       await useRepoStore.getState().setDefaultCloneDir('/absolute/path')
       expect(useRepoStore.getState().defaultCloneDir).toBe('/absolute/path')
+    })
+
+    it('normalizes Windows backslashes to forward slashes', async () => {
+      await useRepoStore.getState().setDefaultCloneDir('C:\\Users\\isaac\\repos')
+      expect(useRepoStore.getState().defaultCloneDir).toBe('C:/Users/isaac/repos')
     })
   })
 

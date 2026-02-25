@@ -2,8 +2,24 @@ import { BrowserWindow, IpcMain } from 'electron'
 import { join } from 'path'
 import { homedir } from 'os'
 import * as pty from 'node-pty'
-import { isWindows, getDefaultShell } from '../platform'
+import { isWindows, getDefaultShell, resolveWindowsCommand } from '../platform'
 import { HandlerContext } from './types'
+
+/**
+ * On Windows, resolve the base command to its full path so agents installed
+ * outside PATH (e.g. %USERPROFILE%\.local\bin) can still be launched.
+ */
+function resolveInitialCommand(command: string, isE2ETest: boolean): string {
+  if (!isWindows || isE2ETest) return command
+  const parts = command.trim().split(/\s+/)
+  const baseCmd = parts[0]
+  const resolved = resolveWindowsCommand(baseCmd)
+  if (resolved && resolved !== baseCmd) {
+    parts[0] = `"${resolved}"`
+    return parts.join(' ')
+  }
+  return command
+}
 
 export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
   ipcMain.handle('pty:create', (_event, options: { id: string; cwd: string; command?: string; sessionId?: string; env?: Record<string, string>; shell?: string }) => {
@@ -132,6 +148,7 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
 
     // If a command was specified (or in E2E test mode), run it after shell starts
     if (initialCommand) {
+      initialCommand = resolveInitialCommand(initialCommand, ctx.isE2ETest)
       setTimeout(() => {
         ptyProcess.write(`${initialCommand  }\r`)
       }, 100)

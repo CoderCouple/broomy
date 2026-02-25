@@ -160,14 +160,42 @@ test.describe.serial('Feature: Windows Support', () => {
     await page.waitForTimeout(300)
   })
 
-  test('Step 4: Full window layout', async () => {
+  test('Step 4: Agent not-installed warning with install link', async () => {
+    // Open the new session dialog by clicking the "+" button
+    const addButton = page.locator('button:has(svg path[d="M12 4v16m8-8H4"])').first()
+    if (await addButton.isVisible()) {
+      await addButton.click()
+      await page.waitForTimeout(500)
+
+      // If we get to the agent picker, screenshot the area
+      const agentPicker = page.locator('text=Select Agent').first()
+      if (await agentPicker.isVisible({ timeout: 2000 }).catch(() => false)) {
+        const dialog = page.locator('.space-y-2').first()
+        await screenshotElement(page, dialog, path.join(SCREENSHOTS, '04-agent-picker.png'))
+        steps.push({
+          screenshotPath: 'screenshots/04-agent-picker.png',
+          caption: 'Agent picker with install status badges',
+          description:
+            'The agent picker shows "not installed" badges for agents whose commands are not found ' +
+            'on the system PATH. Clicking an uninstalled agent shows a warning with a direct "Install" ' +
+            'link that opens the agent\'s documentation page in the default browser.',
+        })
+      }
+
+      // Close the dialog by pressing Escape
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(300)
+    }
+  })
+
+  test('Step 5: Full window layout', async () => {
     // Screenshot the full window to show overall layout
     await page.screenshot({
-      path: path.join(SCREENSHOTS, '04-full-layout.png'),
+      path: path.join(SCREENSHOTS, '05-full-layout.png'),
       type: 'png',
     })
     steps.push({
-      screenshotPath: 'screenshots/04-full-layout.png',
+      screenshotPath: 'screenshots/05-full-layout.png',
       caption: 'Full application window layout',
       description:
         'The complete application layout. On Windows, the title bar uses a hidden style with ' +
