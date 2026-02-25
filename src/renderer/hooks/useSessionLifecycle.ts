@@ -1,3 +1,6 @@
+/**
+ * Manages session lifecycle including initial data loading, profile switching, session read marking, and window focus behavior.
+ */
 import { useEffect, useCallback, useState } from 'react'
 import type { Session } from '../store/sessions'
 import type { ProfileData } from '../store/profiles'

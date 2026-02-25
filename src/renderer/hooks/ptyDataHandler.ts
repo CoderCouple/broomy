@@ -1,3 +1,6 @@
+/**
+ * Handles incoming PTY data by writing to the xterm instance, managing auto-scroll behavior, and detecting agent activity transitions.
+ */
 import { Terminal as XTerm } from '@xterm/xterm'
 import { evaluateActivity } from '../utils/terminalActivityDetector'
 

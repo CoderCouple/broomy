@@ -1,3 +1,9 @@
+/**
+ * IPC handlers for pseudo-terminal (PTY) lifecycle management.
+ *
+ * Creates, resizes, writes to, and destroys PTY processes using node-pty.
+ * In E2E mode, spawns a fake shell script for deterministic test output.
+ */
 import { BrowserWindow, IpcMain } from 'electron'
 import { join } from 'path'
 import { homedir } from 'os'

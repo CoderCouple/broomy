@@ -1,3 +1,6 @@
+/**
+ * Session store actions for toggling panels, managing layout sizes, and toolbar configuration.
+ */
 import { PANEL_IDS } from '../panels/types'
 import type { Session, PanelVisibility } from './sessions'
 import { debouncedSave, syncLegacyFields } from './sessionPersistence'

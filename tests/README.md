@@ -17,9 +17,14 @@ The `E2E_HEADLESS` environment variable controls window visibility -- set to `'f
 | File | Description |
 |------|-------------|
 | `global-setup.ts` | Runs once before all tests: ensures the Electron binary is downloaded and runs `pnpm build` so every spec can skip its own build step. |
+| `global-teardown.ts` | Playwright global teardown: cleans up the Vite dev server started in dev mode. |
+| `build-main-preload.mjs` | Builds only the main and preload processes (skips the slow renderer build). Used by E2E dev mode where the renderer is served by the Vite dev server. |
+| `vite-renderer.config.ts` | Vite config for serving the renderer in E2E dev mode. Mirrors the renderer section of `electron.vite.config.ts`. |
 | `app.spec.ts` | Core app E2E tests covering session display, sidebar navigation, panel toggling (Explorer, Terminal), session switching, terminal persistence across session changes, and shell integration with the fake Claude script. |
 | `screenshots.spec.ts` | Generates marketing screenshots by launching the app in screenshot mode (`E2E_SCENARIO=marketing`), injecting varied session states (working, idle, unread, pushed, merged, PR open), and capturing cropped screenshots of the sidebar, status cards, review panel, and explorer. |
-| `status-detection.spec.ts` | Validates the agent activity detection system: verifies that terminal output triggers "working" status, that silence after output transitions to "idle" status, and that the timing heuristics (1-second idle timeout) work correctly. |
-| `terminal-bigplan-scroll.spec.ts` | Tests terminal scrolling with large plan output. Covers two scenarios: single-chunk (all-at-once dump via `fake-claude-bigplan.sh`) and streaming chunks (small rapid writes via `fake-claude-streaming.sh`). Validates scroll-to-bottom after output, wheel-up/down round-trips, session-switch scroll preservation, resize behavior, and rapid scroll-during-output resilience. |
-| `terminal-dom-scroll.spec.ts` | Reproduces and regression-tests the original DOM scroll manipulation bug where setting `viewport.scrollTop = 0` was ignored because xterm's `onRender` auto-correct snapped it back to the bottom. Tests direct DOM `scrollTop` assignment and validates `scrollHeight` reflects all content. |
-| `terminal-scrolling.spec.ts` | Tests the core scroll UX: auto-scroll to bottom after large output, "Go to End" button visibility when scrolled up, scroll position stability when no new output arrives, manual scroll-to-bottom re-engagement, and scroll position preservation across window resizes. |
+| `keyboard-shortcuts.spec.ts` | Tests keyboard shortcuts for panel toggles (Cmd+1/2/3) and session navigation (Alt+ArrowUp/Down). |
+| `panels.spec.ts` | Tests toolbar panel toggling: verifying button display, and toggling Explorer, Settings, and Guide panels on and off. |
+| `sessions.spec.ts` | Tests the New Session dialog: opening, navigating between New Branch, Existing Branch, and Issues views, and verifying mock data display. |
+| `terminal-tabs.spec.ts` | Tests terminal tab management: default Agent tab, adding user terminal tabs, switching between tabs, and verifying shell prompt output. |
+
+The `features/` subdirectory contains feature documentation tests -- screenshot-driven walkthroughs that exercise feature flows and generate visual HTML reports. See the [Feature Documentation](../CLAUDE.md#feature-documentation) section of `CLAUDE.md` for details. Each feature has its own subdirectory under `features/` (e.g. `features/session-switching/`).

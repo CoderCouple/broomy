@@ -1,3 +1,6 @@
+/**
+ * Interactive onboarding checklist that guides users through initial setup steps.
+ */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/tutorial'
 

@@ -1,3 +1,6 @@
+/**
+ * IPC handler for extracting TypeScript project context, delegating to a worker thread.
+ */
 import { IpcMain } from 'electron'
 import { join } from 'path'
 import { runInWorker } from '../workerPool'

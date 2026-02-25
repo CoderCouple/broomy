@@ -1,3 +1,6 @@
+/**
+ * Banner component showing pull request status, sync actions, and merge conflict alerts.
+ */
 import type { GitFileStatus, GitStatusResult, GitHubPrStatus } from '../../../preload/index'
 import type { BranchStatus } from '../../store/sessions'
 import { prStateBadgeClass } from '../../utils/explorerHelpers'

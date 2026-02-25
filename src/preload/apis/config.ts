@@ -1,3 +1,6 @@
+/**
+ * Preload API for configuration, profiles, agents, and repository init scripts.
+ */
 import { ipcRenderer } from 'electron'
 import type { ConfigData, ProfilesData } from './types'
 

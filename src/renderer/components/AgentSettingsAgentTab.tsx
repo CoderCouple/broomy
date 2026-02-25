@@ -1,3 +1,6 @@
+/**
+ * Agent configuration tab for creating, editing, and deleting agent definitions.
+ */
 import type { RefObject } from 'react'
 import type { AgentConfig } from '../store/agents'
 import { EnvVarEditor, type EnvVarEditorRef } from './EnvVarEditor'

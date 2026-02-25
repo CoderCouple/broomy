@@ -1,3 +1,9 @@
+/**
+ * Worker thread that extracts TypeScript project context for agent prompts.
+ *
+ * Parses tsconfig.json (with extends support), collects all .ts/.tsx/.js/.jsx
+ * source files, and returns compiler options alongside file contents.
+ */
 import { parentPort, workerData } from 'worker_threads'
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'

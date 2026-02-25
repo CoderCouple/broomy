@@ -1,3 +1,6 @@
+/**
+ * Preload API for filesystem operations including reading, writing, searching, and watching files.
+ */
 import { ipcRenderer } from 'electron'
 import type { FileEntry, SearchResult } from './types'
 

@@ -1,3 +1,6 @@
+/**
+ * Core session store actions for creating, selecting, removing, and updating sessions.
+ */
 import { basename } from 'path-browserify'
 import { useErrorStore } from './errors'
 import { PANEL_IDS, DEFAULT_TOOLBAR_PANELS } from '../panels/types'

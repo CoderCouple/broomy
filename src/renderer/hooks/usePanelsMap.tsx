@@ -1,3 +1,6 @@
+/**
+ * Builds the map of panel ID to rendered React element for the layout system, wiring up each panel to active session state.
+ */
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import TabbedTerminal from '../components/TabbedTerminal'
 import PanelErrorBoundary from '../components/PanelErrorBoundary'

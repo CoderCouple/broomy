@@ -1,3 +1,6 @@
+/**
+ * Expandable section component with a title, optional count badge, and toggle arrow.
+ */
 import { useState } from 'react'
 
 export function CollapsibleSection({

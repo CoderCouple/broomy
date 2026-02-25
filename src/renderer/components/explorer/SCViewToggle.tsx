@@ -1,3 +1,6 @@
+/**
+ * Toggle bar for switching between source control views: uncommitted, branch, commits, and comments.
+ */
 import type { GitHubPrStatus } from '../../../preload/index'
 
 type SCView = 'working' | 'branch' | 'commits' | 'comments'

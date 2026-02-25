@@ -1,3 +1,6 @@
+/**
+ * Chip component that displays issue plan status and allows viewing or requesting a plan.
+ */
 import type { NavigationTarget } from '../../utils/fileNavigation'
 import { focusAgentTerminal } from '../../utils/focusHelpers'
 

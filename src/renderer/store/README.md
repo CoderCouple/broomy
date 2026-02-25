@@ -21,12 +21,26 @@ All stores follow the same lifecycle: **load from config on mount, mutate in-mem
 | File | Description |
 |------|-------------|
 | `sessions.ts` | Session state management: CRUD, panel visibility, layout sizes, agent monitoring, terminal tabs, branch status, PR tracking, and archive. The largest store. |
+| `sessionCoreActions.ts` | Core session actions extracted from the session store: creating, selecting, removing, and updating sessions, plus default layout sizes. |
+| `sessionBranchActions.ts` | Session store actions for branch status, PR state, and push-to-main tracking. |
+| `sessionPanelActions.ts` | Session store actions for toggling panels, managing layout sizes, and toolbar configuration. |
+| `sessionTerminalTabs.ts` | Session store actions for managing terminal tabs (add, remove, rename, reorder, activate). |
+| `sessionPersistence.ts` | Helpers for persisting session state to disk and migrating legacy panel visibility fields. |
+| `configPersistence.ts` | Unified config persistence: single source of truth for all config saves. Debounces and assembles the complete config from all Zustand stores before sending one atomic `config.save()` IPC call. |
 | `agents.ts` | Agent definitions store: CRUD for AI agent configurations (name, command), persisted per profile. |
 | `repos.ts` | Managed repositories store: CRUD for tracked repos, default clone directory, and GitHub CLI availability check. |
 | `profiles.ts` | Multi-window profiles store: profile list management, switching profiles (opens new Electron window), and reading the profile ID from the URL query parameter. |
 | `errors.ts` | Error tracking store: accumulates app errors (capped at 50), tracks unread state, and provides dismiss/clear actions. Purely in-memory, not persisted. |
+| `tutorial.ts` | Zustand store for tracking onboarding tutorial progress and step completion. |
 | `sessions.test.ts` | Unit tests for the session store. |
+| `sessionCoreActions.test.ts` | Unit tests for core session actions. |
+| `sessionBranchActions.test.ts` | Unit tests for branch actions. |
+| `sessionPanelActions.test.ts` | Unit tests for panel actions. |
+| `sessionTerminalTabs.test.ts` | Unit tests for terminal tab actions. |
+| `sessionPersistence.test.ts` | Unit tests for session persistence helpers. |
+| `configPersistence.test.ts` | Unit tests for unified config persistence. |
 | `agents.test.ts` | Unit tests for the agent store. |
 | `repos.test.ts` | Unit tests for the repo store. |
 | `profiles.test.ts` | Unit tests for the profile store. |
 | `errors.test.ts` | Unit tests for the error store. |
+| `tutorial.test.ts` | Unit tests for the tutorial store. |

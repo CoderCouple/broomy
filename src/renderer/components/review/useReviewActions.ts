@@ -1,3 +1,6 @@
+/**
+ * Hook providing action handlers for review generation, comment pushing, gitignore management, and file navigation.
+ */
 import { useCallback } from 'react'
 import type { CodeLocation, RequestedChange, ReviewHistory } from '../../types/review'
 import type { Session } from '../../store/sessions'

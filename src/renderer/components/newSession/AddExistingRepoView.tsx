@@ -1,3 +1,6 @@
+/**
+ * View for adding an existing multi-worktree folder as a managed repository.
+ */
 import { useState } from 'react'
 import { useAgentStore } from '../../store/agents'
 import { useRepoStore } from '../../store/repos'

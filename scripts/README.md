@@ -12,6 +12,7 @@ Development scripts are invoked by `package.json` commands (`pnpm dev`, `pnpm di
 |------|-------------|
 | `dev-preflight.cjs` | Runs before `pnpm dev`. Checks that `node_modules` exists, the Electron binary is downloaded, and native modules (node-pty) are built correctly. Auto-fixes issues when possible, then hands off to `electron-vite dev`. |
 | `postinstall.cjs` | Post-install hook that fixes node-pty `spawn-helper` permissions on macOS/Linux. Runs automatically after `pnpm install`. |
+| `start-dist.cjs` | Cross-platform script to build and open the packaged app. Replaces the macOS-only `open dist/mac-arm64/Broomy.app` command. |
 
 ## Distribution
 
@@ -23,8 +24,20 @@ Development scripts are invoked by `package.json` commands (`pnpm dev`, `pnpm di
 
 | File | Description |
 |------|-------------|
+| `bump-version.cjs` | Bumps the version in `package.json` by major, minor, or patch. Run via `pnpm version:bump <major\|minor\|patch>`. |
+| `release.sh` | Creates a GitHub release with whatever dist artifacts exist (DMG, ZIP, EXE, AppImage, etc.) for the current `package.json` version. Run via `pnpm release`. |
+| `release-all.sh` | Full release pipeline: runs checks, bumps version, builds, signs, and publishes. Run via `pnpm release:all <patch\|minor\|major>`. |
 | `release-screenshot-compare.sh` | Compares screenshots between the last release tag and current code. Checks out the last `v*` tag, runs all feature doc walkthroughs to generate baseline screenshots, switches back to the current branch, runs them again, then uses `compare-screenshots.cjs` to produce a pixel-diff HTML report in `release-compare/`. Run via `pnpm release:compare`. |
 | `compare-screenshots.cjs` | Node.js helper called by `release-screenshot-compare.sh`. Walks baseline and current screenshot directories, uses `pixelmatch` to compute pixel diffs, generates diff overlay images, and produces `comparison.json` + `index.html` in the output directory. |
+| `download-stats.cjs` | Shows download counts for all GitHub releases. Requires `gh` CLI authenticated with access to the repository. |
+
+## Validation
+
+| File | Description |
+|------|-------------|
+| `check-all.cjs` | Runs all project-specific validation checks. Orchestrator script invoked by `pnpm check:all`. |
+| `check-workers.cjs` | Validates that all `worker_threads` files are properly configured: checks build entries in `electron.vite.config.ts`, verifies worker path references in source, and ensures correct relative paths. |
+| `feature-docs.cjs` | Runs feature documentation tests for specific features. Invoked by `pnpm test:feature-docs <feature-name>`. |
 
 ## Fake Agents (E2E Testing)
 
@@ -41,3 +54,4 @@ Shell scripts that simulate AI agent terminal output for E2E tests. Each script 
 | `fake-claude-screenshot.sh` | Outputs rich Claude Code terminal UI with ANSI colors -- welcome banner, user prompt, diff blocks, tool calls -- and keeps outputting indefinitely. Used to keep sessions in "working" state for screenshot generation. |
 | `fake-claude-screenshot-idle.sh` | Outputs briefly (~3 seconds of Claude-style output) then goes idle. Creates the "unread" notification state for screenshot generation. |
 | `fake-claude-streaming.sh` | Outputs a 190-step plan in small rapid chunks (2-5ms between writes) with ANSI formatting. Simulates real Claude's streaming API where data arrives in small token-sized pieces. |
+| `fake-claude-compaction.sh` | Simulates the compaction + screen-clear + redraw pattern from real Claude Code: builds up scrollback, then clears the screen and redraws the full UI in ~1024-byte PTY chunks. Tests scroll jumping during context compaction. |

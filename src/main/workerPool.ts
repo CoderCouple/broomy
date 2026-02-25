@@ -1,3 +1,9 @@
+/**
+ * Runs a function in a worker thread and returns the result as a promise.
+ *
+ * Supports progress callbacks for long-running operations. Workers communicate
+ * via a simple message protocol with 'progress', 'result', and 'error' types.
+ */
 import { Worker } from 'worker_threads'
 
 export function runInWorker<TOutput>(

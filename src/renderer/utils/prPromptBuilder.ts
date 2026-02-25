@@ -1,4 +1,6 @@
-// Build the create-PR prompt for the agent
+/**
+ * Builds the agent prompt for creating a pull request from the current branch.
+ */
 export function buildCreatePrPrompt(baseBranch: string): string {
   return `# Create Pull Request
 

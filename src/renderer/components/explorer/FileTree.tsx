@@ -1,3 +1,6 @@
+/**
+ * Recursive file tree component with keyboard navigation and git status indicators.
+ */
 import React, { useEffect, useRef } from 'react'
 import type { GitFileStatus } from '../../../preload/index'
 import type { TreeNode } from './types'

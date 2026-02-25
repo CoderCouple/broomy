@@ -1,3 +1,6 @@
+/**
+ * Hook that polls .broomy/review.json and comments.json for changes and updates state when files change on disk.
+ */
 import { useEffect, useRef } from 'react'
 import type { ReviewData, ReviewHistory } from '../../types/review'
 

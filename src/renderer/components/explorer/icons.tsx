@@ -1,3 +1,6 @@
+/**
+ * SVG icon components and status badges used throughout the explorer panel.
+ */
 import type { BranchStatus } from '../../store/sessions'
 import { statusLabel, statusBadgeColor } from '../../utils/explorerHelpers'
 

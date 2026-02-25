@@ -1,3 +1,9 @@
+/**
+ * IPC handlers for core GitHub operations via the gh CLI and simple-git.
+ *
+ * Provides PR status, creation URLs, issue listing, auth checks, and
+ * repository metadata queries.
+ */
 import { IpcMain } from 'electron'
 import { execFile, exec } from 'child_process'
 import { promisify } from 'util'

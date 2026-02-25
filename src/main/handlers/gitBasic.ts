@@ -1,3 +1,6 @@
+/**
+ * IPC handlers for basic git queries: branch name, repo detection, status, diff, and log.
+ */
 import { IpcMain } from 'electron'
 import { readFile } from 'fs/promises'
 import { join } from 'path'

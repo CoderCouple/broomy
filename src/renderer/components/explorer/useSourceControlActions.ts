@@ -1,3 +1,6 @@
+/**
+ * Hook providing git action handlers for committing, syncing, pushing, and PR operations.
+ */
 import type { SourceControlData } from './useSourceControlData'
 import { focusAgentTerminal } from '../../utils/focusHelpers'
 import { withGitProgress } from '../../utils/gitOperationProgress'

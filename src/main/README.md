@@ -10,9 +10,20 @@ The renderer never touches Node.js APIs directly. Instead, it calls typed method
 
 | File | Description |
 |------|-------------|
-| `index.ts` | Application entry point: window creation, all IPC handlers (PTY, git, filesystem, GitHub CLI, config, profiles, shell, menus, TypeScript project context), E2E mock data, config migration, and app lifecycle management |
+| `index.ts` | Application entry point: window creation, IPC handler registration, E2E mock data, config migration, and app lifecycle management |
 | `platform.ts` | Cross-platform helpers for detecting the OS, resolving the default shell, normalizing file paths, and setting executable permissions |
+| `shellEnv.ts` | Shell environment resolution for spawning processes with correct PATH and env vars |
+| `workerPool.ts` | Worker thread pool management for offloading CPU-intensive tasks (file search, TypeScript analysis) |
 | `gitStatusParser.ts` | Pure functions for converting git status character codes to human-readable strings, parsing individual file entries from `git status`, and building GitHub PR-creation URLs |
 | `cloneErrorHint.ts` | Detects common HTTPS and SSH authentication errors from `git clone` output and returns actionable suggestions (e.g. switch protocol, run `gh auth setup-git`) |
+| `platform.test.ts` | Unit tests for cross-platform helpers |
+| `workerPool.test.ts` | Unit tests for worker pool lifecycle and task dispatch |
 | `gitStatusParser.test.ts` | Unit tests for `statusFromChar`, `parseGitStatusFile`, and `buildPrCreateUrl` |
 | `cloneErrorHint.test.ts` | Unit tests for `getCloneErrorHint` covering HTTPS auth failures, SSH auth failures, and non-matching errors |
+
+## Subdirectories
+
+| Directory | Description |
+|-----------|-------------|
+| `handlers/` | IPC handler modules split by domain (app, config, fs, git, gh, pty, shell, typescript, updater) with co-located tests |
+| `workers/` | Worker thread scripts (fsSearch.worker.ts, tsProject.worker.ts) with co-located tests |

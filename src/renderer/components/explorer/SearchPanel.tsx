@@ -1,3 +1,6 @@
+/**
+ * Full-text search panel with debounced queries and collapsible file-grouped results.
+ */
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import type { SearchResult } from '../../../preload/index'
 import type { SearchTreeNode } from './types'

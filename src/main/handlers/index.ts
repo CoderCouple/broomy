@@ -1,3 +1,6 @@
+/**
+ * Entry point that registers all IPC handler modules with the main process.
+ */
 import { IpcMain } from 'electron'
 import { HandlerContext } from './types'
 import * as ptyHandlers from './pty'

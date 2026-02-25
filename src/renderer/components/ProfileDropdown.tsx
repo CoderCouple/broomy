@@ -1,3 +1,6 @@
+/**
+ * Dropdown for switching, creating, editing, and deleting multi-window profiles.
+ */
 import type { ProfileData } from '../../preload/index'
 
 export const PROFILE_COLORS = [

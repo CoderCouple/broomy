@@ -11,3 +11,10 @@ Electron's context isolation means the renderer cannot access Node.js or Electro
 | File | Description |
 |------|-------------|
 | `index.ts` | Type definitions for all renderer-facing APIs (PTY, filesystem, git, GitHub CLI, config, profiles, shell, dialog, menu, agents, TypeScript context), IPC wiring via `contextBridge`, and the global `Window` type augmentation |
+| `preload-sandbox.test.ts` | Unit tests for preload sandbox behavior |
+
+## Subdirectories
+
+| Directory | Description |
+|-----------|-------------|
+| `apis/` | Per-domain API modules (config, fs, gh, git, menu, pty, shell) with shared types and co-located tests |

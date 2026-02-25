@@ -1,3 +1,6 @@
+/**
+ * Manages inline code review comments in the Monaco editor, including adding, persisting, and rendering comment decorations.
+ */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as monaco from 'monaco-editor'
 

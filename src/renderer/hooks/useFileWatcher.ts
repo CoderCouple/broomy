@@ -1,3 +1,6 @@
+/**
+ * Watches a file on disk for external changes and provides conflict resolution when the file is modified outside the editor.
+ */
 import { useEffect, useCallback, useRef, useState } from 'react'
 import { dirname, basename } from 'path-browserify'
 

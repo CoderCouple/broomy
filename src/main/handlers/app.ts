@@ -1,3 +1,6 @@
+/**
+ * IPC handlers for app-level queries like platform, home directory, and version.
+ */
 import { app, IpcMain } from 'electron'
 import { homedir, tmpdir } from 'os'
 import { normalizePath } from '../platform'

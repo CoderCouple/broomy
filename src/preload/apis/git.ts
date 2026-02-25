@@ -1,3 +1,6 @@
+/**
+ * Preload API for git operations including status, branching, commits, worktrees, and diffs.
+ */
 import { ipcRenderer } from 'electron'
 import type { GitStatusResult, GitCommitInfo, WorktreeInfo } from './types'
 

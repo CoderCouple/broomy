@@ -1,3 +1,9 @@
+/**
+ * IPC handlers for configuration persistence, profile management, and init scripts.
+ *
+ * Handles reading/writing per-profile config files, migrating legacy configs
+ * to the profiles system, and managing agent init scripts.
+ */
 import { IpcMain } from 'electron'
 import { existsSync, mkdirSync, writeFileSync, copyFileSync, readdirSync } from 'fs'
 import { readFile, writeFile, rename, copyFile, mkdir, access } from 'fs/promises'

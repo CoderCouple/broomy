@@ -1,3 +1,6 @@
+/**
+ * IPC handlers for auto-update lifecycle: check, download, and install via electron-updater.
+ */
 import { BrowserWindow, IpcMain } from 'electron'
 import pkg from 'electron-updater'
 const { autoUpdater } = pkg

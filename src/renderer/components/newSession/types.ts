@@ -1,3 +1,6 @@
+/**
+ * Shared type definitions for the new session dialog views and navigation state.
+ */
 import type { ManagedRepo, GitHubIssue } from '../../../preload/index'
 
 export type View =

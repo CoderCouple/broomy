@@ -1,3 +1,6 @@
+/**
+ * Hook that manages all review panel state: review data, comments, comparison, and GitHub PR metadata.
+ */
 import { useState, useEffect, useRef } from 'react'
 import type { ReviewData, PendingComment, ReviewComparison, ReviewHistory } from '../../types/review'
 import type { GitHubReaction } from '../../../preload/apis/types'

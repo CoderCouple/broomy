@@ -1,3 +1,6 @@
+/**
+ * Manages drag-to-resize interactions for panel dividers including sidebar, explorer, file viewer, and tutorial panels.
+ */
 import { useEffect, useState, useCallback, useRef } from 'react'
 import type { LayoutSizes, FileViewerPosition } from '../store/sessions'
 

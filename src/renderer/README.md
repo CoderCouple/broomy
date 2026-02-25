@@ -12,8 +12,9 @@ The renderer receives its API surface from the preload layer (`src/preload/`), w
 |-----------|-------------|
 | `components/` | React UI components (layout, terminals, explorer, file viewer, dialogs, settings) |
 | `components/fileViewers/` | Plugin-based file viewer implementations (Monaco, image, markdown) |
+| `hooks/` | React hooks for file loading, git polling, keyboard handling, terminal setup, layout resize, and more |
 | `panels/` | Panel registry, context provider, and built-in panel definitions |
-| `store/` | Zustand state stores (sessions, agents, repos, profiles, errors) |
+| `store/` | Zustand state stores (sessions, agents, repos, profiles, errors, tutorial) |
 | `types/` | Shared TypeScript type definitions (e.g. review types) |
 | `utils/` | Pure utility functions (ANSI stripping, git helpers, slugify, text detection) |
 | `integration/` | Integration-level modules that coordinate across subsystems |

@@ -1,3 +1,6 @@
+/**
+ * Toolbar for the file viewer with save, diff toggle, view mode, and navigation controls.
+ */
 import { relative } from 'path-browserify'
 import type { EditorActions } from './fileViewers/types'
 import type { FileStatus, FileViewerPosition, ViewMode } from './FileViewer'

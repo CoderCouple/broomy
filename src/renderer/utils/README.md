@@ -37,6 +37,22 @@ Components and stores import individual utilities as needed. The terminal utilit
 | File | Description |
 |------|-------------|
 | `slugify.ts` | Converts a GitHub issue (number + title) into a branch name by lowercasing, stripping special characters, and joining the first four words with hyphens. |
+| `commonWords.ts` | List of ~1000 most common English words sorted by frequency. Used to filter noise words from branch names. |
+
+### Agent Prompts
+
+| File | Description |
+|------|-------------|
+| `prPromptBuilder.ts` | Builds the agent prompt for creating a pull request from the current branch, including diff analysis and PR template discovery. |
+| `reviewPromptBuilder.ts` | Builds the agent prompt for generating structured code reviews with requested changes, incorporating PR comments and description. |
+
+### UI Helpers
+
+| File | Description |
+|------|-------------|
+| `focusHelpers.ts` | Utilities for programmatically focusing terminal inputs and explorer search, using store state to switch tabs before focusing. |
+| `gitOperationProgress.ts` | Keeps a session's agent status as "working" during long-running git operations by periodically calling `updateAgentMonitor` to override idle detection. |
+| `knownErrors.ts` | Maps raw error messages to human-friendly display messages using a priority-ordered regex rule chain. Falls back to the raw message if no rule matches. |
 
 ### Test Files
 
@@ -50,3 +66,9 @@ Components and stores import individual utilities as needed. The terminal utilit
 | `terminalActivityDetector.test.ts` | Unit tests for terminal activity detection. |
 | `terminalBufferRegistry.test.ts` | Unit tests for the terminal buffer registry. |
 | `textDetection.test.ts` | Unit tests for binary vs text detection. |
+| `stripAnsi.test.ts` | Unit tests for ANSI stripping. |
+| `monacoProjectContext.test.ts` | Unit tests for Monaco project context loading. |
+| `prPromptBuilder.test.ts` | Unit tests for PR prompt builder. |
+| `reviewPromptBuilder.test.ts` | Unit tests for review prompt builder. |
+| `gitOperationProgress.test.ts` | Unit tests for git operation progress tracking. |
+| `knownErrors.test.ts` | Unit tests for known error message mapping. |

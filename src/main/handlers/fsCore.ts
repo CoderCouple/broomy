@@ -1,3 +1,9 @@
+/**
+ * IPC handlers for core filesystem operations.
+ *
+ * Provides directory listing, file read/write, rename, delete, and
+ * filesystem watching with change events streamed to the renderer.
+ */
 import { BrowserWindow, IpcMain, IpcMainInvokeEvent } from 'electron'
 import { watch } from 'fs'
 import { readdir, readFile, writeFile, appendFile, stat, mkdir, rm, access, rename } from 'fs/promises'

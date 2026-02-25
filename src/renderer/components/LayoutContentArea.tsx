@@ -1,3 +1,6 @@
+/**
+ * Main content area layout that arranges panels, dividers, and the terminal region.
+ */
 import { ReactNode, RefObject } from 'react'
 import type { LayoutSizes, FileViewerPosition } from '../store/sessions'
 import { PANEL_IDS } from '../panels'

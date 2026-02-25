@@ -14,3 +14,4 @@ Co-located unit test files (`src/**/*.test.ts`) automatically get these mocks. R
 |------|-------------|
 | `setup.ts` | Core Vitest setup that mocks all `window.*` APIs (config, git, app, profiles, gh, shell, repos, agents, menu, fs, pty, dialog) with sensible defaults. Works in both DOM and Node environments. |
 | `react-setup.ts` | Extends `setup.ts` with `@testing-library/jest-dom/vitest` matchers for React component tests that need DOM assertions. |
+| `console-guard.ts` | Console guard that replaces `console.error` and `console.warn` with tracking wrappers. After each test, throws if either was called unless the test opted out via `allowConsoleError()` / `allowConsoleWarn()`. |

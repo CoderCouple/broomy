@@ -1,3 +1,6 @@
+/**
+ * View for selecting an existing branch or worktree to start a new session on.
+ */
 import { useState, useEffect } from 'react'
 import { useAgentStore } from '../../store/agents'
 import type { ManagedRepo } from '../../../preload/index'

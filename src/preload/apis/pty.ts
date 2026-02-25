@@ -1,3 +1,6 @@
+/**
+ * Preload API for pseudo-terminal lifecycle management and data streaming.
+ */
 import { ipcRenderer } from 'electron'
 
 export type PtyApi = {

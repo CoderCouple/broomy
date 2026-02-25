@@ -1,3 +1,6 @@
+/**
+ * Small presentational components for review UI: location links, severity badges, and change status badges.
+ */
 import type { CodeLocation } from '../../types/review'
 
 export function LocationLink({

@@ -1,3 +1,6 @@
+/**
+ * View for creating a new branch (optionally from a GitHub issue) and starting a session on it.
+ */
 import { useState } from 'react'
 import { useAgentStore } from '../../store/agents'
 import type { ManagedRepo, GitHubIssue } from '../../../preload/index'

@@ -1,3 +1,6 @@
+/**
+ * Shared types, constants, and helpers used across all IPC handler modules.
+ */
 import type { BrowserWindow } from 'electron'
 import type { IPty } from 'node-pty'
 import type { FSWatcher } from 'fs'

@@ -1,3 +1,6 @@
+/**
+ * Polls git status for the active session and computes branch status including ahead/behind counts and merge state.
+ */
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { GitStatusResult } from '../../preload/index'
 import type { Session, BranchStatus } from '../store/sessions'

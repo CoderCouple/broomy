@@ -1,3 +1,6 @@
+/**
+ * Tabbed help modal with an overview, keyboard shortcuts, and agent documentation.
+ */
 import { useState } from 'react'
 
 interface HelpModalProps {

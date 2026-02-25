@@ -1,3 +1,6 @@
+/**
+ * IPC handlers for git branch operations: clone, worktree, checkout, and branch creation.
+ */
 import { IpcMain } from 'electron'
 import simpleGit from 'simple-git'
 import { getCloneErrorHint } from '../cloneErrorHint'

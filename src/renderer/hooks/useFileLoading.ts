@@ -1,3 +1,6 @@
+/**
+ * Loads file content from disk, detects available viewer plugins, and manages loading and error states for the file viewer.
+ */
 import { useEffect, useState } from 'react'
 import { getViewersForFile, isTextContent } from '../components/fileViewers'
 import type { FileViewerPlugin } from '../components/fileViewers'

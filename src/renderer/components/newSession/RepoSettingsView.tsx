@@ -1,3 +1,6 @@
+/**
+ * View for editing per-repository settings like default agent and init scripts.
+ */
 import { useState, useEffect } from 'react'
 import { useAgentStore } from '../../store/agents'
 import { useRepoStore } from '../../store/repos'

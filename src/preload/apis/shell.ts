@@ -1,3 +1,6 @@
+/**
+ * Preload API for shell execution, native dialogs, app metadata, and auto-updates.
+ */
 import { ipcRenderer } from 'electron'
 import type { ShellOption } from './types'
 

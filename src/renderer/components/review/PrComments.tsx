@@ -1,3 +1,6 @@
+/**
+ * GitHub PR comment threads with inline replies, reactions, filtering, and sort controls.
+ */
 import { useState, useRef, useEffect } from 'react'
 import type { CodeLocation } from '../../types/review'
 import type { NormalizedComment } from './useReviewData'

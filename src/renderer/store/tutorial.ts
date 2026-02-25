@@ -1,3 +1,6 @@
+/**
+ * Zustand store for tracking onboarding tutorial progress and step completion.
+ */
 import { create } from 'zustand'
 
 // Tutorial step definitions

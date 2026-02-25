@@ -1,3 +1,6 @@
+/**
+ * Editor for managing environment variable key-value pairs with command-aware suggestions.
+ */
 import { useState, useImperativeHandle, forwardRef } from 'react'
 
 // Suggested env vars for different commands

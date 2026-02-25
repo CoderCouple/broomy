@@ -1,3 +1,6 @@
+/**
+ * Home view of the new session dialog showing managed repos and action buttons for creating sessions.
+ */
 import { useState, useEffect } from 'react'
 import { useRepoStore } from '../../store/repos'
 import type { ManagedRepo } from '../../../preload/index'

@@ -1,3 +1,6 @@
+/**
+ * Composes file loading, diff fetching, and file watching hooks into a unified file viewer state with save and view mode management.
+ */
 import { useEffect, useState, useCallback } from 'react'
 import type { EditorActions } from '../components/fileViewers/types'
 import { useFileLoading } from './useFileLoading'

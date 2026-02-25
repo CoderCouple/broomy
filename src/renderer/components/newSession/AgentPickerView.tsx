@@ -1,3 +1,6 @@
+/**
+ * Agent selection view that lists available agents and their compatibility with the chosen repo.
+ */
 import { useState, useEffect } from 'react'
 import { useAgentStore } from '../../store/agents'
 

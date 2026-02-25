@@ -1,3 +1,6 @@
+/**
+ * View for cloning a GitHub repository and registering it as a managed repo.
+ */
 import { useState } from 'react'
 import { useAgentStore } from '../../store/agents'
 import { useRepoStore } from '../../store/repos'

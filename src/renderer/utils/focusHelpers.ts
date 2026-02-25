@@ -1,3 +1,6 @@
+/**
+ * Utilities for programmatically focusing terminal inputs and explorer search.
+ */
 import { useSessionStore } from '../store/sessions'
 
 const AGENT_TAB_ID = '__agent__'

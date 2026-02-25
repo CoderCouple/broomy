@@ -1,3 +1,6 @@
+/**
+ * Composite registration for all filesystem IPC handlers (core operations and search).
+ */
 import { IpcMain } from 'electron'
 import { HandlerContext } from './types'
 import * as fsCore from './fsCore'

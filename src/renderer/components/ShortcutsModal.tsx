@@ -1,3 +1,6 @@
+/**
+ * Modal displaying all keyboard shortcuts grouped by category.
+ */
 interface ShortcutsModalProps {
   onClose: () => void
 }

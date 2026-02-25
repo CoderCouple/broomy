@@ -1,3 +1,6 @@
+/**
+ * Keeps a session's agent status as "working" during long-running git operations.
+ */
 import { useSessionStore } from '../store/sessions'
 
 const PROGRESS_INTERVAL_MS = 500

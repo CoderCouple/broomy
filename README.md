@@ -32,7 +32,7 @@ pnpm install
 pnpm dev
 ```
 
-The app opens automatically in development mode with hot reload. Dev mode uses a separate config file (`~/.broomy/config.dev.json`) so your test sessions don't interfere with real work. A yellow "DEV" chip appears in the title bar to distinguish dev from production.
+The app opens automatically in development mode with hot reload. Dev mode uses a separate config file (`~/.broomy/profiles/default/config.dev.json`) so your test sessions don't interfere with real work. A yellow "DEV" chip appears in the title bar to distinguish dev from production.
 
 ### Building for Distribution
 
@@ -96,7 +96,7 @@ GitHub CLI (gh)            ──►  window.gh                 ──►  Explo
 Profile management         ──►  window.profiles           ──►  ProfileChip
 ```
 
-State is managed by four Zustand stores in the renderer: `sessions`, `agents`, `repos`, and `profiles`. The panel system uses a registry pattern for extensibility.
+State is managed by six Zustand stores in the renderer: `sessions`, `agents`, `repos`, `profiles`, `errors`, and `tutorial`. The panel system uses a registry pattern for extensibility.
 
 ## Testing
 
@@ -116,19 +116,30 @@ pnpm test:e2e:built         # E2E tests against production build (for CI)
 broomy/
 ├── src/
 │   ├── main/                    # Electron main process
-│   │   ├── index.ts             # App entry, IPC handlers, PTY/Git/FS operations
-│   │   └── gitStatusParser.ts   # Git status code parsing
+│   │   ├── index.ts             # App entry, window lifecycle, config migration
+│   │   ├── handlers/            # IPC handler modules (app, config, fs, git, gh, pty, shell, typescript, updater)
+│   │   ├── workers/             # Worker threads (fsSearch.worker.ts, tsProject.worker.ts)
+│   │   ├── platform.ts         # Cross-platform OS/shell/path helpers
+│   │   ├── shellEnv.ts         # Shell environment resolution
+│   │   ├── workerPool.ts       # Worker thread pool management
+│   │   ├── gitStatusParser.ts  # Git status code parsing
+│   │   └── cloneErrorHint.ts   # Git clone error detection and suggestions
 │   ├── preload/
-│   │   └── index.ts             # Context bridge: types + IPC wiring
+│   │   ├── index.ts             # Context bridge: types + IPC wiring
+│   │   └── apis/                # Per-domain API modules (config, fs, gh, git, menu, pty, shell)
 │   └── renderer/                # React application
 │       ├── App.tsx              # Root component, initialization
 │       ├── components/          # UI components
 │       │   ├── Layout.tsx       # Main layout with drag-to-resize panels
 │       │   ├── Terminal.tsx     # xterm.js terminal wrapper
-│       │   ├── Explorer.tsx     # File tree, source control, search
 │       │   ├── FileViewer.tsx   # Monaco file/diff viewer
 │       │   ├── SessionList.tsx  # Sidebar session list
+│       │   ├── explorer/        # File tree, source control, search
+│       │   ├── newSession/      # New session wizard views
+│       │   ├── review/          # AI code review panel
+│       │   ├── fileViewers/     # Plugin-based file viewer implementations
 │       │   └── ...
+│       ├── hooks/               # React hooks (file loading, git polling, keyboard, terminal setup, etc.)
 │       ├── panels/              # Panel registry system
 │       │   ├── types.ts         # Panel position/definition types
 │       │   ├── registry.ts      # PanelRegistry class
@@ -139,14 +150,24 @@ broomy/
 │       │   ├── agents.ts        # Agent definitions (name, command, env)
 │       │   ├── repos.ts         # Managed repositories
 │       │   ├── profiles.ts      # Multi-window profiles
-│       │   └── errors.ts        # Application error tracking
+│       │   ├── errors.ts        # Application error tracking
+│       │   └── tutorial.ts      # Tutorial/onboarding state
 │       └── utils/               # Shared utilities
 │           ├── stripAnsi.ts           # ANSI escape code removal
 │           ├── explorerHelpers.ts     # Git status display helpers
 │           ├── terminalBufferRegistry.ts # Cross-component terminal buffer access
 │           ├── branchStatus.ts        # Branch status computation
 │           ├── slugify.ts             # Issue-to-branch-name conversion
-│           └── textDetection.ts       # Binary vs text file detection
+│           ├── textDetection.ts       # Binary vs text file detection
+│           ├── knownErrors.ts         # Error classification and messaging
+│           ├── gitStatusNormalizer.ts  # Git status normalization
+│           ├── gitOperationProgress.ts # Git operation progress tracking
+│           ├── monacoProjectContext.ts # Monaco editor project context
+│           ├── fileNavigation.ts      # File navigation utilities
+│           ├── focusHelpers.ts        # Focus management helpers
+│           ├── prPromptBuilder.ts     # PR description prompt builder
+│           ├── reviewPromptBuilder.ts # Review prompt builder
+│           └── commonWords.ts         # Common word list for slugification
 ├── scripts/
 │   └── fake-claude.sh           # Mock agent for E2E tests
 ├── tests/                       # Playwright E2E tests

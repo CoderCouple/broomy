@@ -1,3 +1,6 @@
+/**
+ * Displays a list of recently opened files with keyboard navigation support.
+ */
 import type { NavigationTarget } from '../../utils/fileNavigation'
 
 export function RecentFiles({

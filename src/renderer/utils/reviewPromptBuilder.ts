@@ -1,3 +1,6 @@
+/**
+ * Builds the agent prompt for generating structured code reviews with requested changes.
+ */
 import type { Session } from '../store/sessions'
 import type { RequestedChange } from '../types/review'
 

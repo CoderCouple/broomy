@@ -1,3 +1,6 @@
+/**
+ * View for browsing open pull requests and selecting one to review in a new session.
+ */
 import { useState, useEffect } from 'react'
 import { useAgentStore } from '../../store/agents'
 import type { ManagedRepo, GitHubPrForReview } from '../../../preload/index'

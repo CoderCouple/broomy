@@ -1,3 +1,6 @@
+/**
+ * Landing screen shown when no session is active, prompting the user to create one.
+ */
 interface WelcomeScreenProps {
   onNewSession: () => void
 }

@@ -1,3 +1,6 @@
+/**
+ * Top-level ReviewPanel that orchestrates review generation, comment management, and the review display.
+ */
 import type { Session } from '../../store/sessions'
 import type { ManagedRepo } from '../../../preload/index'
 import type { FetchingStatus, NormalizedComment } from './useReviewData'

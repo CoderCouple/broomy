@@ -1,3 +1,6 @@
+/**
+ * Source control view for uncommitted changes with staging, committing, syncing, and conflict resolution.
+ */
 import type { GitFileStatus, GitStatusResult } from '../../../preload/index'
 import type { BranchStatus } from '../../store/sessions'
 import type { NavigationTarget } from '../../utils/fileNavigation'

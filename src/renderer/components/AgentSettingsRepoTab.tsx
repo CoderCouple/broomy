@@ -1,3 +1,6 @@
+/**
+ * Repository management tab for viewing repos and editing per-repo agent settings.
+ */
 import type { AgentConfig } from '../store/agents'
 import type { ManagedRepo } from '../../preload/index'
 import { RepoSettingsEditor } from './RepoSettingsEditor'

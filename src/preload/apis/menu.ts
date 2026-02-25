@@ -1,3 +1,6 @@
+/**
+ * Preload API for native context menus and TypeScript project introspection.
+ */
 import { ipcRenderer } from 'electron'
 import type { MenuItemDef, TsProjectContext } from './types'
 

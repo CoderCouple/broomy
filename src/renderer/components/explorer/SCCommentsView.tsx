@@ -1,3 +1,6 @@
+/**
+ * Source control view that displays pull request review comments with inline reply support.
+ */
 import type { PrComment } from './types'
 import type { NavigationTarget } from '../../utils/fileNavigation'
 

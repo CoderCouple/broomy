@@ -1,3 +1,6 @@
+/**
+ * IPC handlers for git sync operations: pull, push, fetch, and stash.
+ */
 import { IpcMain } from 'electron'
 import simpleGit from 'simple-git'
 import { HandlerContext, expandHomePath } from './types'

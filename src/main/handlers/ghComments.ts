@@ -1,3 +1,6 @@
+/**
+ * IPC handlers for fetching and replying to GitHub PR review comments via the gh CLI.
+ */
 import { IpcMain } from 'electron'
 import { execFile } from 'child_process'
 import { promisify } from 'util'

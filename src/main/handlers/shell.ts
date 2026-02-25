@@ -1,3 +1,6 @@
+/**
+ * IPC handlers for shell commands, external URLs, native dialogs, and context menus.
+ */
 import { BrowserWindow, IpcMain, dialog, Menu, shell } from 'electron'
 import { exec } from 'child_process'
 import { getExecShell, normalizePath, getAvailableShells, getDefaultShell } from '../platform'

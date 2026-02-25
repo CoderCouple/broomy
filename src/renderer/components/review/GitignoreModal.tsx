@@ -1,3 +1,6 @@
+/**
+ * Modal dialog prompting the user to add .broomy to .gitignore before generating a review.
+ */
 export function GitignoreModal({
   onAddToGitignore,
   onContinueWithout,

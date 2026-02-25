@@ -1,3 +1,6 @@
+/**
+ * Top toolbar with panel toggle buttons, error indicator, and version display.
+ */
 import { ReactNode } from 'react'
 import ErrorIndicator from './ErrorIndicator'
 import VersionIndicator from './VersionIndicator'

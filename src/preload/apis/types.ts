@@ -1,3 +1,6 @@
+/**
+ * Shared type definitions for all preload APIs.
+ */
 export type FileEntry = {
   name: string
   path: string

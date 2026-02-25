@@ -1,3 +1,6 @@
+/**
+ * Hook that fetches and paginates GitHub PR description and comments (issue-level and review-level).
+ */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { NormalizedComment } from './useReviewData'
 

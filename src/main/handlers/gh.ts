@@ -1,3 +1,6 @@
+/**
+ * Composite registration for all GitHub CLI IPC handlers (core and comments).
+ */
 import { IpcMain } from 'electron'
 import { HandlerContext } from './types'
 import * as ghCore from './ghCore'

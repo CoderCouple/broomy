@@ -1,3 +1,6 @@
+/**
+ * Multi-step new session dialog that routes between repo selection, branch, clone, and agent picker views.
+ */
 import { useState, useEffect } from 'react'
 import type { View, NewSessionDialogProps } from './types'
 import { HomeView } from './HomeView'

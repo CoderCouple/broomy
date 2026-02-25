@@ -1,3 +1,6 @@
+/**
+ * Top-level source control container that composes the PR banner, view toggle, and sub-views.
+ */
 import { useState, useEffect } from 'react'
 import type { GitFileStatus, GitStatusResult } from '../../../preload/index'
 import type { BranchStatus, PrState } from '../../store/sessions'

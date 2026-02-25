@@ -1,3 +1,6 @@
+/**
+ * Preload API for GitHub CLI interactions including issues, pull requests, and code reviews.
+ */
 import { ipcRenderer } from 'electron'
 import type { GitHubIssue, GitHubPrStatus, GitHubPrComment, GitHubIssueComment, GitHubPrForReview } from './types'
 

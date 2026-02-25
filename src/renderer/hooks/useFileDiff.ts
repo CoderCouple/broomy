@@ -1,3 +1,6 @@
+/**
+ * Loads original and modified file contents for diff view by fetching content at specified git refs.
+ */
 import { useEffect, useState } from 'react'
 
 interface UseFileDiffParams {

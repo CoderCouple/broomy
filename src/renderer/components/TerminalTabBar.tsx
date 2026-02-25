@@ -1,3 +1,6 @@
+/**
+ * Tab bar for switching between agent and user terminal tabs within a session.
+ */
 import type { TerminalTab } from '../store/sessions'
 
 // Inline SVG icons

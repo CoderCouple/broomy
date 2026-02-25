@@ -1,3 +1,6 @@
+/**
+ * Renders the structured review body including overview, change patterns, issues, and pending comments.
+ */
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ReviewData, ReviewComparison, PendingComment, CodeLocation } from '../../types/review'

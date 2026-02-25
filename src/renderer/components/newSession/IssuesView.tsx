@@ -1,3 +1,6 @@
+/**
+ * View for browsing GitHub issues and selecting one to start a new session from.
+ */
 import { useState, useEffect } from 'react'
 import type { ManagedRepo, GitHubIssue } from '../../../preload/index'
 import { DialogErrorBanner } from '../ErrorBanner'

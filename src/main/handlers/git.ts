@@ -1,3 +1,6 @@
+/**
+ * Composite registration for all git IPC handlers (basic, branch, and sync).
+ */
 import { IpcMain } from 'electron'
 import { HandlerContext } from './types'
 import * as gitBasic from './gitBasic'

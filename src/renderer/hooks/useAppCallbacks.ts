@@ -1,3 +1,6 @@
+/**
+ * Provides memoized callback functions for top-level app actions such as session management, panel toggling, and layout updates.
+ */
 import { useCallback } from 'react'
 import { type Session, type LayoutSizes } from '../store/sessions'
 import { useErrorStore } from '../store/errors'

@@ -1,3 +1,6 @@
+/**
+ * Tracks application update state (idle, available, downloading, ready) and listens for update events from the main process.
+ */
 import { useEffect } from 'react'
 import { create } from 'zustand'
 import type { UpdateCheckResult } from '../../preload/apis/shell'

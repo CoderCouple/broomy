@@ -1,3 +1,6 @@
+/**
+ * Shared type definitions for the explorer panel and its sub-components.
+ */
 import type { FileEntry, GitFileStatus, GitStatusResult, SearchResult, ManagedRepo } from '../../../preload/index'
 import type { ExplorerFilter, BranchStatus, PrState, Session } from '../../store/sessions'
 import type { NavigationTarget } from '../../utils/fileNavigation'

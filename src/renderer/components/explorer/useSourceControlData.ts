@@ -1,3 +1,6 @@
+/**
+ * Hook that manages source control data fetching for PR status, branch changes, commits, and comments.
+ */
 import { useState, useEffect, useMemo } from 'react'
 import type { PrComment } from './types'
 import type { GitFileStatus, GitStatusResult, GitHubPrStatus, GitCommitInfo } from '../../../preload/index'

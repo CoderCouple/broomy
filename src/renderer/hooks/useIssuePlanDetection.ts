@@ -1,3 +1,6 @@
+/**
+ * Watches for the existence of a `.broomy/plan.md` file in a session's directory using filesystem events.
+ */
 import { useState, useEffect } from 'react'
 
 /**

@@ -1,3 +1,6 @@
+/**
+ * Inline editor for per-repository settings such as default agent and display name.
+ */
 import { useState, useEffect } from 'react'
 import type { AgentConfig } from '../store/agents'
 import type { ManagedRepo } from '../../preload/index'

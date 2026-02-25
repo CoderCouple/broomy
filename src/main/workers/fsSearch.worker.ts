@@ -1,3 +1,9 @@
+/**
+ * Worker thread that searches a directory tree for files matching a query.
+ *
+ * Matches against both filenames and file contents, skipping binary files
+ * and common non-source directories. Returns up to 500 results.
+ */
 import { parentPort, workerData } from 'worker_threads'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'

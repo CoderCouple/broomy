@@ -1,3 +1,6 @@
+/**
+ * Session store actions for branch status, PR state, and push-to-main tracking.
+ */
 import type { Session, PanelVisibility, BranchStatus, PrState } from './sessions'
 import { debouncedSave } from './sessionPersistence'
 

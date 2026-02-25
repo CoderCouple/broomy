@@ -1,3 +1,6 @@
+/**
+ * Session store actions for managing terminal tabs (add, remove, rename, reorder, activate).
+ */
 import type { Session, TerminalTab, PanelVisibility } from './sessions'
 import { debouncedSave } from './sessionPersistence'
 

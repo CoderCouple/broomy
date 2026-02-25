@@ -1,3 +1,6 @@
+/**
+ * Explorer panel entry point with tabbed navigation between file tree, source control, search, recent files, and review.
+ */
 import type { ExplorerProps } from './types'
 import { FileTreeIcon, SourceControlIcon, SearchIcon, RecentIcon, ReviewIcon } from './icons'
 import { FileTree } from './FileTree'

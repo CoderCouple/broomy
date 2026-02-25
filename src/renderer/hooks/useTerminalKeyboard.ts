@@ -1,3 +1,6 @@
+/**
+ * Provides a custom key event handler for xterm.js terminals that intercepts editing shortcuts and dispatches app-wide keyboard events.
+ */
 import { useCallback } from 'react'
 
 /**

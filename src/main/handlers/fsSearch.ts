@@ -1,3 +1,6 @@
+/**
+ * IPC handler for filesystem search, delegating to a worker thread.
+ */
 import { IpcMain } from 'electron'
 import { join } from 'path'
 import { runInWorker } from '../workerPool'
