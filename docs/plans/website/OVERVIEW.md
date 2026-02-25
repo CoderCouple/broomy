@@ -88,7 +88,7 @@ Each feature gets its own section with:
 A brief "Under the Hood" section that signals engineering quality:
 
 - **Tech stack badges**: Electron, React, TypeScript, Zustand, xterm.js, Monaco Editor, node-pty, simple-git
-- **Architecture diagram**: The three-process model diagram from ARCHITECTURE.md (simplified for the website)
+- **Architecture diagram**: The three-process model diagram from architecture.md (simplified for the website)
 - **Key points** (as a clean list):
   - "Type-safe IPC between all processes"
   - "Intelligent agent status detection via terminal output parsing"
