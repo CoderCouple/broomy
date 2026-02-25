@@ -17,6 +17,7 @@ import {
   getConfigFileName,
   getProfileConfigFile,
   getProfileInitScriptsDir,
+  validateProfileId,
   DEFAULT_AGENTS,
   DEFAULT_PROFILES,
   getE2EDemoRepos,
@@ -222,7 +223,7 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
     }
 
     const configFile = config.profileId ? getProfileConfigFile(config.profileId, ctx.isDev) : legacyConfigFile
-    const configDir = config.profileId ? join(PROFILES_DIR, config.profileId) : CONFIG_DIR
+    const configDir = config.profileId ? (validateProfileId(config.profileId), join(PROFILES_DIR, config.profileId)) : CONFIG_DIR
 
     try {
       await enqueueWrite(configFile, async () => {

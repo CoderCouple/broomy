@@ -46,11 +46,20 @@ export function getConfigFileName(isDev: boolean): string {
   return isDev ? 'config.dev.json' : 'config.json'
 }
 
+/** Validate that a profile ID is safe for use in file paths (no traversal). */
+export function validateProfileId(profileId: string): void {
+  if (!/^[a-zA-Z0-9_-]+$/.test(profileId)) {
+    throw new Error(`Invalid profile ID: ${profileId}`)
+  }
+}
+
 export function getProfileConfigFile(profileId: string, isDev: boolean): string {
+  validateProfileId(profileId)
   return join(PROFILES_DIR, profileId, getConfigFileName(isDev))
 }
 
 export function getProfileInitScriptsDir(profileId: string): string {
+  validateProfileId(profileId)
   return join(PROFILES_DIR, profileId, 'init-scripts')
 }
 
