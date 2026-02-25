@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('child_process', () => ({
   execFile: vi.fn(),
-  exec: vi.fn(),
 }))
 
 vi.mock('util', async (importOriginal) => {
@@ -43,7 +42,7 @@ vi.mock('./types', async (importOriginal) => {
   }
 })
 
-import { execFile, exec } from 'child_process'
+import { execFile } from 'child_process'
 import { register } from './ghCore'
 import { E2EScenario, type HandlerContext } from './types'
 
@@ -103,14 +102,14 @@ describe('ghCore handlers', () => {
     })
 
     it('returns true when command exists', async () => {
-      // Non-Windows path uses runShellCommand which uses exec
-      vi.mocked(exec).mockResolvedValue({ stdout: '/usr/bin/claude', stderr: '' } as never)
+      // Non-Windows path uses execFileAsync with shell -c to avoid command injection
+      vi.mocked(execFile).mockResolvedValue({ stdout: '/usr/bin/claude', stderr: '' } as never)
       const handlers = setupHandlers()
       expect(await handlers['agent:isInstalled'](null, 'claude')).toBe(true)
     })
 
     it('returns false when command not found', async () => {
-      vi.mocked(exec).mockRejectedValue(new Error('not found'))
+      vi.mocked(execFile).mockRejectedValue(new Error('not found'))
       const handlers = setupHandlers()
       expect(await handlers['agent:isInstalled'](null, 'missing-cmd')).toBe(false)
     })

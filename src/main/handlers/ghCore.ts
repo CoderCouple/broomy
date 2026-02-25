@@ -5,7 +5,7 @@
  * repository metadata queries.
  */
 import { IpcMain } from 'electron'
-import { execFile, exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import simpleGit from 'simple-git'
 import { buildPrCreateUrl } from '../gitStatusParser'
@@ -14,22 +14,11 @@ import { HandlerContext, expandHomePath } from './types'
 import { getScenarioData } from './scenarios'
 
 const execFileAsync = promisify(execFile)
-const execAsync = promisify(exec)
 
 async function runCommand(command: string, args: string[], options: { cwd?: string; timeout?: number }): Promise<string> {
   const { stdout } = await execFileAsync(command, args, {
     ...options,
     encoding: 'utf-8',
-  })
-  return stdout
-}
-
-async function runShellCommand(command: string, options: { cwd?: string; timeout?: number }): Promise<string> {
-  const shell = getExecShell()
-  const { stdout } = await execAsync(command, {
-    ...options,
-    encoding: 'utf-8',
-    shell: shell || undefined,
   })
   return stdout
 }
@@ -42,7 +31,8 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
       if (isWindows) {
         await execFileAsync('where', [command], { encoding: 'utf-8' })
       } else {
-        await runShellCommand(`command -v ${command}`, { timeout: 5000 })
+        const shell = getExecShell() || '/bin/sh'
+        await execFileAsync(shell, ['-c', 'command -v "$1"', '--', command], { encoding: 'utf-8', timeout: 5000 })
       }
       return true
     } catch {
