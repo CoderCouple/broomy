@@ -31,7 +31,6 @@ describe('useUpdateState', () => {
     vi.mocked(window.update.checkForUpdates).mockResolvedValue({
       updateAvailable: true,
       version: '0.9.0',
-      releaseNotes: 'Bug fixes',
     })
 
     const { result } = renderHook(() => useUpdateState())
@@ -40,12 +39,11 @@ describe('useUpdateState', () => {
     expect(result.current.updateState).toEqual({
       status: 'available',
       version: '0.9.0',
-      releaseNotes: 'Bug fixes',
     })
   })
 
   it('sets available state and opens popover on menu-triggered update', async () => {
-    let capturedCallback: ((info: { version: string; releaseNotes?: string }) => void) | null = null
+    let capturedCallback: ((info: { version: string }) => void) | null = null
     vi.mocked(window.update.onUpdateAvailable).mockImplementation((cb) => {
       capturedCallback = cb
       return () => {}
@@ -57,13 +55,12 @@ describe('useUpdateState', () => {
     expect(result.current.popoverOpen).toBe(false)
 
     act(() => {
-      capturedCallback!({ version: '1.0.0', releaseNotes: 'New features' })
+      capturedCallback!({ version: '1.0.0' })
     })
 
     expect(result.current.updateState).toEqual({
       status: 'available',
       version: '1.0.0',
-      releaseNotes: 'New features',
     })
     expect(result.current.popoverOpen).toBe(true)
   })

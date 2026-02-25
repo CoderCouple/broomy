@@ -4,7 +4,7 @@ import type { UpdateCheckResult } from '../../preload/apis/shell'
 
 export type UpdateState =
   | { status: 'idle' }
-  | { status: 'available'; version: string; releaseNotes?: string }
+  | { status: 'available'; version: string }
   | { status: 'downloading'; percent: number }
   | { status: 'ready' }
 
@@ -45,7 +45,6 @@ export function useUpdateState() {
         setUpdateState({
           status: 'available',
           version: result.version,
-          releaseNotes: result.releaseNotes,
         })
       }
     })
@@ -57,7 +56,6 @@ export function useUpdateState() {
       setUpdateState({
         status: 'available',
         version: info.version,
-        releaseNotes: info.releaseNotes,
       })
       setPopoverOpen(true)
     })

@@ -38,7 +38,7 @@ test.afterAll(async () => {
       description:
         'When an update is available, users see an update banner in the sidebar ' +
         'and an Update button in the toolbar. Clicking either opens a popover with ' +
-        'release notes, download progress, and a restart button.',
+        'a changelog link, download progress, and a restart button.',
       steps,
     },
     FEATURE_DIR,
@@ -94,20 +94,21 @@ test.describe.serial('Feature: Check for Updates', () => {
     const updateButton = page.locator('button:has-text("Update")').first()
     await updateButton.click()
 
-    // The popover should show version info and release notes
+    // The popover should show version info and changelog link
     const popover = page.locator('.shadow-xl:has-text("Current version")')
     await expect(popover).toBeVisible()
     await expect(popover.locator('text=v0.9.0')).toBeVisible()
+    await expect(popover.locator('text=View changelog')).toBeVisible()
 
     await screenshotElement(page, popover, path.join(SCREENSHOTS, '03-update-popover.png'), {
       padding: 8,
     })
     steps.push({
       screenshotPath: 'screenshots/03-update-popover.png',
-      caption: 'Update popover showing version info and release notes',
+      caption: 'Update popover with changelog link and download button',
       description:
         'The popover displays the current version, the new version available, ' +
-        'release notes, and a "Download Update" button.',
+        'a "View changelog" link that opens the GitHub release page, and a "Download Update" button.',
     })
 
     // Close the popover

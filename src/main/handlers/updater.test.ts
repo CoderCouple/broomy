@@ -135,7 +135,6 @@ describe('updater handler', () => {
         mockAutoUpdater.checkForUpdates.mockResolvedValue({
           updateInfo: {
             version: '1.0.0',
-            releaseNotes: 'New features!',
           },
         })
 
@@ -147,7 +146,6 @@ describe('updater handler', () => {
         expect(result).toEqual({
           updateAvailable: true,
           version: '1.0.0',
-          releaseNotes: 'New features!',
         })
       })
 
@@ -188,48 +186,6 @@ describe('updater handler', () => {
         expect(result).toEqual({ updateAvailable: false })
       })
 
-      it('handles array-style release notes', async () => {
-        mockAutoUpdater.checkForUpdates.mockResolvedValue({
-          updateInfo: {
-            version: '1.0.0',
-            releaseNotes: [
-              { version: '1.0.0', note: 'First note' },
-              { version: '0.9.0', note: 'Second note' },
-            ],
-          },
-        })
-
-        const mockIpcMain = createMockIpcMain()
-        register(mockIpcMain as unknown as IpcMain, createMockCtx())
-
-        const handler = getHandler(mockIpcMain, 'updater:checkForUpdates')
-        const result = await handler()
-        expect(result).toEqual({
-          updateAvailable: true,
-          version: '1.0.0',
-          releaseNotes: 'First note\nSecond note',
-        })
-      })
-
-      it('handles undefined release notes', async () => {
-        mockAutoUpdater.checkForUpdates.mockResolvedValue({
-          updateInfo: {
-            version: '1.0.0',
-            releaseNotes: undefined,
-          },
-        })
-
-        const mockIpcMain = createMockIpcMain()
-        register(mockIpcMain as unknown as IpcMain, createMockCtx())
-
-        const handler = getHandler(mockIpcMain, 'updater:checkForUpdates')
-        const result = await handler()
-        expect(result).toEqual({
-          updateAvailable: true,
-          version: '1.0.0',
-          releaseNotes: undefined,
-        })
-      })
     })
 
     describe('downloadUpdate handler', () => {

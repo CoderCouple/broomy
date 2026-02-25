@@ -31,11 +31,12 @@ export default function VersionIndicator() {
               <>
                 <div className="text-xs text-text-secondary mb-1">New version available</div>
                 <div className="text-sm font-medium text-accent mb-2">v{updateState.version}</div>
-                {updateState.releaseNotes && (
-                  <div className="text-xs text-text-secondary mb-2 max-h-24 overflow-y-auto whitespace-pre-wrap">
-                    {updateState.releaseNotes}
-                  </div>
-                )}
+                <button
+                  onClick={() => window.shell.openExternal(`https://github.com/Broomy-AI/broomy/releases/tag/v${updateState.version}`)}
+                  className="text-xs text-accent hover:underline mb-2 text-left"
+                >
+                  View changelog
+                </button>
                 <button
                   onClick={() => void handleDownload()}
                   className="w-full px-3 py-1.5 text-xs rounded bg-accent text-white hover:bg-accent/80 transition-colors"
