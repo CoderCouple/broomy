@@ -5,6 +5,7 @@ import { IpcMain } from 'electron'
 import simpleGit from 'simple-git'
 import { HandlerContext, expandHomePath } from './types'
 import { getScenarioData } from './scenarios'
+import { getDefaultBranch } from './gitUtils'
 
 async function handlePullOriginMain(ctx: HandlerContext, repoPath: string) {
   if (ctx.isE2ETest) {
@@ -14,18 +15,7 @@ async function handlePullOriginMain(ctx: HandlerContext, repoPath: string) {
   try {
     const git = simpleGit(expandHomePath(repoPath))
 
-    let defaultBranch = 'main'
-    try {
-      const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-      defaultBranch = ref.trim().replace('refs/remotes/origin/', '')
-    } catch {
-      try {
-        await git.raw(['rev-parse', '--verify', 'origin/main'])
-        defaultBranch = 'main'
-      } catch {
-        defaultBranch = 'master'
-      }
-    }
+    const defaultBranch = await getDefaultBranch(git)
 
     await git.fetch('origin', defaultBranch)
 
@@ -50,18 +40,7 @@ async function handleIsBehindMain(ctx: HandlerContext, repoPath: string) {
   try {
     const git = simpleGit(expandHomePath(repoPath))
 
-    let defaultBranch = 'main'
-    try {
-      const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-      defaultBranch = ref.trim().replace('refs/remotes/origin/', '')
-    } catch {
-      try {
-        await git.raw(['rev-parse', '--verify', 'origin/main'])
-        defaultBranch = 'main'
-      } catch {
-        defaultBranch = 'master'
-      }
-    }
+    const defaultBranch = await getDefaultBranch(git)
 
     await git.fetch('origin', defaultBranch)
 
@@ -111,22 +90,7 @@ async function handleBranchChanges(ctx: HandlerContext, repoPath: string, baseBr
     const git = simpleGit(expandHomePath(repoPath))
 
     if (!baseBranch) {
-      try {
-        const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-        baseBranch = ref.trim().replace('refs/remotes/origin/', '')
-      } catch {
-        try {
-          await git.raw(['rev-parse', '--verify', 'origin/main'])
-          baseBranch = 'main'
-        } catch {
-          try {
-            await git.raw(['rev-parse', '--verify', 'origin/master'])
-            baseBranch = 'master'
-          } catch {
-            baseBranch = 'main'
-          }
-        }
-      }
+      baseBranch = await getDefaultBranch(git)
     }
 
     const diffOutput = await git.raw(['diff', '--name-status', `origin/${baseBranch}...HEAD`])
@@ -169,22 +133,7 @@ async function handleBranchCommits(ctx: HandlerContext, repoPath: string, baseBr
     const git = simpleGit(expandHomePath(repoPath))
 
     if (!baseBranch) {
-      try {
-        const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-        baseBranch = ref.trim().replace('refs/remotes/origin/', '')
-      } catch {
-        try {
-          await git.raw(['rev-parse', '--verify', 'origin/main'])
-          baseBranch = 'main'
-        } catch {
-          try {
-            await git.raw(['rev-parse', '--verify', 'origin/master'])
-            baseBranch = 'master'
-          } catch {
-            baseBranch = 'main'
-          }
-        }
-      }
+      baseBranch = await getDefaultBranch(git)
     }
 
     const SEP = '<<SEP>>'

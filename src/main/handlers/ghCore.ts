@@ -12,6 +12,7 @@ import { buildPrCreateUrl } from '../gitStatusParser'
 import { isWindows, getExecShell } from '../platform'
 import { HandlerContext, expandHomePath } from './types'
 import { getScenarioData } from './scenarios'
+import { getDefaultBranch } from './gitUtils'
 
 const execFileAsync = promisify(execFile)
 
@@ -170,18 +171,7 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
         return { success: false, error: 'Could not determine current branch' }
       }
 
-      let defaultBranch = 'main'
-      try {
-        const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-        defaultBranch = ref.trim().replace('refs/remotes/origin/', '')
-      } catch {
-        try {
-          await git.raw(['rev-parse', '--verify', 'origin/main'])
-          defaultBranch = 'main'
-        } catch {
-          defaultBranch = 'master'
-        }
-      }
+      const defaultBranch = await getDefaultBranch(git)
 
       await git.push()
       await git.push('origin', `HEAD:${defaultBranch}`)
@@ -212,18 +202,7 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
 
       if (!repoSlug) return null
 
-      let defaultBranch = 'main'
-      try {
-        const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-        defaultBranch = ref.trim().replace('refs/remotes/origin/', '')
-      } catch {
-        try {
-          await git.raw(['rev-parse', '--verify', 'origin/main'])
-          defaultBranch = 'main'
-        } catch {
-          defaultBranch = 'master'
-        }
-      }
+      const defaultBranch = await getDefaultBranch(git)
 
       return buildPrCreateUrl(repoSlug, defaultBranch, currentBranch)
     } catch {

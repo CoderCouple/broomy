@@ -6,6 +6,7 @@ import simpleGit from 'simple-git'
 import { getCloneErrorHint } from '../cloneErrorHint'
 import { normalizePath } from '../platform'
 import { HandlerContext, expandHomePath } from './types'
+import { getDefaultBranch } from './gitUtils'
 
 async function handleClone(ctx: HandlerContext, url: string, targetDir: string) {
   if (ctx.isE2ETest) {
@@ -91,22 +92,7 @@ async function handleDefaultBranch(ctx: HandlerContext, repoPath: string) {
 
   try {
     const git = simpleGit(expandHomePath(repoPath))
-    try {
-      const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-      return ref.trim().replace('refs/remotes/origin/', '')
-    } catch {
-      try {
-        await git.raw(['rev-parse', '--verify', 'main'])
-        return 'main'
-      } catch {
-        try {
-          await git.raw(['rev-parse', '--verify', 'master'])
-          return 'master'
-        } catch {
-          return 'main'
-        }
-      }
-    }
+    return await getDefaultBranch(git)
   } catch {
     return 'main'
   }
