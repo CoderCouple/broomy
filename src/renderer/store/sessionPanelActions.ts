@@ -2,8 +2,15 @@
  * Session store actions for toggling panels, managing layout sizes, and toolbar configuration.
  */
 import { PANEL_IDS } from '../panels/types'
+import { BUILTIN_PANELS } from '../panels/builtinPanels'
 import type { Session, PanelVisibility } from './sessions'
 import { debouncedSave, syncLegacyFields } from './sessionPersistence'
+
+function getEffectiveVisibility(panelVisibility: PanelVisibility, panelId: string): boolean {
+  if (panelId in panelVisibility) return panelVisibility[panelId]
+  const def = BUILTIN_PANELS.find(p => p.id === panelId)
+  return def?.defaultVisible ?? false
+}
 
 type StoreGet = () => {
   sessions: Session[]
@@ -28,7 +35,7 @@ export function createPanelActions(get: StoreGet, set: StoreSet) {
         if (s.id !== sessionId) return s
         const newVisibility = {
           ...s.panelVisibility,
-          [panelId]: !s.panelVisibility[panelId],
+          [panelId]: !getEffectiveVisibility(s.panelVisibility, panelId),
         }
         return syncLegacyFields({
           ...s,
@@ -43,7 +50,7 @@ export function createPanelActions(get: StoreGet, set: StoreSet) {
       const { sessions, globalPanelVisibility, sidebarWidth, toolbarPanels } = get()
       const newVisibility = {
         ...globalPanelVisibility,
-        [panelId]: !globalPanelVisibility[panelId],
+        [panelId]: !getEffectiveVisibility(globalPanelVisibility, panelId),
       }
       set({
         globalPanelVisibility: newVisibility,

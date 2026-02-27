@@ -19,6 +19,7 @@ function renderContentArea(overrides: Record<string, unknown> = {}) {
     containerRef: createRef<HTMLDivElement>(),
     showSettings: false,
     showFileViewer: false,
+    showAgent: true,
     fileViewerPosition: 'top' as const,
     layoutSizes: {
       explorerWidth: 256,

@@ -95,6 +95,14 @@ export const BUILTIN_PANELS: PanelDefinition[] = [
     resizable: true,
   },
   {
+    id: PANEL_IDS.AGENT,
+    name: 'Agent',
+    icon: <TerminalIcon />,
+    position: 'center-main',
+    defaultVisible: true,
+    defaultInToolbar: true,
+  },
+  {
     id: PANEL_IDS.SETTINGS,
     name: 'Settings',
     icon: <SettingsIcon />,
