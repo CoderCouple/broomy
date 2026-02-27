@@ -116,7 +116,7 @@ export default function LayoutContentArea({
         </div>
 
         {/* Draggable divider between file viewer and terminal */}
-        <div className={showFileViewer && fileViewer ? '' : 'hidden'}>
+        <div className={showFileViewer && fileViewer ? 'flex' : 'hidden'}>
           <Divider type="fileViewer" direction={fileViewerPosition === 'left' ? 'vertical' : 'horizontal'} draggingDivider={draggingDivider} handleMouseDown={handleMouseDown} />
         </div>
 
