@@ -165,7 +165,7 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
 
   const {
     handleGenerateReview, handlePushComments, handleDeleteComment, handleOpenPrUrl,
-    handleClickLocation, handleGitignoreAdd, handleGitignoreContinue, handleGitignoreCancel,
+    handleClickLocation, handleExplainIssue, handleGitignoreAdd, handleGitignoreContinue, handleGitignoreCancel,
   } = useReviewActions(session, repo, onSelectFile, state)
 
   const hasPreReviewContent = !!(prDescription || prGitHubComments.length > 0)
@@ -262,6 +262,7 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
             prCommentsHasMore={prCommentsHasMore}
             onLoadOlderComments={loadOlderComments}
             onClickLocation={handleClickLocation}
+            onExplainIssue={handleExplainIssue}
             onDeleteComment={handleDeleteComment}
             repoDir={session.directory}
             prNumber={session.prNumber || 0}

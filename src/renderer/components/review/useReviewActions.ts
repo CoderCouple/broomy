@@ -64,6 +64,7 @@ export interface ReviewActions {
   handleDeleteComment: (commentId: string) => Promise<void>
   handleOpenPrUrl: () => void
   handleClickLocation: (location: CodeLocation) => void
+  handleExplainIssue: (issueId: string) => Promise<void>
   handleGitignoreAdd: () => Promise<void>
   handleGitignoreContinue: () => Promise<void>
   handleGitignoreCancel: () => void
@@ -265,6 +266,44 @@ export function useReviewActions(
     }
   }, [session.prUrl])
 
+  const handleExplainIssue = useCallback(async (issueId: string) => {
+    if (!session.agentPtyId) {
+      setError('No agent terminal found. Wait for the agent to start.')
+      return
+    }
+
+    const issue = state.reviewData?.potentialIssues.find(i => i.id === issueId)
+    if (!issue) return
+
+    const locations = issue.locations.map(loc => `- ${loc.file}:${loc.startLine}${loc.endLine ? `-${loc.endLine}` : ''}`).join('\n')
+
+    const prompt = `# Explain Review Issue
+
+Please explain this potential issue from the code review in detail:
+
+**Title:** ${issue.title}
+**Severity:** ${issue.severity}
+**Description:** ${issue.description}
+${locations ? `\n**Locations:**\n${locations}` : ''}
+
+Please cover:
+1. Why this is flagged as a potential problem
+2. What concrete risk or impact it could have
+3. How to address it if it is indeed an issue
+4. Whether this might actually be a false positive and why
+`
+
+    try {
+      await window.fs.mkdir(broomyDir)
+      const explainPath = `${broomyDir}/explain-prompt.md`
+      await window.fs.writeFile(explainPath, prompt)
+      await window.pty.write(session.agentPtyId, 'Please read and follow the instructions in .broomy/explain-prompt.md')
+      focusAgentTerminal()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [session, state.reviewData, broomyDir, setError])
+
   const handleClickLocation = useCallback((location: CodeLocation) => {
     const fullPath = location.file.startsWith('/')
       ? location.file
@@ -280,6 +319,7 @@ export function useReviewActions(
     handleDeleteComment,
     handleOpenPrUrl,
     handleClickLocation,
+    handleExplainIssue,
     handleGitignoreAdd,
     handleGitignoreContinue,
     handleGitignoreCancel,

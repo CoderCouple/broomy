@@ -105,6 +105,7 @@ export interface ReviewContentProps {
   prCommentsHasMore: boolean
   onLoadOlderComments: () => void
   onClickLocation: (location: CodeLocation) => void
+  onExplainIssue?: (issueId: string) => void
   onDeleteComment: (commentId: string) => void
   repoDir: string
   prNumber: number
@@ -123,6 +124,7 @@ export function ReviewContent({
   prCommentsHasMore,
   onLoadOlderComments,
   onClickLocation,
+  onExplainIssue,
   onDeleteComment,
   repoDir,
   prNumber,
@@ -205,7 +207,16 @@ export function ReviewContent({
               <div key={issue.id} className="text-sm">
                 <div className="flex items-center gap-2">
                   <SeverityBadge severity={issue.severity} />
-                  <span className="font-medium text-text-primary">{issue.title}</span>
+                  <span className="font-medium text-text-primary flex-1">{issue.title}</span>
+                  {onExplainIssue && (
+                    <button
+                      onClick={() => onExplainIssue(issue.id)}
+                      className="flex-shrink-0 px-1.5 py-0.5 text-[10px] rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
+                      title="Ask agent to explain this issue"
+                    >
+                      Explain
+                    </button>
+                  )}
                 </div>
                 <div className="text-text-secondary mt-0.5 leading-relaxed">{issue.description}</div>
                 {issue.locations.length > 0 && (
