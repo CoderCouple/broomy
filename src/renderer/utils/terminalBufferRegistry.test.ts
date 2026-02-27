@@ -49,4 +49,16 @@ describe('terminalBufferRegistry', () => {
   it('getLastLines returns null for unregistered session', () => {
     expect(terminalBufferRegistry.getLastLines('nonexistent', 5)).toBeNull()
   })
+
+  it('getSessionIds returns all registered IDs', () => {
+    terminalBufferRegistry.register('session-1', () => 'a')
+    terminalBufferRegistry.register('session-2', () => 'b')
+    const ids = terminalBufferRegistry.getSessionIds()
+    expect(ids).toContain('session-1')
+    expect(ids).toContain('session-2')
+  })
+
+  it('getSessionIds returns empty array when no sessions registered', () => {
+    expect(terminalBufferRegistry.getSessionIds()).toEqual([])
+  })
 })

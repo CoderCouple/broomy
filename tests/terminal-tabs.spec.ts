@@ -37,6 +37,26 @@ async function isTabActive(tabText: string): Promise<boolean> {
   return classes?.includes('border-accent') ?? false
 }
 
+/**
+ * Get terminal buffer content from the buffer registry.
+ * xterm 6.0 renders via canvas, so DOM queries can't read terminal text.
+ */
+async function getTerminalContent(p: Page, type: 'agent' | 'user'): Promise<string> {
+  return p.evaluate((searchType) => {
+    const registry = (window as unknown as { __terminalBufferRegistry?: { getSessionIds: () => string[]; getBuffer: (id: string) => string | null } }).__terminalBufferRegistry
+    if (!registry) return ''
+    const ids = registry.getSessionIds()
+    for (const id of ids) {
+      const isUser = id.endsWith('-user')
+      if (searchType === 'agent' && isUser) continue
+      if (searchType === 'user' && !isUser) continue
+      const buf = registry.getBuffer(id)
+      if (buf && buf.length > 0) return buf
+    }
+    return ''
+  }, type)
+}
+
 test.describe('Terminal Tabs', () => {
   test('should show Agent tab as active by default', async () => {
     // The Agent tab should be visible
@@ -60,15 +80,8 @@ test.describe('Terminal Tabs', () => {
     // The new tab should be active (Agent tab should not be active)
     expect(await isTabActive('Agent')).toBe(false)
 
-    // The visible terminal should show the user shell prompt
-    const terminalText = await page.evaluate(() => {
-      const allRows = document.querySelectorAll('.xterm-rows')
-      for (const rows of allRows) {
-        const wrapper = rows.closest('.hidden')
-        if (!wrapper) return rows.textContent || ''
-      }
-      return ''
-    })
+    // The user terminal should show the shell prompt
+    const terminalText = await getTerminalContent(page, 'user')
     expect(terminalText).toContain('test-shell$')
   })
 
@@ -82,14 +95,7 @@ test.describe('Terminal Tabs', () => {
     expect(await isTabActive('Agent')).toBe(true)
 
     // Terminal should show fake claude output
-    const terminalText = await page.evaluate(() => {
-      const allRows = document.querySelectorAll('.xterm-rows')
-      for (const rows of allRows) {
-        const wrapper = rows.closest('.hidden')
-        if (!wrapper) return rows.textContent || ''
-      }
-      return ''
-    })
+    const terminalText = await getTerminalContent(page, 'agent')
     expect(terminalText).toContain('FAKE_CLAUDE_READY')
   })
 

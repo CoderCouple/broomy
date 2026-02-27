@@ -11,6 +11,13 @@ type BufferGetter = () => string
 
 const bufferGetters = new Map<string, BufferGetter>()
 
+// Expose on window for E2E tests (xterm 6.0 uses canvas rendering, so DOM queries can't read terminal content)
+declare global {
+  interface Window {
+    __terminalBufferRegistry?: typeof terminalBufferRegistry
+  }
+}
+
 export const terminalBufferRegistry = {
   register(sessionId: string, getter: BufferGetter) {
     bufferGetters.set(sessionId, getter)
@@ -33,5 +40,15 @@ export const terminalBufferRegistry = {
     const lines = buffer.split('\n')
     const lastLines = lines.slice(-lineCount)
     return lastLines.join('\n')
-  }
+  },
+
+  /** Get all registered session IDs. */
+  getSessionIds(): string[] {
+    return Array.from(bufferGetters.keys())
+  },
+}
+
+// Expose for E2E tests
+if (typeof window !== 'undefined') {
+  window.__terminalBufferRegistry = terminalBufferRegistry
 }

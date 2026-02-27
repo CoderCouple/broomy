@@ -6,6 +6,7 @@
 import { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { WebglAddon } from '@xterm/addon-webgl'
 import '@xterm/xterm/css/xterm.css'
 
 const XTERM_THEME = {
@@ -33,6 +34,7 @@ export function AuthTerminal({ ptyId, onDone }: { ptyId: string; onDone: () => v
     const fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
     term.open(containerRef.current)
+    try { term.loadAddon(new WebglAddon()) } catch { /* DOM renderer fallback */ }
     fitAddon.fit()
 
     // Forward keystrokes to PTY

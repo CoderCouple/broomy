@@ -145,6 +145,17 @@ describe('LayoutContentArea', () => {
     expect(contentDiv).toBeTruthy()
   })
 
+  it('divider wrapper uses flex layout when visible so divider stretches to full height', () => {
+    const { container } = renderContentArea({
+      showFileViewer: true,
+      fileViewerPosition: 'left',
+    })
+    const divider = container.querySelector('.cursor-col-resize')!
+    const wrapper = divider.parentElement!
+    expect(wrapper.className).toContain('flex')
+    expect(wrapper.className).not.toContain('hidden')
+  })
+
   it('calls handleMouseDown when divider is pressed', () => {
     const innerFn = vi.fn()
     const handleMouseDown = vi.fn(() => innerFn)

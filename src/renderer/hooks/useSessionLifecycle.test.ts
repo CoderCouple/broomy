@@ -12,6 +12,7 @@ vi.mock('../utils/terminalBufferRegistry', () => ({
     getBuffer: vi.fn().mockReturnValue('mock buffer'),
     register: vi.fn(),
     unregister: vi.fn(),
+    getSessionIds: vi.fn().mockReturnValue([]),
   },
 }))
 

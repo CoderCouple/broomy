@@ -37,6 +37,29 @@ test.afterAll(async () => {
   }
 })
 
+/**
+ * Get terminal buffer content from the buffer registry.
+ * xterm 6.0 renders via canvas, so DOM queries can't read terminal text.
+ * The buffer registry exposes serialized content from each terminal.
+ *
+ * @param type - 'agent' to get the first agent buffer, 'user' for user terminal, 'any' for first non-empty
+ */
+async function getTerminalContent(p: Page, type: 'agent' | 'user' | 'any' = 'agent'): Promise<string> {
+  return p.evaluate((searchType) => {
+    const registry = (window as unknown as { __terminalBufferRegistry?: { getSessionIds: () => string[]; getBuffer: (id: string) => string | null } }).__terminalBufferRegistry
+    if (!registry) return ''
+    const ids = registry.getSessionIds()
+    for (const id of ids) {
+      const isUser = id.endsWith('-user')
+      if (searchType === 'agent' && isUser) continue
+      if (searchType === 'user' && !isUser) continue
+      const buf = registry.getBuffer(id)
+      if (buf && buf.length > 0) return buf
+    }
+    return ''
+  }, type)
+}
+
 test.describe('Broomy App', () => {
   test('should display the app title', async () => {
     const title = page.locator('text=Broomy').first()
@@ -117,17 +140,13 @@ test.describe('Terminal Integration', () => {
     // Wait for terminal to initialize
     await page.waitForTimeout(1500)
 
-    // Get terminal content from the first (main) terminal
-    const terminalText = await page.evaluate(() => {
-      const viewport = document.querySelector('.xterm-rows')
-      return viewport?.textContent || ''
-    })
+    // Get terminal content from the buffer registry (xterm 6.0 renders via canvas)
+    const terminalText = await getTerminalContent(page, 'agent')
 
     // Terminal should NOT show the error message
     expect(terminalText).not.toContain('Failed to start terminal')
 
     // Terminal should show some shell-like content
-    // (could be a prompt, or the working directory)
     expect(terminalText.length).toBeGreaterThan(0)
   })
 
@@ -158,11 +177,8 @@ test.describe('Terminal Integration', () => {
     // Wait for command to execute
     await page.waitForTimeout(500)
 
-    // Get terminal content from the first terminal
-    const terminalText = await page.evaluate(() => {
-      const viewport = document.querySelector('.xterm-rows')
-      return viewport?.textContent || ''
-    })
+    // Get terminal content from the buffer registry
+    const terminalText = await getTerminalContent(page, 'agent')
 
     // The echo output should appear in the terminal
     expect(terminalText).toContain(testMarker)
@@ -291,11 +307,8 @@ test.describe('Session Terminal Persistence', () => {
     await broomySession.click()
     await page.waitForTimeout(500)
 
-    // Verify the marker is still in the terminal
-    const terminalText = await page.evaluate(() => {
-      const viewport = document.querySelector('.xterm-rows')
-      return viewport?.textContent || ''
-    })
+    // Verify the marker is still in the terminal buffer
+    const terminalText = await getTerminalContent(page, 'agent')
 
     expect(terminalText).toContain(uniqueMarker)
   })
@@ -310,11 +323,8 @@ test.describe('E2E Shell Integration', () => {
     const xtermViewport = page.locator('.xterm-screen').first()
     await expect(xtermViewport).toBeVisible()
 
-    // Get terminal content from the agent terminal
-    const terminalText = await page.evaluate(() => {
-      const viewport = document.querySelector('.xterm-rows')
-      return viewport?.textContent || ''
-    })
+    // Get terminal content from the buffer registry
+    const terminalText = await getTerminalContent(page, 'agent')
 
     // Agent terminal shows FAKE_CLAUDE_READY (it runs the fake claude script)
     expect(terminalText).toContain('FAKE_CLAUDE_READY')
@@ -326,16 +336,8 @@ test.describe('E2E Shell Integration', () => {
     await addTabButton.click()
     await page.waitForTimeout(2000)  // Wait for user terminal PTY to initialize
 
-    // The agent terminal is now hidden and the user terminal is visible.
-    // Find the visible .xterm-rows (the one not inside a hidden ancestor).
-    const terminalText = await page.evaluate(() => {
-      const allRows = document.querySelectorAll('.xterm-rows')
-      for (const rows of allRows) {
-        const wrapper = rows.closest('.hidden')
-        if (!wrapper) return rows.textContent || ''
-      }
-      return ''
-    })
+    // Get content from the user terminal buffer
+    const terminalText = await getTerminalContent(page, 'user')
 
     // The user terminal shell uses "test-shell$" as its prompt in E2E mode
     expect(terminalText).toContain('test-shell$')

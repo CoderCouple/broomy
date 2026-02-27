@@ -1,0 +1,165 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createPtyDataHandler, MAX_BUFFER_SIZE } from './ptyDataHandler'
+
+vi.mock('../utils/terminalActivityDetector', () => ({
+  evaluateActivity: vi.fn().mockReturnValue({ status: null, scheduleIdle: false }),
+}))
+
+vi.stubGlobal('requestAnimationFrame', (cb: () => void) => { cb(); return 1 })
+vi.stubGlobal('cancelAnimationFrame', vi.fn())
+
+function makeTerminal() {
+  return {
+    write: vi.fn((_data: string, cb?: () => void) => { cb?.() }),
+    scrollToBottom: vi.fn(),
+    buffer: { active: { viewportY: 0, baseY: 0 } },
+    cols: 80,
+    rows: 24,
+    resize: vi.fn(),
+  } as unknown as import('@xterm/xterm').Terminal
+}
+
+function makeState() {
+  return {
+    isFollowingRef: { current: true },
+    processPlanDetection: vi.fn(),
+    lastUserInputRef: { current: 0 },
+    lastInteractionRef: { current: 0 },
+    lastStatusRef: { current: 'idle' as const },
+    idleTimeoutRef: { current: null },
+    scheduleUpdate: vi.fn(),
+  }
+}
+
+describe('createPtyDataHandler', () => {
+  let terminal: ReturnType<typeof makeTerminal>
+  let state: ReturnType<typeof makeState>
+  let isActiveRef: { current: boolean }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    terminal = makeTerminal()
+    state = makeState()
+    isActiveRef = { current: true }
+  })
+
+  function createHandler(overrides: { isAgent?: boolean } = {}) {
+    return createPtyDataHandler({
+      terminal,
+      isAgent: overrides.isAgent ?? false,
+      state,
+      effectStartTime: Date.now(),
+      isActiveRef,
+    })
+  }
+
+  it('writes data to terminal when active', () => {
+    const handler = createHandler()
+    handler.handleData('hello')
+    expect(terminal.write).toHaveBeenCalledWith('hello', expect.any(Function))
+  })
+
+  it('scrolls to bottom when following and data arrives', () => {
+    state.isFollowingRef.current = true
+    let rafId = 0
+    vi.stubGlobal('requestAnimationFrame', (cb: () => void) => { cb(); return ++rafId })
+
+    const handler = createHandler()
+    handler.handleData('data')
+    expect(terminal.scrollToBottom).toHaveBeenCalled()
+  })
+
+  it('does not scroll to bottom when not following', () => {
+    state.isFollowingRef.current = false
+    const handler = createHandler()
+    handler.handleData('data')
+    expect(terminal.scrollToBottom).not.toHaveBeenCalled()
+  })
+
+  it('buffers data when inactive instead of writing to terminal', () => {
+    isActiveRef.current = false
+    const handler = createHandler()
+    handler.handleData('hello')
+    handler.handleData(' world')
+    expect(terminal.write).not.toHaveBeenCalled()
+  })
+
+  it('flushes buffered data as a single write', () => {
+    isActiveRef.current = false
+    const handler = createHandler()
+    handler.handleData('hello')
+    handler.handleData(' world')
+    handler.handleData('!')
+
+    isActiveRef.current = true
+    handler.flush()
+
+    expect(terminal.write).toHaveBeenCalledTimes(1)
+    expect(terminal.write).toHaveBeenCalledWith('hello world!', expect.any(Function))
+  })
+
+  it('flush is a no-op when buffer is empty', () => {
+    const handler = createHandler()
+    handler.flush()
+    expect(terminal.write).not.toHaveBeenCalled()
+  })
+
+  it('clears buffer after flush', () => {
+    isActiveRef.current = false
+    const handler = createHandler()
+    handler.handleData('data')
+    handler.flush()
+    // Second flush should be a no-op
+    vi.mocked(terminal.write).mockClear()
+    handler.flush()
+    expect(terminal.write).not.toHaveBeenCalled()
+  })
+
+  it('caps buffer at MAX_BUFFER_SIZE by dropping oldest chunks', () => {
+    isActiveRef.current = false
+    const handler = createHandler()
+
+    // Write chunks that exceed MAX_BUFFER_SIZE
+    const chunkSize = 1024 * 1024 // 1MB
+    const chunk = 'x'.repeat(chunkSize)
+    for (let i = 0; i < 7; i++) {
+      handler.handleData(chunk)
+    }
+
+    // Flush and check the total size is <= MAX_BUFFER_SIZE
+    handler.flush()
+    expect(terminal.write).toHaveBeenCalledTimes(1)
+    const writtenData = vi.mocked(terminal.write).mock.calls[0][0] as string
+    expect(writtenData.length).toBeLessThanOrEqual(MAX_BUFFER_SIZE)
+    // Should have dropped earliest chunks
+    expect(writtenData.length).toBeGreaterThan(0)
+  })
+
+  it('still runs activity detection when inactive (agent terminal)', async () => {
+    const { evaluateActivity } = await import('../utils/terminalActivityDetector')
+    vi.mocked(evaluateActivity).mockReturnValue({ status: 'working', scheduleIdle: true })
+
+    isActiveRef.current = false
+    const handler = createHandler({ isAgent: true })
+    handler.handleData('output')
+
+    expect(evaluateActivity).toHaveBeenCalled()
+    expect(state.scheduleUpdate).toHaveBeenCalledWith({ status: 'working' })
+  })
+
+  it('does not run activity detection for non-agent terminals', () => {
+    const handler = createHandler({ isAgent: false })
+    handler.handleData('output')
+    expect(state.processPlanDetection).not.toHaveBeenCalled()
+  })
+
+  describe('clearTimers', () => {
+    it('clears scroll RAF', () => {
+      const handler = createHandler()
+      handler.handleData('data')
+      handler.clearTimers()
+      // Should not throw
+    })
+  })
+})
