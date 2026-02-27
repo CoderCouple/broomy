@@ -17,7 +17,7 @@ export function Divider({ type, direction, draggingDivider, onMouseDown }: Divid
     <div
       onMouseDown={onMouseDown(type)}
       className={`flex-shrink-0 group relative ${
-        direction === 'vertical' ? 'w-px cursor-col-resize' : 'h-px cursor-row-resize'
+        direction === 'vertical' ? 'w-px cursor-col-resize' : 'h-px w-full cursor-row-resize'
       }`}
     >
       <div className={`absolute z-10 ${
