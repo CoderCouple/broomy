@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SerializeAddon } from '@xterm/addon-serialize'
-import { WebglAddon } from '@xterm/addon-webgl'
+
 import { useErrorStore } from '../store/errors'
 import { useSessionStore } from '../store/sessions'
 import { useRepoStore } from '../store/repos'
@@ -262,19 +262,9 @@ export function useTerminalSetup(
 
     terminal.open(containerRef.current)
 
-    // Load WebGL renderer for better performance; fall back to canvas renderer
-    // if WebGL2 is unavailable (e.g., E2E tests, low-end GPUs).
-    // Probe for WebGL2 support first — loading the addon on an unsupported GPU
-    // can crash Chromium's GPU process (white screen / sad-face).
-    try {
-      const probeCanvas = document.createElement('canvas')
-      const gl = probeCanvas.getContext('webgl2')
-      if (gl) {
-        const webglAddon = new WebglAddon()
-        webglAddon.onContextLoss(() => { webglAddon.dispose() })
-        terminal.loadAddon(webglAddon)
-      }
-    } catch { /* canvas renderer fallback */ }
+    // xterm.js 6 uses a canvas renderer by default, which is performant enough.
+    // The WebGL addon is intentionally not loaded — it crashes the GPU process
+    // on some hardware, causing a white screen / sad-face. Revisit later.
 
     // Register all terminals in the buffer registry so content is accessible.
     // Agent terminals are keyed by sessionId; non-agent terminals use the pty ID.

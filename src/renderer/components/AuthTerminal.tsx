@@ -6,7 +6,7 @@
 import { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { WebglAddon } from '@xterm/addon-webgl'
+
 import '@xterm/xterm/css/xterm.css'
 
 const XTERM_THEME = {
@@ -34,15 +34,6 @@ export function AuthTerminal({ ptyId, onDone }: { ptyId: string; onDone: () => v
     const fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
     term.open(containerRef.current)
-    try {
-      const probeCanvas = document.createElement('canvas')
-      const gl = probeCanvas.getContext('webgl2')
-      if (gl) {
-        const webglAddon = new WebglAddon()
-        webglAddon.onContextLoss(() => { webglAddon.dispose() })
-        term.loadAddon(webglAddon)
-      }
-    } catch { /* canvas renderer fallback */ }
     fitAddon.fit()
 
     // Forward keystrokes to PTY
