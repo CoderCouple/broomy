@@ -131,10 +131,14 @@ function createGitActions(config: GitActionsConfig) {
 
     const broomyDir = `${directory}/.broomy`
     const promptPath = `${broomyDir}/create-pr-prompt.md`
+    const prResultPath = `${broomyDir}/pr-result.json`
     const baseBranch = branchBaseName || 'main'
 
     // Ensure .broomy directory exists
     await window.fs.mkdir(broomyDir)
+
+    // Remove stale pr-result.json so the watcher doesn't trigger on old data
+    await window.fs.rm(prResultPath)
 
     // Write the prompt file
     const prompt = buildCreatePrPrompt(baseBranch)
