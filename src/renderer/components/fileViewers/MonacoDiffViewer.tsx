@@ -98,17 +98,28 @@ export default function MonacoDiffViewer({
       editor.getOriginalEditor().updateOptions({ wordWrapOverride2: 'on' })
     }
     if (scrollToLine) {
-      const modifiedEditor = editor.getModifiedEditor()
-      modifiedEditor.revealLineInCenter(scrollToLine)
-      modifiedEditor.setPosition({ lineNumber: scrollToLine, column: 1 })
+      // Wait for diff computation to finish before scrolling, since
+      // hideUnchangedRegions collapses regions asynchronously and would
+      // invalidate any scroll position set before that completes.
+      const disposable = editor.onDidUpdateDiff(() => {
+        disposable.dispose()
+        const modifiedEditor = editor.getModifiedEditor()
+        modifiedEditor.revealLineInCenter(scrollToLine)
+        modifiedEditor.setPosition({ lineNumber: scrollToLine, column: 1 })
+      })
     }
   }
 
   useEffect(() => {
     if (scrollToLine && diffEditorRef.current) {
-      const modifiedEditor = diffEditorRef.current.getModifiedEditor()
-      modifiedEditor.revealLineInCenter(scrollToLine)
-      modifiedEditor.setPosition({ lineNumber: scrollToLine, column: 1 })
+      // When scrollToLine changes on an already-mounted editor, the diff is
+      // already computed so we can scroll directly after a layout frame.
+      requestAnimationFrame(() => {
+        if (!diffEditorRef.current) return
+        const modifiedEditor = diffEditorRef.current.getModifiedEditor()
+        modifiedEditor.revealLineInCenter(scrollToLine)
+        modifiedEditor.setPosition({ lineNumber: scrollToLine, column: 1 })
+      })
     }
   }, [scrollToLine, filePath])
 
