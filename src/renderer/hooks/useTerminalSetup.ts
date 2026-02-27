@@ -229,6 +229,9 @@ function useTerminalState(config: TerminalConfig) {
   const isFollowingRef = useRef(true)
   const [showScrollButton, setShowScrollButton] = useState(false)
 
+  const isActiveRef = useRef(true)
+  const dataHandlerRef = useRef<{ flush: () => void } | null>(null)
+
   const commandRef = useRef(command)
   commandRef.current = command
   const envRef = useRef(env)
@@ -271,11 +274,11 @@ function useTerminalState(config: TerminalConfig) {
   const scheduleUpdate = useCallback((update: { status?: 'working' | 'idle' | 'error'; lastMessage?: string }) => {
     pendingUpdateRef.current = { ...pendingUpdateRef.current, ...update }
     if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current)
-    if (update.status === 'working') {
-      flushUpdate()
-    } else {
-      updateTimeoutRef.current = setTimeout(flushUpdate, 300)
-    }
+    // Debounce all status updates (150ms for working, 300ms for idle/error).
+    // With multiple agents, immediate flushes for "working" caused ~50 store
+    // updates/sec which starved the event loop. 150ms still feels instant.
+    const delay = update.status === 'working' ? 150 : 300
+    updateTimeoutRef.current = setTimeout(flushUpdate, delay)
   }, [flushUpdate])
 
   const handleScrollToBottom = useCallback(() => {
@@ -288,6 +291,7 @@ function useTerminalState(config: TerminalConfig) {
     terminalRef, fitAddonRef, serializeAddonRef, cleanupRef,
     updateTimeoutRef, idleTimeoutRef, lastStatusRef,
     lastUserInputRef, lastInteractionRef, ptyIdRef, isFollowingRef,
+    isActiveRef, dataHandlerRef,
     showScrollButton, setShowScrollButton,
     commandRef, envRef, isAgentTerminalRef, cwdRef,
     addErrorRef, updateAgentMonitorRef, markSessionReadRef,
@@ -354,6 +358,7 @@ export function useTerminalSetup(
 
     let onRenderRAF = 0
     terminal.onRender(() => {
+      if (!s.isActiveRef.current) return // skip render work for background terminals
       if (onRenderRAF) return
       onRenderRAF = requestAnimationFrame(() => {
         onRenderRAF = 0
@@ -398,7 +403,9 @@ export function useTerminalSetup(
           isAgent,
           state: s,
           effectStartTime,
+          isActiveRef: s.isActiveRef,
         })
+        s.dataHandlerRef.current = dataHandler
         const removeDataListener = window.pty.onData(id, dataHandler.handleData)
 
         const removeExitListener = window.pty.onExit(id, (exitCode: number) => {
@@ -462,10 +469,13 @@ export function useTerminalSetup(
     }
   }, [sessionId, restartKey]) // Recreate terminal when session identity changes or on restart
 
-  // Fit and focus when terminal becomes visible (e.g., tab switch or session selection)
+  // Fit, focus, and flush buffered data when terminal becomes visible
   useEffect(() => {
+    s.isActiveRef.current = isActive
     s.lastInteractionRef.current = Date.now()
     if (isActive) {
+      // Replay any data that arrived while the terminal was in the background
+      s.dataHandlerRef.current?.flush()
       requestAnimationFrame(() => {
         try { s.fitAddonRef.current?.fit() } catch { /* ignore */ }
         s.terminalRef.current?.focus()

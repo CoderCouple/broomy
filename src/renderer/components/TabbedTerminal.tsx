@@ -79,7 +79,11 @@ interface TabbedTerminalProps {
 }
 
 export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand, agentEnv }: TabbedTerminalProps) {
-  const sessions = useSessionStore((state) => state.sessions)
+  // Targeted selector: only re-render when this session's terminalTabs change
+  const terminalTabs = useSessionStore((state) => {
+    const session = state.sessions.find((s) => s.id === sessionId)
+    return session?.terminalTabs
+  })
   const addTerminalTab = useSessionStore((state) => state.addTerminalTab)
   const removeTerminalTab = useSessionStore((state) => state.removeTerminalTab)
   const renameTerminalTab = useSessionStore((state) => state.renameTerminalTab)
@@ -88,9 +92,8 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
   const closeOtherTerminalTabs = useSessionStore((state) => state.closeOtherTerminalTabs)
   const closeTerminalTabsToRight = useSessionStore((state) => state.closeTerminalTabsToRight)
 
-  const session = sessions.find((s) => s.id === sessionId)
-  const userTabs = session?.terminalTabs.tabs ?? []
-  const storedActiveTabId = session?.terminalTabs.activeTabId ?? null
+  const userTabs = terminalTabs?.tabs ?? []
+  const storedActiveTabId = terminalTabs?.activeTabId ?? null
 
   // Build the combined tab list: Agent tab first, then user tabs
   const agentTab = { id: AGENT_TAB_ID, name: 'Agent' }

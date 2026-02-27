@@ -28,16 +28,24 @@ interface CreatePtyDataHandlerArgs {
   isAgent: boolean
   state: TerminalStateForPtyData
   effectStartTime: number
+  isActiveRef: React.MutableRefObject<boolean>
 }
+
+/** Maximum buffer size (5 MB) to prevent unbounded memory growth for background terminals. */
+export const MAX_BUFFER_SIZE = 5 * 1024 * 1024
 
 interface PtyDataHandlerController {
   handleData: (data: string) => void
   clearTimers: () => void
+  /** Flush buffered data to the terminal (call when terminal becomes visible). */
+  flush: () => void
 }
 
 export function createPtyDataHandler(args: CreatePtyDataHandlerArgs): PtyDataHandlerController {
-  const { terminal, viewportEl, helpers, isAgent, state, effectStartTime } = args
+  const { terminal, viewportEl, helpers, isAgent, state, effectStartTime, isActiveRef } = args
   let syncCheckTimeout: ReturnType<typeof setTimeout> | null = null
+  const bufferedChunks: string[] = []
+  let bufferedSize = 0
   // Debounce scrollToBottom across rapid write chunks using rAF.
   // PTY data arrives in fixed-size chunks (~1024 bytes), so a single
   // logical output (e.g. a screen redraw) is split across multiple
@@ -65,7 +73,7 @@ export function createPtyDataHandler(args: CreatePtyDataHandlerArgs): PtyDataHan
     })
   }
 
-  const handleData = (data: string) => {
+  const writeToTerminal = (data: string) => {
     // Detect screen clear sequences: \x1b[2J (erase display) + \x1b[3J (erase scrollback)
     const hasScreenClear = data.includes('\x1b[2J') || data.includes('\x1b[3J')
 
@@ -98,7 +106,9 @@ export function createPtyDataHandler(args: CreatePtyDataHandlerArgs): PtyDataHan
         }
       }, 500)
     }
+  }
 
+  const processActivityDetection = (data: string) => {
     if (!isAgent) return
 
     state.processPlanDetection(data)
@@ -123,6 +133,33 @@ export function createPtyDataHandler(args: CreatePtyDataHandlerArgs): PtyDataHan
     }
   }
 
+  const handleData = (data: string) => {
+    // Activity detection is cheap — always run it even for background terminals
+    processActivityDetection(data)
+
+    if (!isActiveRef.current) {
+      // Buffer data for background terminals instead of writing to xterm
+      bufferedChunks.push(data)
+      bufferedSize += data.length
+      // Cap buffer at MAX_BUFFER_SIZE: drop oldest chunks when exceeded
+      while (bufferedSize > MAX_BUFFER_SIZE && bufferedChunks.length > 1) {
+        const dropped = bufferedChunks.shift()!
+        bufferedSize -= dropped.length
+      }
+      return
+    }
+
+    writeToTerminal(data)
+  }
+
+  const flush = () => {
+    if (bufferedChunks.length === 0) return
+    const all = bufferedChunks.join('')
+    bufferedChunks.length = 0
+    bufferedSize = 0
+    writeToTerminal(all)
+  }
+
   const clearTimers = () => {
     if (syncCheckTimeout) {
       clearTimeout(syncCheckTimeout)
@@ -134,5 +171,5 @@ export function createPtyDataHandler(args: CreatePtyDataHandlerArgs): PtyDataHan
     }
   }
 
-  return { handleData, clearTimers }
+  return { handleData, clearTimers, flush }
 }
