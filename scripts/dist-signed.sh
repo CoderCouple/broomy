@@ -6,7 +6,7 @@ set -euo pipefail
 # Usage: pnpm dist:signed
 #
 # Reads signing credentials from .env or the environment.
-# See docs/RELEASING.md for setup instructions.
+# See docs/releasing.md for setup instructions.
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "Error: dist-signed.sh only works on macOS (requires codesign, notarytool, etc.)"
@@ -39,7 +39,7 @@ if [ ${#missing[@]} -gt 0 ]; then
   done
   echo ""
   echo "Set them in .env or export them before running this script."
-  echo "See docs/RELEASING.md for setup instructions."
+  echo "See docs/releasing.md for setup instructions."
   exit 1
 fi
 
@@ -53,7 +53,7 @@ if ! security find-identity -v -p codesigning | grep -q "$CSC_NAME"; then
   echo "Available identities:"
   security find-identity -v -p codesigning
   echo ""
-  echo "See docs/RELEASING.md for certificate setup instructions."
+  echo "See docs/releasing.md for certificate setup instructions."
   exit 1
 fi
 echo "  Found: $CSC_NAME"

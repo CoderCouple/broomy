@@ -79,7 +79,7 @@ Each session has independently togglable panels:
 
 ## Architecture
 
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for a detailed technical guide.
+See [architecture.md](docs/architecture.md) for a detailed technical guide.
 
 ### Quick Overview
 

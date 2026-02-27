@@ -60,7 +60,7 @@ if [ ${#missing[@]} -gt 0 ]; then
   done
   echo ""
   echo "Set them in .env or export them before running this script."
-  echo "See docs/RELEASING.md for setup instructions."
+  echo "See docs/releasing.md for setup instructions."
   exit 1
 fi
 

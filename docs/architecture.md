@@ -32,24 +32,51 @@ Broomy follows the standard Electron three-process model:
 ┌───────────────────────────┴─────────────────────────────────────────┐
 │                     Renderer Process (React)                         │
 │                                                                     │
-│  Zustand Stores          React Components        Utility Modules    │
-│  ├── sessions.ts         ├── Layout.tsx          ├── stripAnsi.ts   │
-│  ├── agents.ts           ├── Terminal.tsx        ├── explorerHelp   │
-│  ├── repos.ts            ├── Explorer.tsx        │   ers.ts         │
-│  ├── profiles.ts         ├── FileViewer.tsx      ├── slugify.ts     │
-│  └── errors.ts           ├── SessionList.tsx     ├── textDetect     │
-│                          ├── NewSessionDialog    │   ion.ts         │
-│  Panel System            │   .tsx                ├── branchStatus   │
-│  ├── registry.ts         ├── AgentSettings.tsx   │   .ts            │
-│  ├── types.ts            ├── TabbedTerminal.tsx  └── terminalBuf   │
-│  ├── builtinPanels.tsx   └── ProfileChip.tsx         ferRegistry.ts │
-│  └── PanelContext.tsx                                               │
+│  Zustand Stores          React Components         Utility Modules   │
+│  ├── sessions.ts         ├── Layout.tsx           ├── stripAnsi.ts  │
+│  ├── agents.ts           ├── Terminal.tsx         ├── explorerHelpers│
+│  ├── repos.ts            ├── TabbedTerminal.tsx   │   .ts           │
+│  ├── profiles.ts         ├── SessionList.tsx      ├── slugify.ts    │
+│  ├── errors.ts           ├── FileViewer.tsx       ├── textDetection │
+│  └── tutorial.ts         ├── AgentSettings.tsx    │   .ts           │
+│                          ├── explorer/            ├── branchStatus  │
+│  Panel System            ├── newSession/          │   .ts           │
+│  ├── types.ts            ├── review/              ├── terminalBuffer│
+│  ├── builtinPanels.tsx   └── fileViewers/         │   Registry.ts   │
+│  └── PanelContext.tsx                             └── terminalActiv │
+│                          Custom Hooks                 ityDetector.ts│
+│                          ├── useTerminalSetup.ts                    │
+│                          ├── ptyDataHandler.ts                      │
+│                          ├── useFileViewer.ts                       │
+│                          └── useGitPolling.ts                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Main Process (`src/main/index.ts`)
 
-The main process is a single file that registers all IPC handlers. It manages:
+The main process entry point (`src/main/index.ts`) manages window lifecycle and registers all IPC handlers via `registerAllHandlers()`. The handlers themselves are organized into modular files under `src/main/handlers/`:
+
+| Handler file | Responsibility |
+|-------------|----------------|
+| `gitBasic.ts` | Core git operations (status, commit, diff) |
+| `gitBranch.ts` | Branch management (create, switch, delete) |
+| `gitSync.ts` | Remote sync (push, pull, fetch) |
+| `fsCore.ts` | File reading, writing, watching |
+| `fsSearch.ts` | Directory tree searching |
+| `ghCore.ts` | GitHub CLI issue/PR operations |
+| `ghComments.ts` | PR comment management |
+| `config.ts` | Config file persistence |
+| `pty.ts` | PTY lifecycle and data routing |
+| `shell.ts` | Shell command execution |
+| `app.ts` | App info and utilities |
+| `typescript.ts` | TypeScript project analysis |
+| `updater.ts` | Auto-update management |
+
+The main process also uses **worker threads** (`src/main/workers/`) managed by a worker pool (`src/main/workerPool.ts`) for CPU-intensive operations:
+- `fsSearch.worker.ts` -- File system searching off the main thread
+- `tsProject.worker.ts` -- TypeScript project analysis off the main thread
+
+The main process manages:
 
 - **Window lifecycle** -- Creating BrowserWindows, tracking them by profile ID, cleanup on close
 - **PTY pool** -- Spawning pseudo-terminals via `node-pty`, routing data to the correct window
@@ -93,7 +120,7 @@ The renderer is a React application with Zustand for state management and Tailwi
 
 ## State Management
 
-State is split across four Zustand stores plus a panel context. Each store owns a specific domain and persists its data through the config API.
+State is split across six Zustand stores plus a panel context. Each store owns a specific domain and persists its data through the config API.
 
 ### Session Store (`store/sessions.ts`)
 
@@ -191,6 +218,10 @@ Profile switching calls `window.profiles.openWindow(profileId)`, which either cr
 ### Error Store (`store/errors.ts`)
 
 Simple error accumulator. Keeps the last 50 errors for display in the UI.
+
+### Tutorial Store (`store/tutorial.ts`)
+
+Tracks onboarding progress: which tutorial steps the user has completed. Persists completion state to config.
 
 ---
 
@@ -310,7 +341,11 @@ Each PTY and file watcher is tracked by the window that created it. This ensures
 
 ## Agent Activity Detection
 
-Agent status is detected by time-based heuristics in `Terminal.tsx` (lines 283-312). Rather than parsing terminal output for specific patterns, the detector uses timing to determine whether the agent is working or idle.
+Agent status is detected by time-based heuristics spread across three files. Rather than parsing terminal output for specific patterns, the detector uses timing to determine whether the agent is working or idle.
+
+- `src/renderer/utils/terminalActivityDetector.ts` -- Pure `evaluateActivity()` function containing the detection logic
+- `src/renderer/hooks/ptyDataHandler.ts` -- Handles the PTY data callback, invoking activity detection on each data event
+- `src/renderer/hooks/useTerminalSetup.ts` -- Sets up the terminal instance and wires the data handler
 
 ### Detection Flow
 

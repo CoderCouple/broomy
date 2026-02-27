@@ -174,7 +174,7 @@ export function usePanelsMap(config: PanelsMapConfig) {
 
   const terminalPanel = useMemo(() => (
     <div className="h-full w-full relative">
-      {sessions.map((session) => (
+      {sessions.filter(s => !s.isArchived).map((session) => (
         <div
           key={session.id}
           className={`absolute inset-0 ${session.id === activeSessionId ? '' : 'hidden'}`}

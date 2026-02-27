@@ -1,7 +1,7 @@
 /**
  * Manages session lifecycle including initial data loading, profile switching, session read marking, and window focus behavior.
  */
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback, useState, useMemo, useRef } from 'react'
 import type { Session } from '../store/sessions'
 import type { ProfileData } from '../store/profiles'
 import { terminalBufferRegistry } from '../utils/terminalBufferRegistry'
@@ -23,7 +23,6 @@ export function useSessionLifecycle({
   checkGitAvailability,
   switchProfile,
   markSessionRead,
-  refreshAllBranches,
 }: {
   sessions: Session[]
   activeSession: Session | undefined
@@ -39,24 +38,32 @@ export function useSessionLifecycle({
   checkGitAvailability: () => Promise<void>
   switchProfile: (profileId: string) => Promise<void>
   markSessionRead: (sessionId: string) => void
-  refreshAllBranches: () => void | Promise<void>
 }) {
   const [directoryExists, setDirectoryExists] = useState<Record<string, boolean>>({})
 
+  // Stable key that only changes when session IDs/directories change (not on status updates)
+  const sessionDirKey = useMemo(
+    () => sessions.filter(s => !s.isArchived).map(s => `${s.id}:${s.directory}`).join(','),
+    [sessions],
+  )
+  const sessionsRef = useRef(sessions)
+  sessionsRef.current = sessions
+
   // Check if session directories exist
   useEffect(() => {
+    const activeSessions = sessionsRef.current.filter(s => !s.isArchived)
     const checkDirectories = async () => {
       const results: Record<string, boolean> = {}
-      for (const session of sessions) {
+      for (const session of activeSessions) {
         results[session.id] = await window.fs.exists(session.directory)
       }
       setDirectoryExists(results)
     }
 
-    if (sessions.length > 0) {
+    if (activeSessions.length > 0) {
       void checkDirectories()
     }
-  }, [sessions])
+  }, [sessionDirKey])
 
   // Load profiles, then sessions/agents/repos for the current profile
   useEffect(() => {
@@ -99,16 +106,8 @@ export function useSessionLifecycle({
     }
   }, [activeSessionId, markSessionRead])
 
-  // Poll for branch changes every 2 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (sessions.length > 0) {
-        void refreshAllBranches()
-      }
-    }, 2000)
-
-    return () => clearInterval(interval)
-  }, [sessions.length, refreshAllBranches])
+  // Branch changes are detected via .git/HEAD file watchers (useGitBranchWatcher)
+  // refreshAllBranches is called explicitly after push operations
 
   // Keyboard shortcut to copy terminal content + summary (Cmd+Shift+C)
   useEffect(() => {

@@ -33,7 +33,7 @@ pnpm check:all       # Run all project-specific checks (workers, etc.)
 
 ## Architecture
 
-Broomy is an Electron + React desktop app for managing multiple AI coding agent sessions across different repositories. See `docs/ARCHITECTURE.md` for the full technical guide.
+Broomy is an Electron + React desktop app for managing multiple AI coding agent sessions across different repositories. See `docs/architecture.md` for the full technical guide.
 
 ### Process Structure
 

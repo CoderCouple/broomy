@@ -349,6 +349,62 @@ All data comes from the mock handlers in `src/main/index.ts`.
 | `pnpm test:e2e:built` | E2E tests against production build (for CI) |
 | `pnpm test:e2e:built:headed` | Production build E2E tests with visible window |
 
+### Shared Electron Fixture for Feature Docs
+
+Feature documentation tests (see below) use a shared Electron fixture instead of launching a new app in each spec's `beforeAll`. The fixture is at `tests/features/_shared/electron-fixture.ts` and provides:
+
+- **`resetApp(opts?)`**: Reloads the renderer to get fresh React/Zustand state without the cost of a full Electron relaunch. Accepts an optional `scenario` parameter (e.g., `'marketing'` for richer mock data).
+- **`closeApp()`**: Closes the shared Electron instance (called automatically on worker exit).
+
+Usage in feature specs:
+
+```ts
+import { test, expect, resetApp } from '../_shared/electron-fixture'
+import type { Page } from '@playwright/test'
+
+let page: Page
+test.beforeAll(async () => {
+  const result = await resetApp()
+  page = result.page
+})
+```
+
+This pattern differs from the standard E2E tests in `tests/app.spec.ts`, which launch Electron directly in `beforeAll`. The shared fixture approach is faster when running multiple feature doc specs in sequence.
+
+## Feature Documentation
+
+Every feature or significant change requires a screenshot walkthrough. Feature doc tests live in `tests/features/<feature-slug>/` and are run separately from the main E2E suite.
+
+### Directory Structure
+
+```
+tests/features/
+  _shared/
+    electron-fixture.ts    # Shared Electron app launcher and resetApp()
+    screenshot-helpers.ts  # screenshotElement(), screenshotRegion(), generateFeaturePage(), generateIndex()
+    template.ts            # HTML template for generated pages
+  session-switching/       # Example feature doc
+    session-switching.spec.ts
+  <feature-slug>/
+    <feature-slug>.spec.ts
+```
+
+### How It Works
+
+1. The spec file imports `resetApp` from the shared fixture and screenshot helpers from `_shared/screenshot-helpers.ts`.
+2. Each test step navigates to the relevant UI state, captures a cropped screenshot, and records a caption.
+3. In `afterAll`, the spec calls `generateFeaturePage()` to produce an `index.html` with all screenshots, then `generateIndex()` to update the table of contents.
+4. Generated screenshots and HTML are gitignored -- only the `.spec.ts` file is committed.
+
+### Running Feature Docs
+
+```bash
+pnpm test:feature-docs <feature-slug>   # Generate docs for a specific feature
+pnpm test:feature-docs:view             # Open generated docs in browser
+```
+
+Feature doc tests are **not** run as part of `pnpm test:e2e`. They are separate, on-demand tests. See `CLAUDE.md` for the full specification and screenshot guidelines.
+
 ### Recommended Workflow
 
 1. Make code changes
@@ -356,3 +412,4 @@ All data comes from the mock handlers in `src/main/index.ts`.
 3. Run `pnpm test:unit` to verify unit tests pass
 4. Run `pnpm test:unit:coverage` to confirm coverage stays above 90%
 5. Run `pnpm test:e2e` to verify E2E tests still pass
+6. Create or update a feature doc screenshot walkthrough, then run `pnpm test:feature-docs <feature-slug>` to verify

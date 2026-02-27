@@ -28,6 +28,7 @@ import { useSessionLifecycle } from './hooks/useSessionLifecycle'
 import { useAppCallbacks } from './hooks/useAppCallbacks'
 import { usePanelsMap } from './hooks/usePanelsMap'
 import { useHelpMenu } from './hooks/useHelpMenu'
+import { useGitBranchWatcher } from './hooks/useGitBranchWatcher'
 import { useSessionKeyboardCallbacks } from './hooks/useSessionKeyboardCallbacks'
 import { focusSearchInput } from './utils/focusHelpers'
 
@@ -99,15 +100,37 @@ function GitMissingBanner() {
   )
 }
 
+function GhMissingBanner() {
+  const { ghAvailable } = useRepoStore()
+  if (ghAvailable !== false) return null
+  return (
+    <div className="bg-yellow-900/30 border-b border-yellow-500/30 px-4 py-2 text-xs text-yellow-300 flex items-center gap-2">
+      <span className="font-medium">GitHub CLI (gh) is not installed.</span>
+      <span className="text-yellow-400">Install it for authentication, issues, and PR features.</span>
+      <button onClick={() => window.shell.openExternal('https://cli.github.com')} className="text-accent hover:underline ml-1">Install gh</button>
+    </div>
+  )
+}
+
 function AppContent() {
+  // Data fields use individual selectors to avoid unnecessary re-renders
+  const sessions = useSessionStore(s => s.sessions)
+  const activeSessionId = useSessionStore(s => s.activeSessionId)
+  const isLoading = useSessionStore(s => s.isLoading)
+  const sidebarWidth = useSessionStore(s => s.sidebarWidth)
+  const toolbarPanels = useSessionStore(s => s.toolbarPanels)
+  const globalPanelVisibility = useSessionStore(s => s.globalPanelVisibility)
+  // Actions are referentially stable — destructure together
   const {
-    sessions, activeSessionId, isLoading, sidebarWidth, toolbarPanels, globalPanelVisibility,
-    loadSessions, addSession, removeSession, setActiveSession, refreshAllBranches,
+    loadSessions, addSession, removeSession, setActiveSession,
     togglePanel, toggleGlobalPanel, setSidebarWidth, setToolbarPanels,
     selectFile, setExplorerFilter, setFileViewerPosition, updateLayoutSize,
     markSessionRead, recordPushToMain, clearPushToMain, markHasHadCommits,
     updateBranchStatus, updatePrState, archiveSession, unarchiveSession, setPanelVisibility,
+    updateSessionBranch,
   } = useSessionStore()
+
+  useGitBranchWatcher({ sessions, updateSessionBranch })
 
   const { agents, loadAgents } = useAgentStore()
   const { repos, loadRepos, checkGhAvailability, checkGitAvailability } = useRepoStore()
@@ -153,7 +176,6 @@ function AppContent() {
     checkGhAvailability, checkGitAvailability,
     switchProfile,
     markSessionRead,
-    refreshAllBranches,
   })
 
   // App callbacks hook
@@ -244,8 +266,8 @@ function AppContent() {
 
   return (
     <>
-      <GitMissingBanner />
       <Layout
+        topBanner={<><GitMissingBanner /><GhMissingBanner /></>}
         panels={panelsMap}
         panelVisibility={activeSession?.panelVisibility ?? {}}
         globalPanelVisibility={globalPanelVisibility}
@@ -320,6 +342,7 @@ function App() {
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__sessionStore = useSessionStore
     ;(window as unknown as Record<string, unknown>).__updateStore = useUpdateStore
+    ;(window as unknown as Record<string, unknown>).__repoStore = useRepoStore
   }, [])
 
   return (

@@ -8,7 +8,7 @@ The panel system has four layers:
 
 1. **Types** (`panels/types.ts`) -- panel ID constants, position types, and the `PanelDefinition` interface.
 2. **Registry** (`panels/registry.ts`) -- a singleton `PanelRegistry` that stores panel definitions and provides lookup methods.
-3. **Built-in panels** (`panels/builtinPanels.tsx`) -- the seven default panel definitions registered at startup.
+3. **Built-in panels** (`panels/builtinPanels.tsx`) -- the five default panel definitions registered at startup.
 4. **Context and hooks** (`panels/PanelContext.tsx`) -- React context that provides registry access, toolbar ordering, and keyboard shortcut mapping.
 
 The `Layout` component reads panel visibility state and renders each panel region conditionally. The session store manages per-session and global panel visibility, persisted to config files.
@@ -23,10 +23,8 @@ export const PANEL_IDS = {
   SIDEBAR: 'sidebar',
   EXPLORER: 'explorer',
   FILE_VIEWER: 'fileViewer',
-  REVIEW: 'review',
-  AGENT_TERMINAL: 'agentTerminal',
-  USER_TERMINAL: 'userTerminal',
   SETTINGS: 'settings',
+  TUTORIAL: 'tutorial',
 } as const
 ```
 
@@ -39,24 +37,25 @@ Each panel occupies a specific region in the layout:
 ```ts
 export type PanelPosition =
   | 'sidebar'        // Left edge (session list)
-  | 'left'           // Left of center (explorer)
+  | 'left'           // Left of center content (explorer)
   | 'center-top'     // Above terminals (file viewer in top mode)
-  | 'center-left'    // Left of terminals (file viewer in left mode, review)
-  | 'center-main'    // Main terminal area (agent terminal)
-  | 'center-bottom'  // Below main terminal (user terminal)
+  | 'center-left'    // Left of terminals (file viewer in left mode)
+  | 'center-main'    // Main terminal area
+  | 'center-bottom'  // Below main terminal
+  | 'right'          // Right edge (tutorial/guide panel)
   | 'overlay'        // Replaces center content (settings)
 ```
 
 ```
-+----------+-----------+--------------------+
-| sidebar  | left      | center-top         |
-|          | (explorer)|--------------------+
-|          |           | center-left |center |
-|          |           | (fileViewer | main  |
-|          |           |  or review) |       |
-|          |           |-------------|-------+
-|          |           | center-bottom       |
-+----------+-----------+--------------------+
++----------+-----------+--------------------+---------+
+| sidebar  | left      | center-top         | right   |
+|          | (explorer)|--------------------| (guide/ |
+|          |           | center-left |center | tutorial|
+|          |           | (fileViewer)| main  |  panel) |
+|          |           |             |       |         |
+|          |           |-------------|-------+         |
+|          |           | center-bottom       |         |
++----------+-----------+--------------------+---------+
 ```
 
 A panel can support multiple positions (e.g., the file viewer supports both `center-top` and `center-left`).
@@ -87,10 +86,8 @@ The `isGlobal` flag is the key distinction: global panels share visibility acros
 | `sidebar` | Sessions | `sidebar` | yes | yes | no |
 | `explorer` | Explorer | `left` | no | no | yes (150-500px) |
 | `fileViewer` | File | `center-top`, `center-left` | no | no | yes |
-| `review` | Review | `center-left` | no | no | yes (250-600px) |
-| `agentTerminal` | Agent | `center-main` | yes | no | no |
-| `userTerminal` | Terminal | `center-bottom` | no | no | yes (100-500px) |
 | `settings` | Settings | `overlay` | no | yes | no |
+| `tutorial` | Guide | `right` | no | yes | yes (280-400px) |
 
 ## The Panel Registry
 
@@ -132,17 +129,18 @@ The `PanelProvider` wraps the app and provides panel context to all components:
 | `usePanelToggle(id, onToggle, onGlobalToggle)` | Toggle function that dispatches to correct handler |
 | `useToolbarPanels()` | Ordered toolbar panels with keyboard shortcut info |
 
-The first 6 toolbar panels get keyboard shortcuts (Cmd+1 through Cmd+6).
+The first 5 toolbar panels get keyboard shortcuts (Cmd+1 through Cmd+5).
 
 ## Panel Visibility State
 
-### Global panels (sidebar, settings)
+### Global panels (sidebar, settings, tutorial)
 
 ```ts
 // src/renderer/store/sessions.ts
 const DEFAULT_GLOBAL_PANEL_VISIBILITY: PanelVisibility = {
   [PANEL_IDS.SIDEBAR]: true,
   [PANEL_IDS.SETTINGS]: false,
+  [PANEL_IDS.TUTORIAL]: false,
 }
 ```
 
@@ -153,9 +151,8 @@ Toggling updates `globalPanelVisibility` in the store and persists to config.
 Each session has its own `panelVisibility` map:
 
 ```ts
+// src/renderer/store/sessionCoreActions.ts
 const DEFAULT_PANEL_VISIBILITY: PanelVisibility = {
-  [PANEL_IDS.AGENT_TERMINAL]: true,
-  [PANEL_IDS.USER_TERMINAL]: true,
   [PANEL_IDS.EXPLORER]: true,
   [PANEL_IDS.FILE_VIEWER]: false,
 }
@@ -185,7 +182,7 @@ export interface LayoutSizes {
   fileViewerSize: number      // Default: 300px (height or width depending on position)
   userTerminalHeight: number  // Default: 192px
   diffPanelWidth: number      // Default: 320px
-  reviewPanelWidth: number    // Default: 320px
+  tutorialPanelWidth: number  // Default: 320px
 }
 ```
 
@@ -254,7 +251,7 @@ Pass content via the `panels` prop and add rendering logic in `Layout.tsx` for t
 ### Step 4: Set default visibility
 
 ```ts
-// src/renderer/store/sessions.ts
+// src/renderer/store/sessionCoreActions.ts
 const DEFAULT_PANEL_VISIBILITY: PanelVisibility = {
   // ... existing defaults
   [PANEL_IDS.MY_PANEL]: false,

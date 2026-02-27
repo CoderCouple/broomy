@@ -125,7 +125,6 @@ interface ScrollTrackingResult {
   state: ScrollTrackingState
   updateFollowingFromScroll: (e: Event) => void
   handleKeyScroll: (e: KeyboardEvent) => void
-  logScrollDiag?: (label: string, extra?: Record<string, unknown>) => void
 }
 
 function createScrollTracking(
@@ -136,25 +135,6 @@ function createScrollTracking(
   setShowScrollButton: React.Dispatch<React.SetStateAction<boolean>>,
 ): ScrollTrackingResult {
   const state: ScrollTrackingState = { pendingScrollRAF: 0, stuckScrollCount: 0, lastStuckSyncTime: 0 }
-
-  // ── Scroll jump diagnostic logging ──
-  // Tracks recent scroll positions to detect discontinuous jumps.
-  // A "jump" is when scrollTop moves by more than 3x the recent average delta.
-  let lastScrollTop = -1
-  const recentDeltas: number[] = []
-  const MAX_RECENT = 10
-  const JUMP_THRESHOLD = 3
-
-  const logScrollDiag = (label: string, extra?: Record<string, unknown>) => {
-    if (!viewportEl) return
-    const buf = terminal.buffer.active
-    console.log(`[scroll-diag] ${label}`, JSON.stringify({
-      dom: { scrollTop: viewportEl.scrollTop, scrollHeight: viewportEl.scrollHeight, clientHeight: viewportEl.clientHeight },
-      buffer: { viewportY: buf.viewportY, baseY: buf.baseY, cursorY: buf.cursorY },
-      isFollowing: isFollowingRef.current,
-      ...extra,
-    }))
-  }
 
   // Track user-initiated scrolls to update following mode.
   // After a user scroll, check if they ended up at the bottom:
@@ -184,30 +164,10 @@ function createScrollTracking(
         const scrollMoved = Math.abs(scrollTopAfter - scrollTopBefore) > 0.5
         const bufferMoved = viewportYAfter !== viewportYBefore
 
-        // ── Jump detection ──
-        if (scrollMoved && lastScrollTop >= 0) {
-          const delta = Math.abs(scrollTopAfter - lastScrollTop)
-          if (recentDeltas.length >= 2) {
-            const avg = recentDeltas.reduce((a, b) => a + b, 0) / recentDeltas.length
-            if (avg > 0 && delta > avg * JUMP_THRESHOLD) {
-              logScrollDiag('JUMP DETECTED', {
-                delta, avgDelta: avg, ratio: delta / avg,
-                scrollTopBefore, scrollTopAfter, lastScrollTop,
-                wheelDeltaY: e.deltaY,
-              })
-            }
-          }
-          recentDeltas.push(delta)
-          if (recentDeltas.length > MAX_RECENT) recentDeltas.shift()
-        }
-        lastScrollTop = scrollTopAfter
-
         if (!scrollMoved && !bufferMoved && helpers.isScrollStuck(direction)) {
           const now = Date.now()
           state.stuckScrollCount++
-          logScrollDiag('stuck scroll', { direction, stuckCount: state.stuckScrollCount })
           if (state.stuckScrollCount >= 2 && now - state.lastStuckSyncTime > 500) {
-            logScrollDiag('forcing viewport sync (stuck)')
             helpers.forceViewportSync()
             state.lastStuckSyncTime = now
             state.stuckScrollCount = 0
@@ -248,7 +208,7 @@ function createScrollTracking(
     }
   }
 
-  return { state, updateFollowingFromScroll, handleKeyScroll, logScrollDiag }
+  return { state, updateFollowingFromScroll, handleKeyScroll }
 }
 
 // ── Terminal state hook (refs, store wiring, callbacks) ──────────────
@@ -392,9 +352,15 @@ export function useTerminalSetup(
     const helpers = createViewportHelpers(terminal, viewportEl)
     const scrollTracking = createScrollTracking(terminal, viewportEl, helpers, s.isFollowingRef, s.setShowScrollButton)
 
+    let onRenderRAF = 0
     terminal.onRender(() => {
-      const atBottom = helpers.isAtBottom()
-      s.setShowScrollButton(!atBottom && terminal.buffer.active.baseY > 0)
+      if (onRenderRAF) return
+      onRenderRAF = requestAnimationFrame(() => {
+        onRenderRAF = 0
+        const atBottom = helpers.isAtBottom()
+        const shouldShow = !atBottom && terminal.buffer.active.baseY > 0
+        s.setShowScrollButton(prev => prev === shouldShow ? prev : shouldShow)
+      })
     })
 
     containerRef.current.addEventListener('wheel', scrollTracking.updateFollowingFromScroll, { passive: true })
@@ -429,7 +395,6 @@ export function useTerminalSetup(
           terminal,
           viewportEl,
           helpers,
-          scrollTracking,
           isAgent,
           state: s,
           effectStartTime,
@@ -484,6 +449,7 @@ export function useTerminalSetup(
       resizeObserver.disconnect()
       if (ptyResizeTimeout) clearTimeout(ptyResizeTimeout)
       if (scrollTracking.state.pendingScrollRAF) cancelAnimationFrame(scrollTracking.state.pendingScrollRAF)
+      if (onRenderRAF) cancelAnimationFrame(onRenderRAF)
       s.cleanupRef.current?.()
       if (s.ptyIdRef.current) { void window.pty.kill(s.ptyIdRef.current); s.ptyIdRef.current = null }
       terminal.dispose()

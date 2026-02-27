@@ -80,7 +80,7 @@ src/
     └── utils/            # Shared utilities
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
+See [docs/architecture.md](docs/architecture.md) for detailed architecture documentation.
 
 ---
 

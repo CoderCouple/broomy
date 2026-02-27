@@ -113,7 +113,12 @@ const removeExitListener = window.pty.onExit(id, (exitCode) => {
 
 ## Activity Detection
 
-Agent terminals track whether the agent is "working" or "idle" using time-based heuristics. The logic is in `src/renderer/utils/terminalActivityDetector.ts`.
+Agent terminals track whether the agent is "working" or "idle" using time-based heuristics. The implementation is split across several files:
+
+- **Pure detection logic**: `src/renderer/utils/terminalActivityDetector.ts` -- the `evaluateActivity` function and configuration constants.
+- **Data handler**: `src/renderer/hooks/ptyDataHandler.ts` -- wires activity detection into the PTY data stream, managing idle timeouts and store updates.
+- **Terminal setup**: `src/renderer/hooks/useTerminalSetup.ts` -- creates the xterm instance, attaches the data handler, and manages lifecycle.
+- **Terminal.tsx**: `src/renderer/components/Terminal.tsx` (~97 lines) -- a thin wrapper that delegates to `useTerminalSetup` and renders the xterm container.
 
 ### Configuration
 
@@ -147,7 +152,9 @@ export function evaluateActivity(dataLength, now, state, config): ActivityResult
 }
 ```
 
-### How Terminal.tsx uses it
+### How the data handler uses it
+
+The `ptyDataHandler.ts` hook receives PTY data and runs activity detection. The result drives status transitions and idle timeout scheduling:
 
 ```ts
 const result = evaluateActivity(data.length, now, {

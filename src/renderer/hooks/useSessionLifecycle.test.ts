@@ -80,7 +80,6 @@ function makeHookParams(overrides: Partial<Parameters<typeof useSessionLifecycle
     checkGitAvailability: vi.fn().mockResolvedValue(undefined),
     switchProfile: vi.fn().mockResolvedValue(undefined),
     markSessionRead: vi.fn(),
-    refreshAllBranches: vi.fn(),
     ...overrides,
   }
 }
@@ -247,38 +246,7 @@ describe('useSessionLifecycle', () => {
     })
   })
 
-  describe('branch refresh polling', () => {
-    it('polls for branch changes every 2 seconds when sessions exist', () => {
-      const params = makeHookParams()
-      renderLifecycleHook(params)
-
-      expect(params.refreshAllBranches).not.toHaveBeenCalled()
-
-      act(() => { vi.advanceTimersByTime(2000) })
-      expect(params.refreshAllBranches).toHaveBeenCalledTimes(1)
-
-      act(() => { vi.advanceTimersByTime(2000) })
-      expect(params.refreshAllBranches).toHaveBeenCalledTimes(2)
-    })
-
-    it('does not poll when there are no sessions', () => {
-      const params = makeHookParams({ sessions: [] })
-      renderLifecycleHook(params)
-
-      act(() => { vi.advanceTimersByTime(4000) })
-      expect(params.refreshAllBranches).not.toHaveBeenCalled()
-    })
-
-    it('cleans up interval on unmount', () => {
-      const params = makeHookParams()
-      const { unmount } = renderLifecycleHook(params)
-
-      unmount()
-
-      act(() => { vi.advanceTimersByTime(4000) })
-      expect(params.refreshAllBranches).not.toHaveBeenCalled()
-    })
-  })
+  // Branch refresh polling was removed in favor of .git/HEAD file watchers (useGitBranchWatcher)
 
   describe('handleSwitchProfile', () => {
     it('calls switchProfile with the given profileId', async () => {

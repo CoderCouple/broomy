@@ -90,7 +90,7 @@ class ProfileChip extends React.Component { ... }
 
 ### Zustand for State Management
 
-Global state is managed with Zustand stores (not Redux or React Context for state). There are five stores:
+Global state is managed with Zustand stores (not Redux or React Context for state). There are six stores:
 
 | Store | File | Purpose |
 |-------|------|---------|
@@ -99,6 +99,7 @@ Global state is managed with Zustand stores (not Redux or React Context for stat
 | `useRepoStore` | `store/repos.ts` | Managed repositories |
 | `useProfileStore` | `store/profiles.ts` | Multi-window profiles |
 | `useErrorStore` | `store/errors.ts` | Error tracking |
+| `useTutorialStore` | `store/tutorial.ts` | Tutorial/onboarding state |
 
 Store pattern:
 
@@ -155,12 +156,15 @@ src/main/gitStatusParser.test.ts
 
 Integration tests that span multiple modules live in `src/renderer/integration/`.
 
-### No Barrel Exports (With Exceptions)
+### Barrel Exports
 
-Avoid barrel exports (`index.ts` files that re-export). The two exceptions are:
+Barrel exports (`index.ts` files that re-export) are used only when a subdirectory needs a clean public API. The current barrel exports are:
 
 1. **Panel system** (`src/renderer/panels/index.ts`) -- re-exports types, registry, built-in panels, and context hooks from a single entry point.
 2. **File viewers** (`src/renderer/components/fileViewers/index.ts`) -- re-exports viewer components that share a common type interface.
+3. **Explorer** (`src/renderer/components/explorer/index.tsx`) -- re-exports the Explorer component from its subdirectory.
+4. **New session** (`src/renderer/components/newSession/index.tsx`) -- re-exports the NewSessionDialog component from its subdirectory.
+5. **Review** (`src/renderer/components/review/index.tsx`) -- re-exports the ReviewPanel component from its subdirectory.
 
 For everything else, import directly from the source file:
 
@@ -174,17 +178,45 @@ import { useSessionStore } from './store'  // Don't create store/index.ts
 
 ### Component Subdirectories
 
-Related component groups get their own subdirectory with shared types:
+Related component groups get their own subdirectory with shared types and a barrel export:
 
 ```
 src/renderer/components/fileViewers/
-  index.ts              # Barrel export (exception to the rule)
+  index.ts              # Barrel export
   types.ts              # Shared types for all viewers
   types.test.ts         # Tests for type utilities
   MonacoViewer.tsx       # Individual viewer components
   MonacoDiffViewer.tsx
   ImageViewer.tsx
   MarkdownViewer.tsx
+
+src/renderer/components/explorer/
+  index.tsx             # Barrel export
+  types.ts              # Shared types
+  FileTree.tsx           # Directory tree with lazy loading and git badges
+  SourceControl.tsx      # Working changes, staging, commit form
+  SCWorkingView.tsx      # Working changes sub-view
+  SCBranchView.tsx       # Branch diff file list
+  SCCommitsView.tsx      # Per-commit diffs
+  SCCommentsView.tsx     # PR comments
+  SearchPanel.tsx        # Regex code search with results
+  RecentFiles.tsx        # Recently opened files list
+
+src/renderer/components/newSession/
+  index.tsx             # Barrel export
+  types.ts              # Shared types and View union type
+  HomeView.tsx           # Repo list with clone/add/folder actions
+  CloneView.tsx          # Git clone form
+  NewBranchView.tsx      # Branch creation with optional issue pre-fill
+  ExistingBranchView.tsx # Branch picker with search
+  AgentPickerView.tsx    # Agent selection
+
+src/renderer/components/review/
+  index.tsx             # Barrel export
+  ReviewContent.tsx      # Review panel content
+  ReviewHelpers.tsx      # Helper utilities
+  CollapsibleSection.tsx # Collapsible UI section
+  PrComments.tsx         # PR comment display
 ```
 
 ## Naming Conventions

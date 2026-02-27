@@ -8,7 +8,7 @@ consumes results through IPC and derives UI state from the raw data.
 
 The renderer never touches git directly. Every git operation goes through the preload
 bridge (`window.git.*` and `window.gh.*`), which maps to `ipcMain.handle()` calls in
-`src/main/index.ts`. Each handler:
+`src/main/handlers/` (split across `gitBasic.ts`, `gitBranch.ts`, and `gitSync.ts`). Each handler:
 
 1. Checks `isE2ETest` and returns mock data if true
 2. Creates a `simpleGit(repoPath)` instance
@@ -96,13 +96,14 @@ ipcMain.handle('git:status', async (_event, repoPath: string) => {
 
 ### Fetching
 
-`App.tsx` polls `window.git.status()` every 2 seconds for the active session:
+The `useGitPolling` hook (`src/renderer/hooks/useGitPolling.ts`) polls `window.git.status()` every 2 seconds for the active session. It is called from `App.tsx`:
 
 ```ts
+// src/renderer/hooks/useGitPolling.ts
 useEffect(() => {
   if (activeSession) {
-    fetchGitStatus()
-    const interval = setInterval(fetchGitStatus, 2000)
+    void fetchGitStatus()
+    const interval = setInterval(() => { void fetchGitStatus() }, 2000)
     return () => clearInterval(interval)
   }
 }, [activeSession?.id, fetchGitStatus])
@@ -280,7 +281,7 @@ window closes.
 
 ## The Review Panel and Diff Viewing
 
-`src/renderer/components/ReviewPanel.tsx` manages AI-powered code reviews. It:
+`src/renderer/components/review/` manages AI-powered code reviews (entry point: `index.tsx`, with supporting modules `ReviewContent.tsx`, `ReviewHelpers.tsx`, `useReviewActions.ts`, `useReviewData.ts`, and others). It:
 
 1. Reads branch changes via `git:branchChanges`
 2. Generates a review prompt and sends it to the agent terminal

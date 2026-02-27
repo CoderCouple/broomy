@@ -31,6 +31,7 @@ function createGitActions(config: GitActionsConfig) {
     branchBaseName, setIsPushingToMain, gitStatus,
     setAgentMergeMessage,
   } = data
+  const refreshBranches = () => { void useSessionStore.getState().refreshAllBranches() }
 
   const handleSync = async () => {
     if (!directory) return
@@ -49,6 +50,7 @@ function createGitActions(config: GitActionsConfig) {
           return
         }
         onGitStatusRefresh?.()
+        refreshBranches()
       })
     } catch (err) {
       setGitOpError({ operation: 'Sync', message: String(err) })
@@ -112,6 +114,7 @@ function createGitActions(config: GitActionsConfig) {
             onRecordPushToMain(headCommit)
           }
           onGitStatusRefresh?.()
+          refreshBranches()
         } else {
           setGitOpError({ operation: `Push to ${branchBaseName}`, message: result.error || 'Push to main failed' })
         }
@@ -154,6 +157,7 @@ function createGitActions(config: GitActionsConfig) {
           return
         }
         onGitStatusRefresh?.()
+        refreshBranches()
       })
     } catch (err) {
       setGitOpError({ operation: 'Push branch', message: String(err) })

@@ -6,8 +6,8 @@ This guide explains how the renderer communicates with the main process in Broom
 
 Broomy uses Electron's context-isolated IPC with three layers:
 
-1. **Main process** (`src/main/index.ts`) -- registers `ipcMain.handle()` handlers for every operation.
-2. **Preload script** (`src/preload/index.ts`) -- defines TypeScript API types and wires each method to `ipcRenderer.invoke()` or `ipcRenderer.on()`.
+1. **Main process** (`src/main/handlers/`) -- handlers are organized into domain-specific modules (e.g., `gitBasic.ts`, `pty.ts`, `config.ts`) with a central registration entry point (`src/main/handlers/index.ts`).
+2. **Preload script** (`src/preload/index.ts`) -- re-exports types and wires API implementations from `src/preload/apis/` (separate modules for each domain: `pty.ts`, `fs.ts`, `git.ts`, `gh.ts`, `config.ts`, `shell.ts`, `menu.ts`) to `contextBridge.exposeInMainWorld()`.
 3. **Renderer** (`src/renderer/`) -- calls `window.pty.*`, `window.git.*`, `window.fs.*`, etc. as regular async functions.
 
 ```
@@ -160,29 +160,50 @@ This ensures Playwright tests never touch real repos, APIs, or config files.
 
 ### Step 1: Main process handler
 
+Add a handler in the appropriate file under `src/main/handlers/`. Handlers are organized by domain (e.g., git handlers in `gitBasic.ts`, `gitBranch.ts`, `gitSync.ts`; composed in `git.ts`). Each handler module exports a `register` function that receives `ipcMain` and a shared `HandlerContext`:
+
 ```ts
-// src/main/index.ts
-ipcMain.handle('myNamespace:myAction', async (_event, arg1: string) => {
-  if (isE2ETest) { return { success: true, data: 'mock-value' } }
+// src/main/handlers/myNamespace.ts
+import { IpcMain } from 'electron'
+import { HandlerContext } from './types'
+
+async function handleMyAction(ctx: HandlerContext, arg1: string) {
+  if (ctx.isE2ETest) { return { success: true, data: 'mock-value' } }
   try {
     const result = await doSomething(arg1)
     return { success: true, data: result }
   } catch (error) {
     return { success: false, error: String(error) }
   }
-})
+}
+
+export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
+  ipcMain.handle('myNamespace:myAction', (_event, arg1: string) => handleMyAction(ctx, arg1))
+}
 ```
 
 ### Step 2: Preload type and wiring
 
+Add a new API module in `src/preload/apis/`, then import and expose it in `src/preload/index.ts`:
+
 ```ts
-// src/preload/index.ts
+// src/preload/apis/myNamespace.ts
+import { ipcRenderer } from 'electron'
+
 export type MyNamespaceApi = {
   myAction: (arg1: string) => Promise<{ success: boolean; data?: string; error?: string }>
 }
-const myNamespaceApi: MyNamespaceApi = {
+
+export const myNamespaceApi: MyNamespaceApi = {
   myAction: (arg1) => ipcRenderer.invoke('myNamespace:myAction', arg1),
 }
+```
+
+```ts
+// src/preload/index.ts -- add imports and expose
+import type { MyNamespaceApi } from './apis/myNamespace'
+import { myNamespaceApi } from './apis/myNamespace'
+
 contextBridge.exposeInMainWorld('myNamespace', myNamespaceApi)
 
 // Add to Window declaration

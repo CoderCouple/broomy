@@ -83,143 +83,9 @@ const files = status.files.flatMap(file =>
 
 ---
 
-### 3. Break Up `Explorer.tsx`
-
-**Problem**: `src/renderer/components/Explorer.tsx` is 1,790 lines -- one of the largest component files in the codebase. It implements four distinct tab views (file tree, source control, code search, recent files) plus sub-features (staging, committing, push-to-main, PR status, branch changes, commit diffs, PR comments) all in a single file.
-
-**Current state**: The component accepts 26 props (as shown in its `ExplorerProps` interface, lines 30--66). It manages extensive local state for tree expansion, search results, commit lists, PR comments, and multiple loading states. The file tree, source control panel, search UI, and recent files list are all rendered inline with no sub-components.
-
-**Proposed solution**: Extract into focused sub-components:
-
-| Component | Responsibility | Estimated lines |
-|-----------|---------------|----------------|
-| `Explorer.tsx` | Tab switcher, shared state, coordination | ~200 |
-| `FileTree.tsx` | Directory tree with lazy loading and git badges | ~400 |
-| `SourceControl.tsx` | Working changes, staging, commit form, sync | ~500 |
-| `BranchChanges.tsx` | Branch diff file list, per-commit diffs | ~300 |
-| `SearchPanel.tsx` | Regex code search with results | ~200 |
-| `RecentFiles.tsx` | Recently opened files list | ~100 |
-
-Place these in `src/renderer/components/explorer/` following the same pattern as `fileViewers/`.
-
-**Expected benefit**: Each sub-component becomes independently testable. Developers can work on the search panel without risk of breaking source control. Reduces cognitive load when navigating the file.
-
----
-
-### 4. Break Up `NewSessionDialog.tsx`
-
-**Problem**: `src/renderer/components/NewSessionDialog.tsx` is 1,842 lines implementing a multi-step wizard dialog with 8 different views (home, clone, add-existing-repo, new-branch, existing-branch, repo-settings, issues, review-prs, agent-picker). All views are defined as inner functions within the same file.
-
-**Current state**: The component uses a `View` discriminated union type (lines 16--25) to drive a state machine, which is a good pattern. However, every view's UI, state, and logic lives in the same file:
-
-```typescript
-type View =
-  | { type: 'home' }
-  | { type: 'clone' }
-  | { type: 'add-existing-repo' }
-  | { type: 'new-branch'; repo: ManagedRepo; issue?: GitHubIssue }
-  | { type: 'existing-branch'; repo: ManagedRepo }
-  | { type: 'repo-settings'; repo: ManagedRepo }
-  | { type: 'issues'; repo: ManagedRepo }
-  | { type: 'review-prs'; repo: ManagedRepo }
-  | { type: 'agent-picker'; directory: string; repoId?: string; repoName?: string }
-```
-
-**Proposed solution**: Extract each view into its own component file within `src/renderer/components/newSession/`:
-
-| Component | View type |
-|-----------|-----------|
-| `NewSessionDialog.tsx` | Outer container and view router (~80 lines) |
-| `HomeView.tsx` | Repo list with clone/add/folder actions |
-| `CloneView.tsx` | Git clone form |
-| `NewBranchView.tsx` | Branch creation with optional issue pre-fill |
-| `ExistingBranchView.tsx` | Branch picker with search |
-| `RepoSettingsView.tsx` | Repo configuration |
-| `IssuesView.tsx` | GitHub issues browser |
-| `ReviewPrsView.tsx` | PR review picker |
-| `AgentPickerView.tsx` | Agent selection |
-
-The `View` type and `NewSessionDialogProps` interface would move to a shared `types.ts` in the same directory.
-
-**Expected benefit**: Each wizard step is independently maintainable. Adding new wizard steps does not require understanding all 1,842 lines. Each view component becomes easier to test.
-
----
-
 ## Medium Priority
 
-### 5. Extract `App.tsx` Effect Hooks into Custom Hooks
-
-**Problem**: `AppContent` in `src/renderer/App.tsx` (685 lines) contains 10 `useEffect` blocks handling unrelated concerns: directory existence checking, git status polling, branch status computation, profile loading, window title updates, Monaco project context, session read marking, branch change polling, keyboard shortcuts, and Playwright store exposure. This makes the component hard to reason about.
-
-**Current state**: The effects span lines 103--280 and 669--673. Each manages its own intervals, timeouts, and cleanup. Several have complex dependency arrays:
-
-```typescript
-// Effect 1: Check directories (line 103)
-useEffect(() => { ... }, [sessions])
-
-// Effect 2: Poll git status (line 164)
-useEffect(() => { ... }, [activeSession?.id, fetchGitStatus])
-
-// Effect 3: Compute branch status (line 173)
-useEffect(() => { ... }, [gitStatusBySession, isMergedBySession, sessions, updateBranchStatus])
-
-// Effect 4: Load profiles (line 209)
-useEffect(() => { ... }, [])
-
-// ... 6 more effects
-```
-
-**Proposed solution**: Extract into custom hooks in `src/renderer/hooks/`:
-
-| Hook | Responsibility |
-|------|---------------|
-| `useDirectoryCheck(sessions)` | Checks whether session directories exist |
-| `useGitStatusPolling(activeSession, repos)` | Polls git status, computes branch status, tracks merged state |
-| `useProfileInit()` | Loads profiles, sessions, agents, repos on mount |
-| `useWindowTitle(activeSession, currentProfile)` | Updates document.title |
-| `useMonacoContext(activeSession)` | Loads TypeScript project context |
-| `useSessionFocus(activeSessionId)` | Marks session read and focuses terminal |
-| `useBranchPolling(sessions)` | Polls for branch name changes |
-| `useKeyboardShortcuts(activeSession)` | Global keyboard shortcuts (Cmd+Shift+C) |
-
-**Expected benefit**: `AppContent` shrinks to ~200 lines of pure composition. Each hook is independently testable. Concerns are clearly separated.
-
----
-
-### 6. Add React Error Boundaries Around Panels
-
-**Problem**: There are currently zero error boundaries in the application (searching for `ErrorBoundary` yields no results). If any panel component throws during rendering (e.g., due to corrupt data from a git operation, a Monaco editor crash, or an unexpected file format), the entire application crashes to a white screen.
-
-**Current state**: No `ErrorBoundary` components exist anywhere in `src/`.
-
-**Proposed solution**: Create a reusable `PanelErrorBoundary` component that catches rendering errors per-panel and shows a recovery UI:
-
-```typescript
-// src/renderer/components/PanelErrorBoundary.tsx
-class PanelErrorBoundary extends React.Component<Props, State> {
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <div className="p-4 text-red-400">
-        <p>This panel encountered an error.</p>
-        <button onClick={() => this.setState({ hasError: false })}>Retry</button>
-      </div>
-    }
-    return this.props.children
-  }
-}
-```
-
-Wrap each panel in `Layout.tsx` with `<PanelErrorBoundary>`. Note: this is the one case where a class component is acceptable, since React error boundaries require `getDerivedStateFromError` (a class lifecycle method).
-
-**Expected benefit**: A crash in the Explorer does not take down the terminal. Users can retry or continue working in other panels. Error details can be logged to the error store.
-
----
-
-### 7. Type the `config:save` Parameter Properly
+### 3. Type the `config:save` Parameter Properly
 
 **Problem**: The `config:save` IPC handler in `src/main/index.ts` (line 481) uses an inline type with `unknown[]` for `agents`, `sessions`, and `repos` arrays, even though `ConfigData` is already defined in `src/preload/index.ts` with proper types.
 
@@ -259,7 +125,7 @@ export type ConfigData = {
 
 ---
 
-### 8. Consistent `expandHomePath` Usage
+### 4. Consistent `expandHomePath` Usage
 
 **Problem**: There are two separate `expandHome` functions in `src/main/index.ts`: one defined at line 204 (inside the `config:load` handler scope) and a module-level `expandHomePath` at line 1240. The module-level function is called 30+ times across git and shell handlers, but the config handler uses its own local version.
 
@@ -285,7 +151,7 @@ const expandHomePath = (path: string) => {
 
 ## Lower Priority
 
-### 9. Replace Blind PTY Delay with Ready Event
+### 5. Replace Blind PTY Delay with Ready Event
 
 **Problem**: When a session becomes active, the agent terminal is focused after a fixed `setTimeout` of 100ms (in `App.tsx`, line 241). This is a race condition -- the terminal may not be rendered yet if the system is under load, or the 100ms may be unnecessarily long on fast machines.
 
@@ -313,7 +179,7 @@ useEffect(() => {
 
 ---
 
-### 10. Centralize Error Response Helper
+### 6. Centralize Error Response Helper
 
 **Problem**: The pattern `{ success: false, error: String(error) }` is repeated 30+ times across IPC handlers in `src/main/index.ts`. Each catch block constructs this object manually.
 
@@ -343,7 +209,7 @@ export function successResponse<T>(data?: T) {
 
 ---
 
-### 11. Clean Up Legacy Compatibility Layer in Sessions Store
+### 7. Clean Up Legacy Compatibility Layer in Sessions Store
 
 **Problem**: The sessions store in `src/renderer/store/sessions.ts` (932 lines) maintains a backwards-compatibility layer that maps between the old `showAgentTerminal` / `showUserTerminal` / `showExplorer` / `showFileViewer` boolean fields and the newer `panelVisibility` record. This layer adds complexity through `syncLegacyFields` and `createPanelVisibilityFromLegacy` helper functions that are called throughout the store.
 
@@ -370,3 +236,45 @@ function syncLegacyFields(session: Session): Session {
 4. Stop persisting legacy fields in `debouncedSave`
 
 **Expected benefit**: Removes ~60 lines of compatibility code. Simplifies the `Session` interface. Eliminates a class of bugs where the two representations could fall out of sync. Reduces the mental overhead of maintaining two parallel systems for the same state.
+
+---
+
+## Completed
+
+### Break Up `Explorer.tsx`
+
+**Status: COMPLETED**
+
+**Original problem**: `Explorer.tsx` was 1,790 lines implementing four distinct tab views (file tree, source control, code search, recent files) plus sub-features in a single file.
+
+**Implementation**: Extracted into `src/renderer/components/explorer/` with focused sub-components: `FileTree.tsx`, `SourceControl.tsx`, `SCWorkingView.tsx`, `SCBranchView.tsx`, `SCCommitsView.tsx`, `SCCommentsView.tsx`, `SearchPanel.tsx`, `RecentFiles.tsx`, `SCPrBanner.tsx`, `SCViewToggle.tsx`, shared hooks (`useSourceControlActions.ts`, `useSourceControlData.ts`), and `types.ts`. The barrel export at `index.tsx` provides the public API.
+
+---
+
+### Break Up `NewSessionDialog.tsx`
+
+**Status: COMPLETED**
+
+**Original problem**: `NewSessionDialog.tsx` was 1,842 lines implementing a multi-step wizard dialog with 8 different views, all defined as inner functions in the same file.
+
+**Implementation**: Extracted into `src/renderer/components/newSession/` with per-view components: `HomeView.tsx`, `CloneView.tsx`, `NewBranchView.tsx`, `ExistingBranchView.tsx`, `RepoSettingsView.tsx`, `IssuesView.tsx`, `ReviewPrsView.tsx`, `AgentPickerView.tsx`, `AddExistingRepoView.tsx`. The `View` type and shared props live in `types.ts`, with a barrel export at `index.tsx`.
+
+---
+
+### Extract `App.tsx` Effect Hooks into Custom Hooks
+
+**Status: COMPLETED**
+
+**Original problem**: `AppContent` in `App.tsx` contained 10 `useEffect` blocks handling unrelated concerns, making the component hard to reason about.
+
+**Implementation**: Hooks were extracted to `src/renderer/hooks/` including `useGitPolling.ts`, `useSessionLifecycle.ts`, `useLayoutKeyboard.ts`, `useTerminalSetup.ts`, `useFileViewer.ts`, `useFileWatcher.ts`, `useFileTree.ts`, `useAppCallbacks.ts`, `useErrorBanners.ts`, and others. Each hook is independently testable with co-located test files.
+
+---
+
+### Add React Error Boundaries Around Panels
+
+**Status: COMPLETED**
+
+**Original problem**: Zero error boundaries existed in the application. Any panel rendering error would crash the entire app to a white screen.
+
+**Implementation**: `PanelErrorBoundary.tsx` exists at `src/renderer/components/PanelErrorBoundary.tsx` with a co-located test file. Panels are wrapped with error boundaries in `Layout.tsx` to isolate rendering crashes.

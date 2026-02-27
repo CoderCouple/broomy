@@ -305,12 +305,16 @@ export function createCoreActions(get: StoreGet, set: StoreSet) {
 
     refreshAllBranches: async () => {
       const { sessions } = get()
-      for (const session of sessions) {
-        const branch = await window.git.getBranch(session.directory)
-        if (branch !== session.branch) {
-          updateSessionBranch(session.id, branch)
+      await Promise.all(sessions.map(async (session) => {
+        try {
+          const branch = await window.git.getBranch(session.directory)
+          if (branch !== session.branch) {
+            updateSessionBranch(session.id, branch)
+          }
+        } catch {
+          // Ignore errors for individual sessions (e.g. deleted directories)
         }
-      }
+      }))
     },
   }
 }

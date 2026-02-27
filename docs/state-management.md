@@ -36,11 +36,16 @@ export const useMyStore = create<MyStore>((set, get) => ({
 }))
 ```
 
-## The Five Stores
+## The Six Stores
 
 ### 1. Sessions Store (`src/renderer/store/sessions.ts`)
 
-The largest and most complex store. Manages:
+The largest and most complex store. The store is split into multiple modules for
+maintainability: `sessionCoreActions.ts` (CRUD, active session, loading/saving),
+`sessionBranchActions.ts` (branch and PR state), `sessionPanelActions.ts` (panel
+visibility and layout sizes), `sessionTerminalTabs.ts` (user terminal tab management),
+and `sessionPersistence.ts` (debounced save logic and legacy field sync). The main
+`sessions.ts` file composes these modules into a single Zustand store. It manages:
 
 - **Session list**: Each session represents an AI agent working in a git repository
 - **Active session**: Which session the user is currently viewing
@@ -140,19 +145,53 @@ export const useErrorStore = create<ErrorStore>((set) => ({
 
 The errors store does not persist to disk -- errors are runtime-only.
 
+### 6. Tutorial Store (`src/renderer/store/tutorial.ts`)
+
+Tracks onboarding tutorial progress. Defines a sequence of `TutorialStep` objects
+(each with an `id`, `title`, and `description`) representing guided steps like creating
+a session, opening the explorer, using the terminal, and learning keyboard shortcuts.
+The store persists completed step IDs to the config file as `tutorialProgress` and uses
+a 500ms debounced save, the same pattern as the sessions store.
+
+```ts
+export const useTutorialStore = create<TutorialStore>((set, get) => ({
+  completedSteps: [],
+  isLoaded: false,
+
+  loadTutorial: async (profileId?: string) => {
+    const config = await window.config.load(profileId)
+    const progress = config.tutorialProgress
+    set({ completedSteps: progress?.completedSteps ?? [], isLoaded: true })
+  },
+
+  markStepComplete: (stepId: string) => {
+    const { completedSteps } = get()
+    if (completedSteps.includes(stepId)) return
+    const updated = [...completedSteps, stepId]
+    set({ completedSteps: updated })
+    debouncedSave(updated)
+  },
+
+  markStepIncomplete: (stepId: string) => { /* removes stepId and saves */ },
+  resetProgress: () => { /* clears all progress and saves */ },
+}))
+```
+
 ## Persistence Lifecycle
 
 ### Load
 
-On app mount, `App.tsx` loads all stores in sequence:
+On app mount, `useSessionLifecycle` (in `src/renderer/hooks/useSessionLifecycle.ts`)
+loads all stores in sequence:
 
 ```ts
 useEffect(() => {
-  loadProfiles().then(() => {
-    loadSessions(currentProfileId)
-    loadAgents(currentProfileId)
-    loadRepos(currentProfileId)
-    checkGhAvailability()
+  void loadProfiles().then(() => {
+    void loadSessions(currentProfileId)
+    void loadAgents(currentProfileId)
+    void loadRepos(currentProfileId)
+    void checkGhAvailability()
+    void checkGitAvailability()
   })
 }, [])
 ```
@@ -269,10 +308,11 @@ Both the old and new formats are saved to config for backwards compatibility.
 ## How Stores Interact
 
 Stores are independent -- they do not import each other. Cross-store coordination
-happens in `App.tsx`:
+happens in React hooks and `App.tsx`:
 
 - **Profile -> Sessions/Agents/Repos**: After profiles load, the current profile ID is
-  passed to `loadSessions()`, `loadAgents()`, and `loadRepos()`
+  passed to `loadSessions()`, `loadAgents()`, and `loadRepos()` (orchestrated by
+  `useSessionLifecycle`)
 - **Sessions + Agents**: `App.tsx` looks up agent commands from the agent store to pass
   to Terminal components
 - **Sessions + Repos**: `App.tsx` matches `session.repoId` to repos for default branch
@@ -280,9 +320,10 @@ happens in `App.tsx`:
 - **Errors**: Any store or component can call `useErrorStore.getState().addError()` to
   report failures
 
-Git status polling also happens in `App.tsx`, which calls `window.git.status()` every
-2 seconds for the active session and feeds results into `computeBranchStatus()` to update
-`session.branchStatus`.
+Git status polling happens in `useGitPolling` (`src/renderer/hooks/useGitPolling.ts`),
+which calls `window.git.status()` every 2 seconds for the active session, checks merge
+state against the default branch, and feeds results into `computeBranchStatus()` to
+update `session.branchStatus`.
 
 ## Adding a New Store
 
@@ -317,17 +358,15 @@ export const useMyStore = create<MyStore>((set, get) => ({
 }))
 ```
 
-2. **Load in App.tsx** on mount:
+2. **Load in the session lifecycle hook** on mount (in `useSessionLifecycle`):
 
 ```ts
-const { loadItems } = useMyStore()
-
 useEffect(() => {
-  loadProfiles().then(() => {
-    loadSessions(currentProfileId)
-    loadAgents(currentProfileId)
-    loadRepos(currentProfileId)
-    loadItems(currentProfileId)   // Add here
+  void loadProfiles().then(() => {
+    void loadSessions(currentProfileId)
+    void loadAgents(currentProfileId)
+    void loadRepos(currentProfileId)
+    void loadItems(currentProfileId)   // Add here
   })
 }, [])
 ```
