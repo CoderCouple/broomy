@@ -289,6 +289,11 @@ export function useTerminalSetup(
       onRenderRAF = requestAnimationFrame(() => {
         onRenderRAF = 0
         const atBottom = helpers.isAtBottom()
+        // Re-engage following when the viewport is at the bottom.  This
+        // recovers from accidental scroll disengages (e.g. a tiny trackpad
+        // gesture that fires a wheel event but doesn't actually move the
+        // viewport away from the bottom).
+        if (atBottom) s.isFollowingRef.current = true
         const shouldShow = !atBottom && terminal.buffer.active.baseY > 0
         s.setShowScrollButton(prev => prev === shouldShow ? prev : shouldShow)
       })
