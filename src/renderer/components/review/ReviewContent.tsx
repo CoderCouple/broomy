@@ -3,6 +3,7 @@
  */
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import type { ReviewData, ReviewComparison, PendingComment, CodeLocation } from '../../types/review'
 import type { NormalizedComment } from './useReviewData'
 import { CollapsibleSection } from './CollapsibleSection'
@@ -16,7 +17,7 @@ const compactComponents = createMarkdownComponents('compact')
 
 export function MarkdownBody({ content }: { content: string }) {
   return (
-    <Markdown remarkPlugins={[remarkGfm]} components={compactComponents}>
+    <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={compactComponents}>
       {content}
     </Markdown>
   )
