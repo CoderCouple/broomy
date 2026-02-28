@@ -1,11 +1,14 @@
 /**
- * Handles incoming PTY data by writing to the xterm instance, managing auto-scroll behavior, and detecting agent activity transitions.
+ * Handles incoming PTY data by writing to the xterm instance and detecting agent activity transitions.
+ *
+ * Scroll pinning is handled natively by xterm.js 6 — it keeps the viewport
+ * at the bottom when data arrives (if already there) and stays put when
+ * the user has scrolled away.  We do NOT call scrollToBottom() ourselves.
  */
 import { Terminal as XTerm } from '@xterm/xterm'
 import { evaluateActivity } from '../utils/terminalActivityDetector'
 
 interface TerminalStateForPtyData {
-  isFollowingRef: React.MutableRefObject<boolean>
   processPlanDetection: (data: string) => void
   lastUserInputRef: React.MutableRefObject<number>
   lastInteractionRef: React.MutableRefObject<number>
@@ -36,26 +39,6 @@ export function createPtyDataHandler(args: CreatePtyDataHandlerArgs): PtyDataHan
   const { terminal, isAgent, state, effectStartTime, isActiveRef } = args
   const bufferedChunks: string[] = []
   let bufferedSize = 0
-  // Debounce scrollToBottom across rapid write chunks using rAF.
-  let scrollToBottomRAF = 0
-
-  const scheduleScrollToBottom = () => {
-    if (scrollToBottomRAF) return // already scheduled
-    scrollToBottomRAF = requestAnimationFrame(() => {
-      scrollToBottomRAF = 0
-      if (!state.isFollowingRef.current) return
-      terminal.scrollToBottom()
-    })
-  }
-
-  const writeToTerminal = (data: string) => {
-    terminal.write(data, () => {
-      // Debounce scrollToBottom — don't scroll on every partial chunk
-      if (state.isFollowingRef.current) {
-        scheduleScrollToBottom()
-      }
-    })
-  }
 
   const processActivityDetection = (data: string) => {
     if (!isAgent) return
@@ -98,7 +81,7 @@ export function createPtyDataHandler(args: CreatePtyDataHandlerArgs): PtyDataHan
       return
     }
 
-    writeToTerminal(data)
+    terminal.write(data)
   }
 
   const flush = () => {
@@ -106,14 +89,11 @@ export function createPtyDataHandler(args: CreatePtyDataHandlerArgs): PtyDataHan
     const all = bufferedChunks.join('')
     bufferedChunks.length = 0
     bufferedSize = 0
-    writeToTerminal(all)
+    terminal.write(all)
   }
 
   const clearTimers = () => {
-    if (scrollToBottomRAF) {
-      cancelAnimationFrame(scrollToBottomRAF)
-      scrollToBottomRAF = 0
-    }
+    // no-op — kept for interface compatibility
   }
 
   return { handleData, clearTimers, flush }

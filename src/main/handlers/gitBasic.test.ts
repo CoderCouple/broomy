@@ -152,7 +152,7 @@ describe('gitBasic handlers', () => {
     it('returns E2E mock status', async () => {
       const handlers = setupHandlers(createMockCtx({ isE2ETest: true }))
       const result = await handlers['git:status'](null, '/repo')
-      expect(result.files).toHaveLength(2)
+      expect(result.files).toHaveLength(3)
       expect(result.ahead).toBe(0)
     })
 

@@ -407,6 +407,7 @@ const DEFAULT: ScenarioData = {
     files: [
       { path: 'src/index.ts', status: 'modified', staged: false, indexStatus: ' ', workingDirStatus: 'M' },
       { path: 'README.md', status: 'modified', staged: false, indexStatus: ' ', workingDirStatus: 'M' },
+      { path: 'logo.png', status: 'modified', staged: false, indexStatus: ' ', workingDirStatus: 'M' },
     ],
     ahead: 0,
     behind: 0,

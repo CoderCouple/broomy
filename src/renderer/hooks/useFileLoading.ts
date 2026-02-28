@@ -111,11 +111,13 @@ export function useFileLoading({
 
       setAvailableViewers(viewers)
 
-      // Select viewer: prefer Monaco when opening from changes list or search result
+      // Select viewer: prefer Monaco when opening from changes list or search result,
+      // but not for non-text files (e.g. images) where Monaco can't meaningfully display content
       if (viewers.length > 0) {
+        const primaryIsNonText = viewers[0].id === 'image'
         const currentStillAvailable = viewers.find(v => v.id === selectedViewerId)
-        if (!currentStillAvailable) {
-          if (initialViewMode === 'diff' || scrollToLine) {
+        if (!currentStillAvailable || primaryIsNonText) {
+          if ((initialViewMode === 'diff' || scrollToLine) && !primaryIsNonText) {
             // When coming from changes list or search result, prefer code view over preview
             const monacoViewer = viewers.find(v => v.id === 'monaco')
             setSelectedViewerId(monacoViewer?.id ?? viewers[0].id)

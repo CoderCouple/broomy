@@ -34,7 +34,6 @@ export function useFileViewer({
   diffBaseRef,
   diffCurrentRef,
 }: UseFileViewerParams) {
-  const canShowDiff = fileStatus === 'modified' || fileStatus === 'deleted' || !!diffBaseRef || !!diffCurrentRef
   const [selectedViewerId, setSelectedViewerId] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
   const [editedContent, setEditedContent] = useState<string>('')
@@ -53,6 +52,11 @@ export function useFileViewer({
     selectedViewerId,
     setSelectedViewerId,
   })
+
+  // Only allow diff view for text files — skip when a non-text viewer (e.g. image) is the primary viewer
+  const primaryViewer = availableViewers.length > 0 ? availableViewers[0] : null
+  const isTextFile = primaryViewer ? primaryViewer.id !== 'image' : true
+  const canShowDiff = isTextFile && (fileStatus === 'modified' || fileStatus === 'deleted' || !!diffBaseRef || !!diffCurrentRef)
 
   const { originalContent, diffModifiedContent, isLoadingDiff } = useFileDiff({
     filePath,
@@ -91,7 +95,7 @@ export function useFileViewer({
   // Deleted files always open in diff mode (comparing old content vs empty)
   useEffect(() => {
     setIsDirty(false)
-    const shouldUseDiffMode = fileStatus === 'deleted' || (initialViewMode === 'diff' && canShowDiff)
+    const shouldUseDiffMode = canShowDiff && (fileStatus === 'deleted' || initialViewMode === 'diff')
     setViewMode(shouldUseDiffMode ? 'diff' : 'latest')
   }, [filePath, initialViewMode, canShowDiff, fileStatus])
 
