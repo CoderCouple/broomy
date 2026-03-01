@@ -8,6 +8,10 @@ import simpleGit from 'simple-git'
 import { statusFromChar } from '../gitStatusParser'
 import { HandlerContext } from './types'
 import { getScenarioData } from './scenarios'
+/** Set env vars to prevent SSH/HTTPS prompts that would hang in Electron. */
+function withNonInteractive(git: ReturnType<typeof simpleGit>) {
+  return git.env('GIT_TERMINAL_PROMPT', '0').env('GIT_SSH_COMMAND', 'ssh -o BatchMode=yes')
+}
 
 async function handleGetBranch(ctx: HandlerContext, repoPath: string) {
   if (ctx.isE2ETest) {
@@ -196,7 +200,7 @@ async function handlePush(ctx: HandlerContext, repoPath: string) {
   }
 
   try {
-    const git = simpleGit(repoPath)
+    const git = withNonInteractive(simpleGit(repoPath))
     await git.push()
     return { success: true }
   } catch (error) {
@@ -210,7 +214,7 @@ async function handlePull(ctx: HandlerContext, repoPath: string) {
   }
 
   try {
-    const git = simpleGit(repoPath)
+    const git = withNonInteractive(simpleGit(repoPath))
     await git.pull()
     return { success: true }
   } catch (error) {

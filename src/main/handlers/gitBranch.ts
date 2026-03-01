@@ -12,13 +12,18 @@ import { getDefaultBranch } from './gitUtils'
 
 const execFileAsync = promisify(execFile)
 
+/** Set env vars to prevent SSH/HTTPS prompts that would hang in Electron. */
+function withNonInteractive(git: ReturnType<typeof simpleGit>) {
+  return git.env('GIT_TERMINAL_PROMPT', '0').env('GIT_SSH_COMMAND', 'ssh -o BatchMode=yes')
+}
+
 async function handleClone(ctx: HandlerContext, url: string, targetDir: string) {
   if (ctx.isE2ETest) {
     return { success: true }
   }
 
   try {
-    await simpleGit().clone(url, expandHomePath(targetDir))
+    await withNonInteractive(simpleGit()).clone(url, expandHomePath(targetDir))
     return { success: true }
   } catch (error) {
     const errorStr = String(error)
@@ -87,7 +92,7 @@ async function handlePushNewBranch(ctx: HandlerContext, repoPath: string, branch
   }
 
   try {
-    const git = simpleGit(expandHomePath(repoPath))
+    const git = withNonInteractive(simpleGit(expandHomePath(repoPath)))
     await git.push(['--set-upstream', 'origin', branchName])
     return { success: true }
   } catch (error) {
@@ -178,7 +183,7 @@ async function handleFetchBranch(ctx: HandlerContext, repoPath: string, branchNa
   }
 
   try {
-    const git = simpleGit(expandHomePath(repoPath))
+    const git = withNonInteractive(simpleGit(expandHomePath(repoPath)))
     await git.fetch('origin', branchName)
     return { success: true }
   } catch (error) {
@@ -192,7 +197,7 @@ async function handleFetchReviewPrHead(ctx: HandlerContext, repoPath: string, pr
   }
 
   try {
-    const git = simpleGit(expandHomePath(repoPath))
+    const git = withNonInteractive(simpleGit(expandHomePath(repoPath)))
     if (targetBranch) {
       // Fetch into a named remote-tracking ref so origin/${targetBranch} exists
       // Use + prefix to allow non-fast-forward updates (force-pushed PRs)
@@ -215,7 +220,7 @@ async function handleSyncReviewBranch(ctx: HandlerContext, repoPath: string, bra
   }
 
   try {
-    const git = simpleGit(expandHomePath(repoPath))
+    const git = withNonInteractive(simpleGit(expandHomePath(repoPath)))
 
     // Try fetching the branch by name (works for same-repo PRs)
     try {

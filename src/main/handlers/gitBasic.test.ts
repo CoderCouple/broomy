@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { allowConsoleError } from '../../test/console-guard'
 
-const mockGitInstance = {
+const mockGitInstance: Record<string, ReturnType<typeof vi.fn>> = {
   status: vi.fn(),
   checkIsRepo: vi.fn(),
   add: vi.fn(),
@@ -12,6 +12,7 @@ const mockGitInstance = {
   pull: vi.fn(),
   diff: vi.fn(),
   raw: vi.fn(),
+  env: vi.fn().mockImplementation(() => mockGitInstance),
 }
 
 vi.mock('simple-git', () => ({
@@ -84,6 +85,7 @@ function setupHandlers(ctx?: HandlerContext) {
 describe('gitBasic handlers', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockGitInstance.env.mockImplementation(() => mockGitInstance)
     // Default mock for raw: resolves to empty string (used by status for MERGE_HEAD check, show, etc.)
     mockGitInstance.raw.mockResolvedValue('')
   })
