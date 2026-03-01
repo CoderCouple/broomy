@@ -124,6 +124,23 @@ export type AgentData = {
   command: string
   color?: string
   env?: Record<string, string>  // Environment variables for this agent
+  isolated?: boolean         // Run sessions using this agent in Docker
+  dockerImage?: string       // Custom Docker image (default: broomy/isolation:latest)
+  skipPermissions?: boolean  // Auto-approve all tool use
+}
+
+export type DockerStatus = {
+  available: boolean
+  error?: string
+  installUrl?: string
+}
+
+export type ContainerInfo = {
+  containerId: string
+  status: 'running' | 'stopped' | 'starting'
+  image: string
+  repoDir: string
+  sharedConfigDir: string
 }
 
 export type LayoutSizesData = {

@@ -83,6 +83,8 @@ const profileWindows = new Map<string, BrowserWindow>()
 const ptyOwnerWindows = new Map<string, BrowserWindow>()
 // Track which window owns each file watcher
 const watcherOwnerWindows = new Map<string, BrowserWindow>()
+// Track Docker containers for isolation
+const dockerContainers = new Map<string, import('./handlers/types').DockerContainerState>()
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(profileId?: string): BrowserWindow {
@@ -242,6 +244,7 @@ const context: HandlerContext & { createWindow: (profileId?: string) => BrowserW
   get mainWindow() { return mainWindow },
   E2E_MOCK_SHELL: process.env.E2E_MOCK_SHELL,
   FAKE_CLAUDE_SCRIPT: process.env.FAKE_CLAUDE_SCRIPT,
+  dockerContainers,
   createWindow,
 }
 
@@ -436,6 +439,8 @@ app.on('window-all-closed', () => {
     watcher.close()
     fileWatchers.delete(id)
   }
+  // Stop all Docker containers
+  void import('./docker').then(({ stopAllContainers }) => stopAllContainers(context))
   if (process.platform !== 'darwin') {
     app.quit()
   }

@@ -22,6 +22,12 @@ export enum E2EScenario {
   Marketing = 'marketing',
 }
 
+export type DockerContainerState = {
+  containerId: string
+  repoDir: string
+  image: string
+}
+
 export interface HandlerContext {
   isE2ETest: boolean
   e2eScenario: E2EScenario
@@ -35,6 +41,7 @@ export interface HandlerContext {
   mainWindow: BrowserWindow | null
   E2E_MOCK_SHELL: string | undefined
   FAKE_CLAUDE_SCRIPT: string | undefined
+  dockerContainers: Map<string, DockerContainerState>
 }
 
 // Config directory and file constants

@@ -10,6 +10,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Terminal from './Terminal'
 import TerminalTabBar from './TerminalTabBar'
+import DockerInfoPanel from './DockerInfoPanel'
 import PanelErrorBoundary from './PanelErrorBoundary'
 import { useSessionStore } from '../store/sessions'
 import type { TerminalTab } from '../store/sessions'
@@ -70,15 +71,18 @@ function useTabDragDrop(sessionId: string, userTabs: TerminalTab[], reorderTermi
   return { dragOverTabId, handleDragStart, handleDragEnd, handleDragOver, handleDragLeave, handleDrop }
 }
 
+const DOCKER_TAB_ID = '__docker__'
+
 interface TabbedTerminalProps {
   sessionId: string
   cwd: string
   isActive: boolean
   agentCommand?: string
   agentEnv?: Record<string, string>
+  isolation?: { isolated: boolean; dockerImage?: string }
 }
 
-export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand, agentEnv }: TabbedTerminalProps) {
+export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand, agentEnv, isolation }: TabbedTerminalProps) {
   // Targeted selector: only re-render when this session's terminalTabs change
   const terminalTabs = useSessionStore((state) => {
     const session = state.sessions.find((s) => s.id === sessionId)
@@ -95,9 +99,10 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
   const userTabs = terminalTabs?.tabs ?? []
   const storedActiveTabId = terminalTabs?.activeTabId ?? null
 
-  // Build the combined tab list: Agent tab first, then user tabs
+  // Build the combined tab list: Agent tab first, then optional Docker tab, then user tabs
   const agentTab = { id: AGENT_TAB_ID, name: 'Agent' }
-  const allTabs = [agentTab, ...userTabs]
+  const dockerTab = isolation?.isolated ? { id: DOCKER_TAB_ID, name: '(docker)' } : null
+  const allTabs = [agentTab, ...(dockerTab ? [dockerTab] : []), ...userTabs]
   const activeTabId = storedActiveTabId ?? AGENT_TAB_ID
 
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
@@ -149,13 +154,13 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
 
   const handleCloseTab = useCallback((e: React.MouseEvent, tabId: string) => {
     e.stopPropagation()
-    if (tabId === AGENT_TAB_ID) return
+    if (tabId === AGENT_TAB_ID || tabId === DOCKER_TAB_ID) return
     removeTerminalTab(sessionId, tabId)
   }, [sessionId, removeTerminalTab])
 
   const handleContextMenu = useCallback(async (e: React.MouseEvent, tabId: string) => {
     e.preventDefault()
-    if (tabId === AGENT_TAB_ID) return
+    if (tabId === AGENT_TAB_ID || tabId === DOCKER_TAB_ID) return
     const tabIndex = userTabs.findIndex((t) => t.id === tabId)
     const hasTabsToRight = tabIndex !== -1 && tabIndex < userTabs.length - 1
     const action = await window.menu.popup([
@@ -241,9 +246,20 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
               env={agentEnv}
               isAgentTerminal={!!agentCommand}
               isActive={isActive && activeTabId === AGENT_TAB_ID}
+              isolated={isolation?.isolated}
+              dockerImage={isolation?.dockerImage}
             />
           </PanelErrorBoundary>
         </div>
+
+        {/* Docker info panel */}
+        {isolation?.isolated && (
+          <div
+            className={`absolute inset-0 ${activeTabId === DOCKER_TAB_ID ? '' : 'invisible pointer-events-none'}`}
+          >
+            <DockerInfoPanel sessionId={sessionId} />
+          </div>
+        )}
 
         {/* User terminals */}
         {userTabs.map((tab) => (

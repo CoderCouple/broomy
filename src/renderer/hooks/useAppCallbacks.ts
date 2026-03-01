@@ -10,6 +10,25 @@ import type { PrState } from '../utils/branchStatus'
 import type { DuplicateSessionResult } from '../store/sessionCoreActions'
 import { focusAgentTerminal } from '../utils/focusHelpers'
 
+/** Maps agent base commands to their skip-permissions flags. */
+const SKIP_PERMISSIONS_FLAGS: Record<string, string> = {
+  claude: '--dangerously-skip-permissions',
+  codex: '--full-auto',
+  copilot: '--yolo',
+  aider: '--yes',
+}
+
+function appendSkipPermissionsFlag(command: string): string {
+  const baseCmd = command.trim().split(/\s+/)[0]
+  const flag = SKIP_PERMISSIONS_FLAGS[baseCmd]
+  if (flag && !command.includes(flag)) {
+    return `${command} ${flag}`
+  }
+  return command
+}
+
+export { SKIP_PERMISSIONS_FLAGS }
+
 interface AppCallbacksDeps {
   sessions: Session[]
   activeSessionId: string | null
@@ -85,13 +104,24 @@ export function useAppCallbacks({
   const getAgentCommand = useCallback((session: Session) => {
     if (!session.agentId) return undefined
     const agent = agents.find((a) => a.id === session.agentId)
-    return agent?.command
+    if (!agent?.command) return undefined
+    if (agent.skipPermissions) {
+      return appendSkipPermissionsFlag(agent.command)
+    }
+    return agent.command
   }, [agents])
 
   const getAgentEnv = useCallback((session: Session) => {
     if (!session.agentId) return undefined
     const agent = agents.find((a) => a.id === session.agentId)
     return agent?.env
+  }, [agents])
+
+  const getAgentIsolation = useCallback((session: Session) => {
+    if (!session.agentId) return undefined
+    const agent = agents.find((a) => a.id === session.agentId)
+    if (!agent?.isolated) return undefined
+    return { isolated: true, dockerImage: agent.dockerImage }
   }, [agents])
 
   const handleLayoutSizeChange = useCallback((key: keyof LayoutSizes, value: number) => {
@@ -163,6 +193,7 @@ export function useAppCallbacks({
     refreshPrStatus,
     getAgentCommand,
     getAgentEnv,
+    getAgentIsolation,
     handleLayoutSizeChange,
     handleFileViewerPositionChange,
     handleSelectSession,

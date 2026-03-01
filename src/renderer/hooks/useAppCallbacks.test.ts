@@ -328,4 +328,54 @@ describe('useAppCallbacks', () => {
     expect(deps.removeSession).toHaveBeenCalledWith('s1')
     expect(window.git.worktreeRemove).not.toHaveBeenCalled()
   })
+
+  // --- skipPermissions ---
+  it('getAgentCommand appends --dangerously-skip-permissions for claude when skipPermissions is true', () => {
+    const agents = [{ id: 'a1', name: 'Claude', command: 'claude', skipPermissions: true }] as Parameters<typeof useAppCallbacks>[0]['agents']
+    const deps = makeDeps({ agents })
+    const { result } = renderHook(() => useAppCallbacks(deps))
+    expect(result.current.getAgentCommand({ agentId: 'a1' } as never)).toBe('claude --dangerously-skip-permissions')
+  })
+
+  it('getAgentCommand appends --full-auto for codex when skipPermissions is true', () => {
+    const agents = [{ id: 'a1', name: 'Codex', command: 'codex', skipPermissions: true }] as Parameters<typeof useAppCallbacks>[0]['agents']
+    const deps = makeDeps({ agents })
+    const { result } = renderHook(() => useAppCallbacks(deps))
+    expect(result.current.getAgentCommand({ agentId: 'a1' } as never)).toBe('codex --full-auto')
+  })
+
+  it('getAgentCommand does not append flag for unknown agents when skipPermissions is true', () => {
+    const agents = [{ id: 'a1', name: 'Custom', command: 'my-agent', skipPermissions: true }] as Parameters<typeof useAppCallbacks>[0]['agents']
+    const deps = makeDeps({ agents })
+    const { result } = renderHook(() => useAppCallbacks(deps))
+    expect(result.current.getAgentCommand({ agentId: 'a1' } as never)).toBe('my-agent')
+  })
+
+  it('getAgentCommand does not append flag when skipPermissions is false', () => {
+    const agents = [{ id: 'a1', name: 'Claude', command: 'claude', skipPermissions: false }] as Parameters<typeof useAppCallbacks>[0]['agents']
+    const deps = makeDeps({ agents })
+    const { result } = renderHook(() => useAppCallbacks(deps))
+    expect(result.current.getAgentCommand({ agentId: 'a1' } as never)).toBe('claude')
+  })
+
+  // --- getAgentIsolation ---
+  it('getAgentIsolation returns isolation info when agent is isolated', () => {
+    const agents = [{ id: 'a1', name: 'Claude', command: 'claude', isolated: true, dockerImage: 'my-image' }] as Parameters<typeof useAppCallbacks>[0]['agents']
+    const deps = makeDeps({ agents })
+    const { result } = renderHook(() => useAppCallbacks(deps))
+    expect(result.current.getAgentIsolation({ agentId: 'a1' } as never)).toEqual({ isolated: true, dockerImage: 'my-image' })
+  })
+
+  it('getAgentIsolation returns undefined when agent is not isolated', () => {
+    const agents = [{ id: 'a1', name: 'Claude', command: 'claude' }] as Parameters<typeof useAppCallbacks>[0]['agents']
+    const deps = makeDeps({ agents })
+    const { result } = renderHook(() => useAppCallbacks(deps))
+    expect(result.current.getAgentIsolation({ agentId: 'a1' } as never)).toBeUndefined()
+  })
+
+  it('getAgentIsolation returns undefined when session has no agentId', () => {
+    const deps = makeDeps()
+    const { result } = renderHook(() => useAppCallbacks(deps))
+    expect(result.current.getAgentIsolation({ agentId: null } as never)).toBeUndefined()
+  })
 })
