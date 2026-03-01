@@ -131,7 +131,7 @@ function AppContent() {
     updateSessionBranch,
   } = useSessionStore()
 
-  useGitBranchWatcher({ sessions, updateSessionBranch })
+  useGitBranchWatcher({ sessions, activeSessionId, updateSessionBranch })
 
   const { agents, loadAgents } = useAgentStore()
   const { repos, loadRepos, checkGhAvailability, checkGitAvailability } = useRepoStore()
