@@ -13,6 +13,12 @@ import type { DockerStatus, ContainerInfo } from '../preload/apis/types'
 
 const execFileAsync = promisify(execFile)
 
+/** Shells available inside the container image, checked in order. */
+export const CONTAINER_SHELLS = [
+  { path: '/bin/bash', name: 'Bash', isDefault: true },
+  { path: '/bin/sh', name: 'sh', isDefault: false },
+]
+
 /** Map Node.js arch values to Docker platform strings. */
 function dockerPlatform(): string {
   const a = arch()

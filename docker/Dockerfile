@@ -1,15 +1,14 @@
-FROM ubuntu:24.04
+FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y \
-    curl git nodejs npm python3 pip build-essential \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl ca-certificates build-essential python3 python3-pip \
+    nodejs npm bash \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g @anthropic-ai/claude-code @openai/codex-cli
+RUN pip3 install --break-system-packages aider-chat
 
-ARG UID=1000
-ARG GID=1000
-RUN groupadd -g $GID broomy && useradd -m -u $UID -g $GID broomy
-
+RUN useradd -m -s /bin/bash broomy
 USER broomy
 WORKDIR /home/broomy
 
