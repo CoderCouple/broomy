@@ -195,7 +195,7 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
     }
 
     try {
-      const git = simpleGit(expandHomePath(repoDir))
+      const git = simpleGit(expandHomePath(repoDir)).env('GIT_TERMINAL_PROMPT', '0').env('GIT_SSH_COMMAND', 'ssh -o BatchMode=yes')
 
       const status = await git.status()
       const currentBranch = status.current

@@ -12,10 +12,11 @@ vi.mock('util', async (importOriginal) => {
   }
 })
 
-const mockGitInstance = {
+const mockGitInstance: Record<string, ReturnType<typeof vi.fn>> = {
   status: vi.fn(),
   raw: vi.fn(),
   push: vi.fn(),
+  env: vi.fn().mockImplementation(() => mockGitInstance),
 }
 
 vi.mock('simple-git', () => ({
@@ -79,6 +80,7 @@ function setupHandlers(ctx?: HandlerContext) {
 describe('ghCore handlers', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockGitInstance.env.mockImplementation(() => mockGitInstance)
   })
 
   describe('registration', () => {

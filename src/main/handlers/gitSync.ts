@@ -7,13 +7,18 @@ import { HandlerContext, expandHomePath } from './types'
 import { getScenarioData } from './scenarios'
 import { getDefaultBranch } from './gitUtils'
 
+/** Set env vars to prevent SSH/HTTPS prompts that would hang in Electron. */
+function withNonInteractive(git: ReturnType<typeof simpleGit>) {
+  return git.env('GIT_TERMINAL_PROMPT', '0').env('GIT_SSH_COMMAND', 'ssh -o BatchMode=yes')
+}
+
 async function handlePullOriginMain(ctx: HandlerContext, repoPath: string) {
   if (ctx.isE2ETest) {
     return { success: true }
   }
 
   try {
-    const git = simpleGit(expandHomePath(repoPath))
+    const git = withNonInteractive(simpleGit(expandHomePath(repoPath)))
 
     const defaultBranch = await getDefaultBranch(git)
 
@@ -38,7 +43,7 @@ async function handleIsBehindMain(ctx: HandlerContext, repoPath: string) {
   }
 
   try {
-    const git = simpleGit(expandHomePath(repoPath))
+    const git = withNonInteractive(simpleGit(expandHomePath(repoPath)))
 
     const defaultBranch = await getDefaultBranch(git)
 
