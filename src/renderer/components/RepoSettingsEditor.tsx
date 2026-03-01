@@ -3,7 +3,7 @@
  */
 import { useState, useEffect } from 'react'
 import type { AgentConfig } from '../store/agents'
-import type { ManagedRepo } from '../../preload/index'
+import type { ManagedRepo, DockerStatus } from '../../preload/index'
 
 // Repo settings editor component
 export function RepoSettingsEditor({
@@ -19,11 +19,21 @@ export function RepoSettingsEditor({
 }) {
   const [defaultAgentId, setDefaultAgentId] = useState(repo.defaultAgentId || '')
   const [allowPushToMain, setAllowPushToMain] = useState(repo.allowPushToMain ?? false)
+  const [isolated, setIsolated] = useState(repo.isolated ?? false)
+  const [dockerImage, setDockerImage] = useState(repo.dockerImage || '')
+  const [skipApproval, setSkipApproval] = useState(repo.skipApproval ?? false)
+  const [dockerStatus, setDockerStatus] = useState<DockerStatus | null>(null)
   const [initScript, setInitScript] = useState('')
   const [loadingScript, setLoadingScript] = useState(true)
   const [saving, setSaving] = useState(false)
   const [pushToMainError, setPushToMainError] = useState<{ summary: string; details: string } | null>(null)
   const [showErrorDetails, setShowErrorDetails] = useState(false)
+
+  useEffect(() => {
+    if (isolated || dockerStatus === null) {
+      void window.docker.status().then(setDockerStatus)
+    }
+  }, [isolated])
 
   useEffect(() => {
     async function loadScript() {
@@ -42,7 +52,13 @@ export function RepoSettingsEditor({
   const handleSave = async () => {
     setSaving(true)
     try {
-      onUpdate({ defaultAgentId: defaultAgentId || undefined, allowPushToMain })
+      onUpdate({
+        defaultAgentId: defaultAgentId || undefined,
+        allowPushToMain,
+        isolated: isolated || undefined,
+        dockerImage: dockerImage.trim() || undefined,
+        skipApproval: skipApproval || undefined,
+      })
       await window.repos.saveInitScript(repo.id, initScript)
       onClose()
     } catch (err) {
@@ -151,6 +167,64 @@ export function RepoSettingsEditor({
           />
           <span className="text-xs text-text-secondary">Allow "Push to main" button</span>
         </label>
+      </div>
+
+      {/* Docker isolation */}
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isolated}
+            onChange={(e) => setIsolated(e.target.checked)}
+            className="rounded border-border"
+          />
+          <span className="text-xs text-text-secondary">Run in Docker container</span>
+        </label>
+
+        {isolated && (
+          <div className="ml-6 space-y-2">
+            <input
+              type="text"
+              value={dockerImage}
+              onChange={(e) => setDockerImage(e.target.value)}
+              placeholder="broomy/isolation:latest"
+              className="w-full px-3 py-2 bg-bg-secondary border border-border rounded text-sm text-text-primary font-mono placeholder-text-secondary focus:outline-none focus:border-accent"
+            />
+            {dockerStatus && (
+              <div className={`text-xs flex items-center gap-1.5 ${dockerStatus.available ? 'text-green-400' : 'text-yellow-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${dockerStatus.available ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                {dockerStatus.available ? 'Docker available' : (dockerStatus.error || 'Docker not available')}
+                {!dockerStatus.available && dockerStatus.installUrl && (
+                  <button
+                    onClick={() => void window.shell.openExternal(dockerStatus.installUrl!)}
+                    className="underline hover:text-text-primary transition-colors ml-1"
+                  >
+                    Install
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Auto-approve */}
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={skipApproval}
+            onChange={(e) => setSkipApproval(e.target.checked)}
+            className="rounded border-border"
+          />
+          <span className="text-xs text-text-secondary">Auto-approve agent commands</span>
+        </label>
+        {skipApproval && !isolated && (
+          <p className="text-xs text-yellow-400 ml-6">
+            Warning: Auto-approving without container isolation gives agents unrestricted access to your machine.
+            Enable &quot;Run in Docker container&quot; above for safe auto-approval.
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
