@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildDockerExecArgs, dockerSetupMessage, DEFAULT_DOCKER_IMAGE, SHARED_CONFIG_DIR } from './docker'
+import { buildDockerExecArgs, dockerSetupMessage, DEFAULT_DOCKER_IMAGE, SHARED_CONFIG_DIR, CONTAINER_SHELLS } from './docker'
 
 describe('buildDockerExecArgs', () => {
   it('builds args for command execution', () => {
@@ -74,5 +74,11 @@ describe('constants', () => {
   it('has shared config dir under .broomy', () => {
     expect(SHARED_CONFIG_DIR).toContain('.broomy')
     expect(SHARED_CONFIG_DIR).toContain('isolation')
+  })
+
+  it('has container shells with bash as default', () => {
+    expect(CONTAINER_SHELLS).toHaveLength(2)
+    expect(CONTAINER_SHELLS[0]).toEqual({ path: '/bin/bash', name: 'Bash', isDefault: true })
+    expect(CONTAINER_SHELLS[1]).toEqual({ path: '/bin/sh', name: 'sh', isDefault: false })
   })
 })

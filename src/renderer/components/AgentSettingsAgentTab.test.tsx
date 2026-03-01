@@ -30,17 +30,13 @@ const defaultProps = {
   command: '',
   color: '',
   env: {} as Record<string, string>,
-  isolated: false,
-  dockerImage: '',
-  skipPermissions: false,
+  skipApprovalFlag: '',
   envEditorRef: createRef<EnvVarEditorRef>(),
   onNameChange: vi.fn(),
   onCommandChange: vi.fn(),
   onColorChange: vi.fn(),
   onEnvChange: vi.fn(),
-  onIsolatedChange: vi.fn(),
-  onDockerImageChange: vi.fn(),
-  onSkipPermissionsChange: vi.fn(),
+  onSkipApprovalFlagChange: vi.fn(),
   onEdit: vi.fn(),
   onUpdate: vi.fn(),
   onDelete: vi.fn(),
@@ -106,6 +102,7 @@ describe('AgentSettingsAgentTab', () => {
     expect(screen.getByPlaceholderText('Agent name')).toBeTruthy()
     expect(screen.getByPlaceholderText('Command (e.g., claude)')).toBeTruthy()
     expect(screen.getByPlaceholderText('Color (optional, e.g., #4a9eff)')).toBeTruthy()
+    expect(screen.getByPlaceholderText('e.g., --dangerously-skip-permissions')).toBeTruthy()
     expect(screen.getByText('Add Agent')).toBeTruthy()
     expect(screen.getByText('Cancel')).toBeTruthy()
   })
@@ -181,5 +178,20 @@ describe('AgentSettingsAgentTab', () => {
     const commandInput = screen.getByPlaceholderText('Command (e.g., claude)')
     fireEvent.change(commandInput, { target: { value: 'new-cmd' } })
     expect(defaultProps.onCommandChange).toHaveBeenCalledWith('new-cmd')
+  })
+
+  it('fires onSkipApprovalFlagChange when skip-approval input changes in add form', () => {
+    render(<AgentSettingsAgentTab {...defaultProps} showAddForm={true} />)
+    const input = screen.getByPlaceholderText('e.g., --dangerously-skip-permissions')
+    fireEvent.change(input, { target: { value: '--full-auto' } })
+    expect(defaultProps.onSkipApprovalFlagChange).toHaveBeenCalledWith('--full-auto')
+  })
+
+  it('shows auto badge when agent has skipApprovalFlag', () => {
+    const agentsWithFlag: AgentConfig[] = [
+      { id: 'agent-1', name: 'Claude', command: 'claude', skipApprovalFlag: '--dangerously-skip-permissions' },
+    ]
+    render(<AgentSettingsAgentTab {...defaultProps} agents={agentsWithFlag} />)
+    expect(screen.getByText('auto')).toBeTruthy()
   })
 })
