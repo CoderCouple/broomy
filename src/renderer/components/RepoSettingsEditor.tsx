@@ -5,7 +5,95 @@ import { useState, useEffect } from 'react'
 import type { AgentConfig } from '../store/agents'
 import type { ManagedRepo, DockerStatus } from '../../preload/index'
 
-// Repo settings editor component
+function ErrorBanner({ error, onDismiss, onShowDetails }: {
+  error: { summary: string; details: string }
+  onDismiss: () => void
+  onShowDetails: () => void
+}) {
+  return (
+    <div
+      className="px-3 py-2 rounded border border-red-500/30 bg-red-500/10 flex items-center gap-2 cursor-pointer hover:bg-red-500/20 transition-colors"
+      onClick={onShowDetails}
+      title="Click to view full error"
+    >
+      <div className="flex-1 text-xs text-red-400 truncate">{error.summary}</div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onDismiss() }}
+        className="text-red-400 hover:text-red-300 text-xs shrink-0 px-1"
+        title="Dismiss"
+      >&times;</button>
+    </div>
+  )
+}
+
+function ErrorDetailsPopup({ error, onClose }: {
+  error: { summary: string; details: string }
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div
+        className="bg-bg-primary border border-border rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <span className="text-sm font-medium text-red-400">Error Details</span>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary text-lg">&times;</button>
+        </div>
+        <div className="px-4 py-3 overflow-auto">
+          <pre className="text-xs text-text-primary whitespace-pre-wrap font-mono">{error.details}</pre>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function IsolationSettings({ isolated, dockerImage, skipApproval, dockerStatus, onIsolatedChange, onDockerImageChange, onSkipApprovalChange }: {
+  isolated: boolean; dockerImage: string; skipApproval: boolean; dockerStatus: DockerStatus | null
+  onIsolatedChange: (v: boolean) => void; onDockerImageChange: (v: string) => void; onSkipApprovalChange: (v: boolean) => void
+}) {
+  return (
+    <>
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={isolated} onChange={(e) => onIsolatedChange(e.target.checked)} className="rounded border-border" />
+          <span className="text-xs text-text-secondary">Run in Docker container</span>
+        </label>
+        {isolated && (
+          <div className="ml-6 space-y-2">
+            <input
+              type="text" value={dockerImage} onChange={(e) => onDockerImageChange(e.target.value)}
+              placeholder="broomy/isolation:latest"
+              className="w-full px-3 py-2 bg-bg-secondary border border-border rounded text-sm text-text-primary font-mono placeholder-text-secondary focus:outline-none focus:border-accent"
+            />
+            {dockerStatus && (
+              <div className={`text-xs flex items-center gap-1.5 ${dockerStatus.available ? 'text-green-400' : 'text-yellow-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${dockerStatus.available ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                {dockerStatus.available ? 'Docker available' : (dockerStatus.error || 'Docker not available')}
+                {!dockerStatus.available && dockerStatus.installUrl && (
+                  <button onClick={() => void window.shell.openExternal(dockerStatus.installUrl!)} className="underline hover:text-text-primary transition-colors ml-1">Install</button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={skipApproval} onChange={(e) => onSkipApprovalChange(e.target.checked)} className="rounded border-border" />
+          <span className="text-xs text-text-secondary">Auto-approve agent commands</span>
+        </label>
+        {skipApproval && !isolated && (
+          <p className="text-xs text-yellow-400 ml-6">
+            Warning: Auto-approving without container isolation gives agents unrestricted access to your machine.
+            Enable &quot;Run in Docker container&quot; above for safe auto-approval.
+          </p>
+        )}
+      </div>
+    </>
+  )
+}
+
 export function RepoSettingsEditor({
   repo,
   agents,
@@ -69,50 +157,11 @@ export function RepoSettingsEditor({
 
   return (
     <div className="space-y-3">
-      {/* Error banner at top */}
       {pushToMainError && (
-        <div
-          className="px-3 py-2 rounded border border-red-500/30 bg-red-500/10 flex items-center gap-2 cursor-pointer hover:bg-red-500/20 transition-colors"
-          onClick={() => setShowErrorDetails(true)}
-          title="Click to view full error"
-        >
-          <div className="flex-1 text-xs text-red-400 truncate">
-            {pushToMainError.summary}
-          </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setPushToMainError(null)
-            }}
-            className="text-red-400 hover:text-red-300 text-xs shrink-0 px-1"
-            title="Dismiss"
-          >
-            &times;
-          </button>
-        </div>
+        <ErrorBanner error={pushToMainError} onDismiss={() => setPushToMainError(null)} onShowDetails={() => setShowErrorDetails(true)} />
       )}
-
-      {/* Error details popup */}
       {showErrorDetails && pushToMainError && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowErrorDetails(false)}>
-          <div
-            className="bg-bg-primary border border-border rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-              <span className="text-sm font-medium text-red-400">Error Details</span>
-              <button
-                onClick={() => setShowErrorDetails(false)}
-                className="text-text-secondary hover:text-text-primary text-lg"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="px-4 py-3 overflow-auto">
-              <pre className="text-xs text-text-primary whitespace-pre-wrap font-mono">{pushToMainError.details}</pre>
-            </div>
-          </div>
-        </div>
+        <ErrorDetailsPopup error={pushToMainError} onClose={() => setShowErrorDetails(false)} />
       )}
 
       <div className="text-sm font-medium text-text-primary">{repo.name}</div>
@@ -169,63 +218,11 @@ export function RepoSettingsEditor({
         </label>
       </div>
 
-      {/* Docker isolation */}
-      <div className="space-y-2">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isolated}
-            onChange={(e) => setIsolated(e.target.checked)}
-            className="rounded border-border"
-          />
-          <span className="text-xs text-text-secondary">Run in Docker container</span>
-        </label>
-
-        {isolated && (
-          <div className="ml-6 space-y-2">
-            <input
-              type="text"
-              value={dockerImage}
-              onChange={(e) => setDockerImage(e.target.value)}
-              placeholder="broomy/isolation:latest"
-              className="w-full px-3 py-2 bg-bg-secondary border border-border rounded text-sm text-text-primary font-mono placeholder-text-secondary focus:outline-none focus:border-accent"
-            />
-            {dockerStatus && (
-              <div className={`text-xs flex items-center gap-1.5 ${dockerStatus.available ? 'text-green-400' : 'text-yellow-400'}`}>
-                <span className={`w-2 h-2 rounded-full ${dockerStatus.available ? 'bg-green-400' : 'bg-yellow-400'}`} />
-                {dockerStatus.available ? 'Docker available' : (dockerStatus.error || 'Docker not available')}
-                {!dockerStatus.available && dockerStatus.installUrl && (
-                  <button
-                    onClick={() => void window.shell.openExternal(dockerStatus.installUrl!)}
-                    className="underline hover:text-text-primary transition-colors ml-1"
-                  >
-                    Install
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Auto-approve */}
-      <div className="space-y-2">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={skipApproval}
-            onChange={(e) => setSkipApproval(e.target.checked)}
-            className="rounded border-border"
-          />
-          <span className="text-xs text-text-secondary">Auto-approve agent commands</span>
-        </label>
-        {skipApproval && !isolated && (
-          <p className="text-xs text-yellow-400 ml-6">
-            Warning: Auto-approving without container isolation gives agents unrestricted access to your machine.
-            Enable &quot;Run in Docker container&quot; above for safe auto-approval.
-          </p>
-        )}
-      </div>
+      <IsolationSettings
+        isolated={isolated} dockerImage={dockerImage} skipApproval={skipApproval}
+        dockerStatus={dockerStatus} onIsolatedChange={setIsolated}
+        onDockerImageChange={setDockerImage} onSkipApprovalChange={setSkipApproval}
+      />
 
       <div className="space-y-2">
         <label className="text-xs text-text-secondary">Init Script (runs when session starts)</label>

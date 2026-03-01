@@ -5,6 +5,9 @@ import '../../test/react-setup'
 import TabbedTerminal from './TabbedTerminal'
 import { useSessionStore } from '../store/sessions'
 
+// Mock DockerInfoPanel
+vi.mock('./DockerInfoPanel', () => ({ default: () => <div data-testid="docker-info">DockerInfo</div> }))
+
 // Mock Terminal component to avoid xterm.js issues in jsdom
 vi.mock('./Terminal', () => ({
   default: (props: { sessionId: string; cwd: string }) => (
@@ -185,6 +188,79 @@ describe('TabbedTerminal', () => {
     const terminals = container.querySelectorAll('[class*="absolute inset-0"]')
     // Agent + 2 user tabs = 3 terminal containers
     expect(terminals.length).toBe(3)
+  })
+
+  it('shows add menu when isolation is enabled and add button is clicked', () => {
+    render(
+      <TabbedTerminal sessionId="session-1" cwd="/tmp/test" isActive={true} isolation={{ isolated: true, dockerImage: 'test-image' }} />
+    )
+    fireEvent.click(screen.getByTestId('add-tab'))
+    // Add menu should appear with Local/Container options
+    expect(screen.getByText('Local Terminal')).toBeTruthy()
+    expect(screen.getByText('Container Terminal')).toBeTruthy()
+  })
+
+  it('adds local tab from add menu', () => {
+    const addTerminalTab = vi.fn()
+    useSessionStore.setState({ addTerminalTab } as unknown as Record<string, unknown>)
+    render(
+      <TabbedTerminal sessionId="session-1" cwd="/tmp/test" isActive={true} isolation={{ isolated: true }} />
+    )
+    fireEvent.click(screen.getByTestId('add-tab'))
+    fireEvent.click(screen.getByText('Local Terminal'))
+    expect(addTerminalTab).toHaveBeenCalledWith('session-1')
+  })
+
+  it('adds container tab from add menu', () => {
+    const addTerminalTab = vi.fn()
+    useSessionStore.setState({ addTerminalTab } as unknown as Record<string, unknown>)
+    render(
+      <TabbedTerminal sessionId="session-1" cwd="/tmp/test" isActive={true} isolation={{ isolated: true }} />
+    )
+    fireEvent.click(screen.getByTestId('add-tab'))
+    fireEvent.click(screen.getByText('Container Terminal'))
+    expect(addTerminalTab).toHaveBeenCalledWith('session-1', undefined, true)
+  })
+
+  it('renders docker info panel tab when isolated', () => {
+    render(
+      <TabbedTerminal sessionId="session-1" cwd="/tmp/test" isActive={true} isolation={{ isolated: true }} />,
+    )
+    // Docker tab should be in the tab bar
+    expect(screen.getByText('(docker)')).toBeTruthy()
+    // DockerInfoPanel should be rendered
+    expect(screen.getByTestId('docker-info')).toBeTruthy()
+  })
+
+  it('does not render docker tab when not isolated', () => {
+    render(
+      <TabbedTerminal sessionId="session-1" cwd="/tmp/test" isActive={true} />,
+    )
+    expect(screen.queryByText('(docker)')).toBeNull()
+  })
+
+  it('does not remove agent tab when close is clicked', () => {
+    const removeTerminalTab = vi.fn()
+    useSessionStore.setState({ removeTerminalTab } as unknown as Record<string, unknown>)
+    render(
+      <TabbedTerminal sessionId="session-1" cwd="/tmp/test" isActive={true} />,
+    )
+    // Try to close agent tab (via the close button on tab-1 which is a user tab, should work)
+    fireEvent.click(screen.getByTestId(`close-${tab1Id}`))
+    expect(removeTerminalTab).toHaveBeenCalledWith('session-1', tab1Id)
+  })
+
+  it('closes add menu on outside click', () => {
+    render(
+      <TabbedTerminal sessionId="session-1" cwd="/tmp/test" isActive={true} isolation={{ isolated: true }} />,
+    )
+    // Open add menu
+    fireEvent.click(screen.getByTestId('add-tab'))
+    expect(screen.getByText('Local Terminal')).toBeTruthy()
+    // Click outside (on document body)
+    fireEvent.mouseDown(document.body)
+    // Menu should be gone
+    expect(screen.queryByText('Local Terminal')).toBeNull()
   })
 
   it('defaults to agent tab when no stored active tab', () => {

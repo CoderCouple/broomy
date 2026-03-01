@@ -194,4 +194,77 @@ describe('AgentSettingsAgentTab', () => {
     render(<AgentSettingsAgentTab {...defaultProps} agents={agentsWithFlag} />)
     expect(screen.getByText('auto')).toBeTruthy()
   })
+
+  it('fires onColorChange when color input changes in add form', () => {
+    render(<AgentSettingsAgentTab {...defaultProps} showAddForm={true} />)
+    const colorInput = screen.getByPlaceholderText('Color (optional, e.g., #4a9eff)')
+    fireEvent.change(colorInput, { target: { value: '#ff0000' } })
+    expect(defaultProps.onColorChange).toHaveBeenCalledWith('#ff0000')
+  })
+
+  it('renders edit form inputs when editingId is set', () => {
+    allowConsoleError()
+    render(
+      <AgentSettingsAgentTab
+        {...defaultProps}
+        editingId="agent-1"
+        name="Claude"
+        command="claude"
+        color="#D97757"
+        skipApprovalFlag="--flag"
+      />,
+    )
+    // Edit form should have all inputs
+    const nameInputs = screen.getAllByPlaceholderText('Agent name')
+    expect(nameInputs.length).toBeGreaterThan(0)
+    expect(screen.getByDisplayValue('claude')).toBeTruthy()
+    expect(screen.getByDisplayValue('#D97757')).toBeTruthy()
+    expect(screen.getByDisplayValue('--flag')).toBeTruthy()
+  })
+
+  it('fires callbacks from edit form inputs', () => {
+    allowConsoleError()
+    render(
+      <AgentSettingsAgentTab
+        {...defaultProps}
+        editingId="agent-1"
+        name="Claude"
+        command="claude"
+        skipApprovalFlag=""
+      />,
+    )
+    // Change name in edit form
+    const nameInputs = screen.getAllByPlaceholderText('Agent name')
+    fireEvent.change(nameInputs[nameInputs.length - 1], { target: { value: 'Updated' } })
+    expect(defaultProps.onNameChange).toHaveBeenCalledWith('Updated')
+
+    // Change command in edit form
+    const cmdInputs = screen.getAllByPlaceholderText('Command (e.g., claude)')
+    fireEvent.change(cmdInputs[cmdInputs.length - 1], { target: { value: 'new-cmd' } })
+    expect(defaultProps.onCommandChange).toHaveBeenCalledWith('new-cmd')
+
+    // Change color in edit form
+    const colorInputs = screen.getAllByPlaceholderText('Color (optional, e.g., #4a9eff)')
+    fireEvent.change(colorInputs[colorInputs.length - 1], { target: { value: '#123' } })
+    expect(defaultProps.onColorChange).toHaveBeenCalledWith('#123')
+
+    // Change skipApprovalFlag in edit form
+    const flagInputs = screen.getAllByPlaceholderText('e.g., --dangerously-skip-permissions')
+    fireEvent.change(flagInputs[flagInputs.length - 1], { target: { value: '--auto' } })
+    expect(defaultProps.onSkipApprovalFlagChange).toHaveBeenCalledWith('--auto')
+  })
+
+  it('calls onCancel when Cancel is clicked in edit form', () => {
+    allowConsoleError()
+    render(
+      <AgentSettingsAgentTab
+        {...defaultProps}
+        editingId="agent-1"
+        name="Claude"
+        command="claude"
+      />,
+    )
+    fireEvent.click(screen.getByText('Cancel'))
+    expect(defaultProps.onCancel).toHaveBeenCalledOnce()
+  })
 })
