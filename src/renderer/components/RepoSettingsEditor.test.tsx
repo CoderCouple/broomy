@@ -220,7 +220,7 @@ describe('RepoSettingsEditor', () => {
     await waitFor(() => {
       expect(screen.queryByText('Loading...')).toBeNull()
     })
-    expect(screen.getByText('Run in Docker container')).toBeTruthy()
+    expect(screen.getByText('Run agent in isolated Docker container')).toBeTruthy()
     expect(screen.getByText('Auto-approve agent commands')).toBeTruthy()
   })
 

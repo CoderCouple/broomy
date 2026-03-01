@@ -31,7 +31,7 @@ export default function DockerInfoPanel({ sessionId }: DockerInfoPanelProps) {
 
   return (
     <div className="h-full overflow-auto p-4 text-sm text-zinc-300 bg-zinc-900">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-4">Container Isolation</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-4">Agent Container Isolation</h3>
 
       {loading && <p className="text-zinc-500">Loading...</p>}
 
