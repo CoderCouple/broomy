@@ -149,7 +149,37 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
     }
   }, [editingTabId])
 
-  const handleAddTab = useCallback(() => { addTerminalTab(sessionId) }, [sessionId, addTerminalTab])
+  const [showAddMenu, setShowAddMenu] = useState(false)
+  const addMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close add menu on click outside
+  useEffect(() => {
+    const handleClickOutsideAdd = (e: MouseEvent) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+        setShowAddMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutsideAdd)
+    return () => document.removeEventListener('mousedown', handleClickOutsideAdd)
+  }, [])
+
+  const handleAddTab = useCallback(() => {
+    if (isolation?.isolated) {
+      setShowAddMenu(prev => !prev)
+    } else {
+      addTerminalTab(sessionId)
+    }
+  }, [sessionId, addTerminalTab, isolation])
+
+  const handleAddLocalTab = useCallback(() => {
+    addTerminalTab(sessionId)
+    setShowAddMenu(false)
+  }, [sessionId, addTerminalTab])
+
+  const handleAddContainerTab = useCallback(() => {
+    addTerminalTab(sessionId, undefined, true)
+    setShowAddMenu(false)
+  }, [sessionId, addTerminalTab])
   const handleTabClick = useCallback((tabId: string) => { setActiveTerminalTab(sessionId, tabId) }, [sessionId, setActiveTerminalTab])
 
   const handleCloseTab = useCallback((e: React.MouseEvent, tabId: string) => {
@@ -203,34 +233,57 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
   return (
     <div className="h-full w-full flex flex-col">
       {/* Tab bar */}
-      <TerminalTabBar
-        tabs={allTabs}
-        activeTabId={activeTabId}
-        editingTabId={editingTabId}
-        editingName={editingName}
-        dragOverTabId={dragOverTabId}
-        isOverflowing={isOverflowing}
-        showDropdown={showDropdown}
-        agentTabId={AGENT_TAB_ID}
-        handleTabClick={handleTabClick}
-        handleCloseTab={handleCloseTab}
-        handleContextMenu={handleContextMenu}
-        handleDoubleClick={handleDoubleClick}
-        handleDragStart={handleDragStart}
-        handleDragEnd={handleDragEnd}
-        handleDragOver={handleDragOver}
-        handleDragLeave={handleDragLeave}
-        handleDrop={handleDrop}
-        handleRenameSubmit={handleRenameSubmit}
-        handleRenameKeyDown={handleRenameKeyDown}
-        handleDropdownSelect={handleDropdownSelect}
-        handleAddTab={handleAddTab}
-        setEditingName={setEditingName}
-        setShowDropdown={setShowDropdown}
-        editInputRef={editInputRef}
-        dropdownRef={dropdownRef}
-        tabsContainerRef={tabsContainerRef}
-      />
+      <div className="relative">
+        <TerminalTabBar
+          tabs={allTabs}
+          activeTabId={activeTabId}
+          editingTabId={editingTabId}
+          editingName={editingName}
+          dragOverTabId={dragOverTabId}
+          isOverflowing={isOverflowing}
+          showDropdown={showDropdown}
+          agentTabId={AGENT_TAB_ID}
+          handleTabClick={handleTabClick}
+          handleCloseTab={handleCloseTab}
+          handleContextMenu={handleContextMenu}
+          handleDoubleClick={handleDoubleClick}
+          handleDragStart={handleDragStart}
+          handleDragEnd={handleDragEnd}
+          handleDragOver={handleDragOver}
+          handleDragLeave={handleDragLeave}
+          handleDrop={handleDrop}
+          handleRenameSubmit={handleRenameSubmit}
+          handleRenameKeyDown={handleRenameKeyDown}
+          handleDropdownSelect={handleDropdownSelect}
+          handleAddTab={handleAddTab}
+          setEditingName={setEditingName}
+          setShowDropdown={setShowDropdown}
+          editInputRef={editInputRef}
+          dropdownRef={dropdownRef}
+          tabsContainerRef={tabsContainerRef}
+        />
+
+        {/* Add tab type dropdown (when repo has isolation) */}
+        {showAddMenu && (
+          <div
+            ref={addMenuRef}
+            className="absolute right-0 top-full mt-0.5 bg-bg-secondary border border-border rounded shadow-lg z-50 min-w-36"
+          >
+            <button
+              className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+              onClick={handleAddLocalTab}
+            >
+              Local Terminal
+            </button>
+            <button
+              className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+              onClick={handleAddContainerTab}
+            >
+              Container Terminal
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Terminal container */}
       <div className="flex-1 relative min-h-0">
@@ -272,6 +325,8 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
                 sessionId={`user-${sessionId}-${tab.id}`}
                 cwd={cwd}
                 isActive={isActive && tab.id === activeTabId}
+                isolated={tab.isolated}
+                dockerImage={tab.isolated ? isolation?.dockerImage : undefined}
               />
             </PanelErrorBoundary>
           </div>
