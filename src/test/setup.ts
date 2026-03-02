@@ -114,6 +114,7 @@ const mockGh: Mocked<GhApi> = {
   addReaction: vi.fn().mockResolvedValue({ success: true }),
   prsToReview: vi.fn().mockResolvedValue([]),
   submitDraftReview: vi.fn().mockResolvedValue({ success: true }),
+  currentUser: vi.fn().mockResolvedValue('test-user'),
 }
 
 // Mock window.shell

@@ -241,4 +241,22 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
       return null
     }
   })
+
+  ipcMain.handle('gh:currentUser', async () => {
+    if (ctx.isE2ETest) {
+      return 'test-user'
+    }
+
+    try {
+      const { stdout } = await execFileAsync('gh', [
+        'api', 'user', '--jq', '.login',
+      ], {
+        encoding: 'utf-8',
+        timeout: 30000,
+      })
+      return stdout.trim()
+    } catch {
+      return null
+    }
+  })
 }

@@ -157,7 +157,7 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
   const state = useReviewData(session.id, session.directory, session.prBaseBranch, session.prNumber)
 
   const {
-    reviewData, comments, comparison, fetching, waitingForAgent, fetchingStatus,
+    reviewData, comments, fetching, waitingForAgent, fetchingStatus,
     pushing, pushResult, error, showGitignoreModal, unpushedCount,
     prDescription, prGitHubComments, prCommentsLoading, prCommentsHasMore,
     loadOlderComments, refreshComments,
@@ -252,7 +252,6 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
         {reviewData && (
           <ReviewContent
             reviewData={reviewData}
-            comparison={comparison}
             comments={comments}
             unpushedCount={unpushedCount}
             directory={session.directory}

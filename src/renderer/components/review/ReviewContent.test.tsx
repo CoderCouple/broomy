@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import '../../../test/react-setup'
 import { ReviewContent, MarkdownBody } from './ReviewContent'
-import type { ReviewData, ReviewComparison, PendingComment } from '../../types/review'
+import type { ReviewData, PendingComment } from '../../types/review'
 
 afterEach(() => {
   cleanup()
@@ -37,7 +37,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData()}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -59,7 +59,7 @@ describe('ReviewContent', () => {
             { id: 'cp-1', title: 'API Refactor', description: 'Changed endpoints', locations: [] },
           ],
         })}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -84,7 +84,7 @@ describe('ReviewContent', () => {
             { id: 'pi-2', severity: 'info', title: 'Naming convention', description: 'Could be clearer', locations: [] },
           ],
         })}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -109,7 +109,7 @@ describe('ReviewContent', () => {
             { id: 'dd-1', title: 'Use Zustand', description: 'For state management', alternatives: ['Redux', 'MobX'], locations: [] },
           ],
         })}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -134,7 +134,7 @@ describe('ReviewContent', () => {
             { id: 'cp-1', title: 'Change', description: 'Desc', locations: [{ file: 'src/app.ts', startLine: 10, endLine: 20 }] },
           ],
         })}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -158,7 +158,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData()}
-        comparison={null}
+
         comments={comments}
         unpushedCount={1}
         directory="/test"
@@ -177,7 +177,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData()}
-        comparison={null}
+
         comments={comments}
         unpushedCount={0}
         directory="/test"
@@ -199,7 +199,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData()}
-        comparison={null}
+
         comments={comments}
         unpushedCount={1}
         directory="/test"
@@ -214,44 +214,17 @@ describe('ReviewContent', () => {
     expect(onDeleteComment).toHaveBeenCalledWith('c-1')
   })
 
-  it('renders comparison section when comparison data exists', () => {
-    const comparison: ReviewComparison = {
-      newCommitsSince: ['abc123'],
-      newFileChanges: [],
-      requestedChangeStatus: [
-        {
-          change: { id: 'rc-1', description: 'Add tests' },
-          status: 'addressed',
-          notes: 'Tests added',
-        },
-      ],
-    }
-    render(
-      <ReviewContent
-        reviewData={makeReviewData()}
-        comparison={comparison}
-        comments={[]}
-        unpushedCount={0}
-        directory="/test"
-        onClickLocation={vi.fn()}
-        onDeleteComment={vi.fn()}
-        {...defaultGitHubProps}
-      />
-    )
-    expect(screen.getByText('Changes Since Last Review')).toBeTruthy()
-  })
-
   it('renders changesSinceLastReview section from reviewData', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData({
           changesSinceLastReview: {
             summary: 'Several improvements made',
-            responsesToComments: [{ comment: 'Fix bug', response: 'Fixed in latest commit' }],
-            otherNotableChanges: ['Added logging'],
+            responsesToComments: [{ comment: 'Fix bug', response: 'Fixed in latest commit', status: 'addressed' }],
+            changePatterns: [{ id: 'cp-1', title: 'Logging', description: 'Added logging', locations: [] }],
           },
         })}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -268,7 +241,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData({ potentialIssues: [] })}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -284,7 +257,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData({ designDecisions: [] })}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -300,7 +273,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData()}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -317,7 +290,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData()}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -334,7 +307,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData()}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -353,7 +326,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData()}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -365,42 +338,19 @@ describe('ReviewContent', () => {
     expect(screen.queryByText('PR Comments')).toBeNull()
   })
 
-  it('shows new commits count in comparison section', () => {
-    const comparison: ReviewComparison = {
-      newCommitsSince: ['abc123', 'def456'],
-      newFileChanges: [],
-      requestedChangeStatus: [
-        { change: { id: 'rc-1', description: 'Fix bug' }, status: 'addressed' },
-      ],
-    }
-    render(
-      <ReviewContent
-        reviewData={makeReviewData()}
-        comparison={comparison}
-        comments={[]}
-        unpushedCount={0}
-        directory="/test"
-        onClickLocation={vi.fn()}
-        onDeleteComment={vi.fn()}
-        {...defaultGitHubProps}
-      />
-    )
-    expect(screen.getByText(/2 new commits since last review/)).toBeTruthy()
-  })
-
-  it('renders since last review with responses to comments', () => {
+  it('renders since last review with responses to comments and status badges', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData({
           changesSinceLastReview: {
             summary: 'Summary text',
             responsesToComments: [
-              { comment: 'Original question', response: 'Addressed it' },
+              { comment: 'Original question', response: 'Addressed it', status: 'addressed' },
             ],
-            otherNotableChanges: [],
+            changePatterns: [],
           },
         })}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -413,19 +363,23 @@ describe('ReviewContent', () => {
     expect(screen.getByText('Responses to Comments')).toBeTruthy()
     expect(screen.getByText('Original question')).toBeTruthy()
     expect(screen.getByText('Addressed it')).toBeTruthy()
+    expect(screen.getByText('Addressed')).toBeTruthy()
   })
 
-  it('renders since last review with other notable changes', () => {
+  it('renders since last review with change patterns', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData({
           changesSinceLastReview: {
             summary: 'Summary',
             responsesToComments: [],
-            otherNotableChanges: ['Added tests', 'Fixed lint'],
+            changePatterns: [
+              { id: 'cp-1', title: 'Test additions', description: 'Added unit tests', locations: [{ file: 'src/test.ts', startLine: 1 }] },
+              { id: 'cp-2', title: 'Lint fixes', description: 'Fixed lint errors', locations: [] },
+            ],
           },
         })}
-        comparison={null}
+
         comments={[]}
         unpushedCount={0}
         directory="/test"
@@ -434,9 +388,9 @@ describe('ReviewContent', () => {
         {...defaultGitHubProps}
       />
     )
-    expect(screen.getByText('Other Notable Changes')).toBeTruthy()
-    expect(screen.getByText('Added tests')).toBeTruthy()
-    expect(screen.getByText('Fixed lint')).toBeTruthy()
+    expect(screen.getByText('Changes Since Last Review')).toBeTruthy()
+    expect(screen.getByText('Test additions')).toBeTruthy()
+    expect(screen.getByText('Lint fixes')).toBeTruthy()
   })
 
   it('navigates to pending comment location on click', () => {
@@ -447,7 +401,7 @@ describe('ReviewContent', () => {
     render(
       <ReviewContent
         reviewData={makeReviewData()}
-        comparison={null}
+
         comments={comments}
         unpushedCount={1}
         directory="/test"
