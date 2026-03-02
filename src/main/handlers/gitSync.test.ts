@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockGitInstance = {
+const mockGitInstance: Record<string, ReturnType<typeof vi.fn>> = {
   raw: vi.fn(),
   fetch: vi.fn(),
   merge: vi.fn(),
+  env: vi.fn().mockImplementation(() => mockGitInstance),
 }
 
 vi.mock('simple-git', () => ({
@@ -53,6 +54,7 @@ function setupHandlers(ctx?: HandlerContext) {
 describe('gitSync handlers', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockGitInstance.env.mockImplementation(() => mockGitInstance)
   })
 
   describe('registration', () => {

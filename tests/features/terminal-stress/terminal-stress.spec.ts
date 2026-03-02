@@ -52,7 +52,7 @@ test.afterAll(async () => {
       description:
         'Validates terminal rendering stability under stress: session switching, ' +
         'rapid tab changes, window resizing, panel toggles, and scroll behavior. ' +
-        'Uses xterm.js 6.0 with WebGL renderer.',
+        'Uses xterm.js 6.0 with canvas renderer.',
       steps,
     },
     FEATURE_DIR,
@@ -70,7 +70,7 @@ test.describe.serial('Feature: Terminal Stress', () => {
       caption: 'Terminal renders content after startup',
       description:
         'The xterm.js 6.0 terminal is visible and rendering output from the agent process. ' +
-        'The WebGL renderer provides hardware-accelerated rendering.',
+        'The canvas renderer handles terminal output.',
     })
   })
 

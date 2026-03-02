@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SerializeAddon } from '@xterm/addon-serialize'
-import { WebglAddon } from '@xterm/addon-webgl'
+
 import { useErrorStore } from '../store/errors'
 import { useSessionStore } from '../store/sessions'
 import { useRepoStore } from '../store/repos'
@@ -66,7 +66,7 @@ export interface ViewportHelpers {
 function createViewportHelpers(terminal: XTerm): ViewportHelpers {
   const isAtBottom = () => {
     const buffer = terminal.buffer.active
-    return buffer.viewportY >= buffer.baseY - 1
+    return buffer.viewportY >= buffer.baseY
   }
 
   return { isAtBottom }
@@ -94,7 +94,8 @@ function createScrollTracking(
 
   const updateFollowingFromScroll = (e: Event) => {
     // Immediately disengage following on upward scroll gestures.
-    if (e instanceof WheelEvent && e.deltaY < 0) {
+    const isScrollUp = e instanceof WheelEvent && e.deltaY < 0
+    if (isScrollUp) {
       isFollowingRef.current = false
       if (state.pendingScrollRAF) {
         cancelAnimationFrame(state.pendingScrollRAF)
@@ -104,7 +105,12 @@ function createScrollTracking(
 
     requestAnimationFrame(() => {
       const atBottom = helpers.isAtBottom()
-      isFollowingRef.current = atBottom
+      // Only re-engage following on downward scroll that reaches bottom.
+      // Don't override the explicit upward-scroll disengage — the rAF may
+      // fire before the viewport has actually moved, falsely reading "at bottom".
+      if (!isScrollUp) {
+        isFollowingRef.current = atBottom
+      }
       setShowScrollButton(!atBottom && terminal.buffer.active.baseY > 0)
     })
   }
@@ -262,9 +268,9 @@ export function useTerminalSetup(
 
     terminal.open(containerRef.current)
 
-    // Load WebGL renderer for better performance; fall back to DOM renderer
-    // if WebGL is unavailable (e.g., E2E tests, low-end GPUs).
-    try { terminal.loadAddon(new WebglAddon()) } catch { /* DOM renderer fallback */ }
+    // xterm.js 6 uses a canvas renderer by default, which is performant enough.
+    // The WebGL addon is intentionally not loaded — it crashes the GPU process
+    // on some hardware, causing a white screen / sad-face. Revisit later.
 
     // Register all terminals in the buffer registry so content is accessible.
     // Agent terminals are keyed by sessionId; non-agent terminals use the pty ID.
