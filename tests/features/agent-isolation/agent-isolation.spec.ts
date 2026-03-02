@@ -1,9 +1,9 @@
 /**
- * Feature Documentation: Repo-Level Docker Isolation
+ * Feature Documentation: Agent Container Isolation
  *
- * Demonstrates per-repo Docker isolation and auto-approve settings.
- * Exercises the settings UI flow (repo settings, agent auto-approve flag)
- * and the mixed local/container terminal tabs.
+ * Demonstrates per-repo container isolation with two modes: lightweight Docker
+ * and dev containers. Exercises the settings UI flow (repo settings, mode selector,
+ * agent auto-approve flag) and the mixed local/container terminal tabs.
  *
  * Run with: pnpm test:feature-docs agent-isolation
  */
@@ -40,12 +40,14 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await generateFeaturePage(
     {
-      title: 'Repo-Level Docker Isolation',
+      title: 'Agent Container Isolation',
       description:
-        'Broomy supports optional Docker-based container isolation configured per repository. ' +
-        'When enabled, agent sessions run inside Docker containers with access only to the repo ' +
-        'directory. Agents can define an auto-approve flag that gets appended to the command when ' +
-        'the repo has auto-approve enabled. Terminal tabs can be either local or container-based.',
+        'Broomy supports optional container isolation configured per repository. ' +
+        'Two modes are available: Lightweight Docker (fast, minimal — uses node:22-slim) ' +
+        'and Dev Container (uses .devcontainer/devcontainer.json for declarative environment setup). ' +
+        'When enabled, agent sessions run inside containers with access only to the repo directory. ' +
+        'Agents can define an auto-approve flag that gets appended to the command when ' +
+        'the repo has auto-approve enabled.',
       steps,
     },
     FEATURE_DIR,
@@ -53,7 +55,7 @@ test.afterAll(async () => {
   await generateIndex(FEATURES_ROOT)
 })
 
-test.describe.serial('Feature: Repo-Level Docker Isolation', () => {
+test.describe.serial('Feature: Agent Container Isolation', () => {
   test('Step 1: Open settings — view agents with auto-approve flag field', async () => {
     await openSettings()
 
@@ -71,11 +73,11 @@ test.describe.serial('Feature: Repo-Level Docker Isolation', () => {
     })
     steps.push({
       screenshotPath: 'screenshots/01-settings-agents.png',
-      caption: 'Agent list in settings — isolation is now configured per-repo, not per-agent',
+      caption: 'Agent list in settings — isolation is configured per-repo, not per-agent',
       description:
         'The settings panel shows all configured agents. Agent rows show an "auto" badge ' +
-        'when the agent has a skip-approval flag defined. Isolation settings have moved to ' +
-        'per-repo configuration below.',
+        'when the agent has a skip-approval flag defined. Isolation settings are configured ' +
+        'per-repo in the repository settings below.',
     })
   })
 
@@ -100,10 +102,9 @@ test.describe.serial('Feature: Repo-Level Docker Isolation', () => {
       screenshotPath: 'screenshots/02-agent-edit-form.png',
       caption: 'Agent edit form with auto-approve flag text input',
       description:
-        'The agent edit form now has a simple text input for the auto-approve flag ' +
+        'The agent edit form has a text input for the auto-approve flag ' +
         '(e.g., "--dangerously-skip-permissions"). This flag is appended to the command ' +
-        'when the repo has auto-approve enabled. Isolation checkboxes have been removed ' +
-        'from the agent form — they live in repo settings now.',
+        'when the repo has auto-approve enabled.',
     })
 
     // Cancel the edit
@@ -111,7 +112,7 @@ test.describe.serial('Feature: Repo-Level Docker Isolation', () => {
     await cancelButton.click()
   })
 
-  test('Step 3: Scroll to repos section and click edit on a repo', async () => {
+  test('Step 3: Open repo settings — isolation checkbox and mode selector', async () => {
     const settingsPanel = page.locator('[data-panel-id="settings"]')
 
     // Wait for repos section
@@ -130,82 +131,114 @@ test.describe.serial('Feature: Repo-Level Docker Isolation', () => {
     })
     steps.push({
       screenshotPath: 'screenshots/03-repo-settings.png',
-      caption: 'Repo settings editor with Docker isolation and auto-approve checkboxes',
+      caption: 'Repo settings editor with isolation and auto-approve checkboxes',
       description:
         'Clicking edit on a repository opens the repo settings editor. Below the default agent ' +
-        'selector and push-to-main checkbox, two new isolation settings appear: ' +
+        'selector and push-to-main checkbox, two isolation settings appear: ' +
         '"Run agent in isolated container" and "Auto-approve agent commands".',
     })
   })
 
-  test('Step 4: Enable Docker isolation — image input and status appear', async () => {
+  test('Step 4: Enable isolation — mode selector with Lightweight Docker selected', async () => {
     const settingsPanel = page.locator('[data-panel-id="settings"]')
 
-    // Check the Docker isolation checkbox
+    // Check the isolation checkbox
     const isolationCheckbox = settingsPanel.locator('label:has-text("Run agent in isolated container") input[type="checkbox"]')
     await isolationCheckbox.check()
 
-    // Docker image input should appear
+    // Mode selector should appear with Lightweight Docker and Dev Container options
+    await expect(settingsPanel.locator('text=Lightweight Docker')).toBeVisible({ timeout: 3000 })
+    await expect(settingsPanel.locator('text=Dev Container')).toBeVisible({ timeout: 3000 })
+
+    // Docker image input should appear (Lightweight Docker is default)
     const imageInput = settingsPanel.locator('input[placeholder="node:22-slim"]')
     await expect(imageInput).toBeVisible({ timeout: 3000 })
 
     // Docker status indicator should appear (mocked as available in E2E)
     await expect(settingsPanel.locator('text=Docker available')).toBeVisible({ timeout: 5000 })
 
-    await screenshotElement(page, settingsPanel, path.join(SCREENSHOTS, '04-isolation-enabled.png'), {
+    await screenshotElement(page, settingsPanel, path.join(SCREENSHOTS, '04-docker-mode.png'), {
       maxHeight: 700,
     })
     steps.push({
-      screenshotPath: 'screenshots/04-isolation-enabled.png',
-      caption: 'Docker isolation enabled — image input and green status indicator',
+      screenshotPath: 'screenshots/04-docker-mode.png',
+      caption: 'Lightweight Docker mode — image input and Docker status indicator',
       description:
-        'After checking "Run agent in isolated container", a Docker image input field appears ' +
-        'with a placeholder of "node:22-slim". A green status dot shows ' +
-        '"Docker available", confirming Docker is detected on the system.',
+        'After enabling isolation, a mode selector appears with two options: Lightweight Docker ' +
+        'and Dev Container. Lightweight Docker is selected by default, showing a Docker image ' +
+        'input (placeholder: "node:22-slim") and a green status dot confirming Docker is available.',
     })
   })
 
-  test('Step 5: Enable auto-approve with isolation — no warning shown', async () => {
+  test('Step 5: Switch to Dev Container mode — CLI status shown', async () => {
     const settingsPanel = page.locator('[data-panel-id="settings"]')
+
+    // Click the Dev Container radio button
+    const devcontainerRadio = settingsPanel.locator('label:has-text("Dev Container") input[type="radio"]')
+    await devcontainerRadio.check()
+
+    // devcontainer CLI status should appear (mocked as available in E2E)
+    await expect(settingsPanel.locator('text=devcontainer CLI')).toBeVisible({ timeout: 5000 })
+
+    await screenshotElement(page, settingsPanel, path.join(SCREENSHOTS, '05-devcontainer-mode.png'), {
+      maxHeight: 700,
+    })
+    steps.push({
+      screenshotPath: 'screenshots/05-devcontainer-mode.png',
+      caption: 'Dev Container mode — CLI status and config detection',
+      description:
+        'Switching to Dev Container mode replaces the Docker image input with devcontainer-specific ' +
+        'status indicators: whether the devcontainer CLI is installed and whether a ' +
+        '.devcontainer/devcontainer.json exists in the repo. If no config is found, a ' +
+        '"Generate default" link creates one with Node.js, Git, and GitHub CLI features.',
+    })
+  })
+
+  test('Step 6: Switch back to Docker — enable auto-approve safely', async () => {
+    const settingsPanel = page.locator('[data-panel-id="settings"]')
+
+    // Switch back to Docker mode
+    const dockerRadio = settingsPanel.locator('label:has-text("Lightweight Docker") input[type="radio"]')
+    await dockerRadio.check()
 
     // Check auto-approve
     const skipCheckbox = settingsPanel.locator('label:has-text("Auto-approve agent commands") input[type="checkbox"]')
     await skipCheckbox.check()
 
-    // No warning should show since Docker isolation is also enabled
+    // No warning should show since isolation is enabled
     await expect(settingsPanel.locator('text=unrestricted access')).not.toBeVisible()
 
-    await screenshotElement(page, settingsPanel, path.join(SCREENSHOTS, '05-auto-approve-safe.png'), {
+    await screenshotElement(page, settingsPanel, path.join(SCREENSHOTS, '06-auto-approve-safe.png'), {
       maxHeight: 700,
     })
     steps.push({
-      screenshotPath: 'screenshots/05-auto-approve-safe.png',
-      caption: 'Auto-approve enabled with Docker isolation — safe, no warning',
+      screenshotPath: 'screenshots/06-auto-approve-safe.png',
+      caption: 'Auto-approve with isolation enabled — safe, no warning',
       description:
-        'With both Docker isolation and auto-approve enabled, no warning is shown. ' +
+        'With both container isolation and auto-approve enabled, no warning is shown. ' +
         'This is the recommended safe configuration: agents run at full speed inside ' +
         'a sandboxed container.',
     })
   })
 
-  test('Step 6: Uncheck Docker — warning appears for unsafe auto-approve', async () => {
+  test('Step 7: Disable isolation — warning for unsafe auto-approve', async () => {
     const settingsPanel = page.locator('[data-panel-id="settings"]')
 
-    // Uncheck Docker isolation while auto-approve remains checked
+    // Uncheck isolation while auto-approve remains checked
     const isolationCheckbox = settingsPanel.locator('label:has-text("Run agent in isolated container") input[type="checkbox"]')
     await isolationCheckbox.uncheck()
 
     // Warning should appear
     await expect(settingsPanel.locator('text=unrestricted access')).toBeVisible({ timeout: 3000 })
 
-    await screenshotElement(page, settingsPanel, path.join(SCREENSHOTS, '06-warning.png'), {
+    await screenshotElement(page, settingsPanel, path.join(SCREENSHOTS, '07-warning.png'), {
       maxHeight: 700,
     })
     steps.push({
-      screenshotPath: 'screenshots/06-warning.png',
-      caption: 'Warning when auto-approve is enabled without Docker isolation',
+      screenshotPath: 'screenshots/07-warning.png',
+      caption: 'Warning when auto-approve is enabled without container isolation',
       description:
-        'Disabling Docker isolation while auto-approve remains checked triggers a ' +
+        'Disabling container isolation while auto-approve remains checked triggers a ' +
         'yellow warning: agents will have unrestricted access to the machine. ' +
         'This guides users toward enabling container isolation for safe auto-approval.',
     })
