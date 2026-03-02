@@ -20,17 +20,11 @@ const defaultProps = {
   branchBaseName: 'main',
   stagedFiles: [],
   unstagedFiles: [],
-  commitMessage: '',
-  setCommitMessage: vi.fn(),
-  isCommitting: false,
   isMerging: false,
   hasConflicts: false,
-  commitError: null as string | null,
-  commitErrorExpanded: false,
-  setCommitErrorExpanded: vi.fn(),
-  setCommitError: vi.fn(),
+  isCommitting: false,
   isSyncing: false,
-  onCommit: vi.fn(),
+  onCommitWithAI: vi.fn(),
   onCommitMerge: vi.fn(),
   onResolveConflicts: vi.fn(),
   askedAgentToResolve: false,
@@ -44,7 +38,6 @@ const defaultProps = {
   onOpenReview: vi.fn(),
   prStatus: null as { number: number; state: string } | null,
   hasWriteAccess: false,
-  isPushingToMain: false,
   allowPushToMain: true,
   onCreatePr: vi.fn(),
   onPushToMain: vi.fn(),
@@ -154,10 +147,16 @@ describe('SCWorkingView', () => {
       unstagedFiles: [{ path: 'src/index.ts', status: 'modified' as const, staged: false, indexStatus: ' ', workingDirStatus: 'M' }],
     }
 
-    it('shows commit input and button', () => {
+    it('shows Commit with AI button', () => {
       render(<SCWorkingView {...changesProps} />)
-      expect(screen.getByPlaceholderText('Commit message')).toBeTruthy()
-      expect(screen.getByText('Commit')).toBeTruthy()
+      expect(screen.getByText('Commit with AI')).toBeTruthy()
+    })
+
+    it('calls onCommitWithAI when button is clicked', () => {
+      const onCommitWithAI = vi.fn()
+      render(<SCWorkingView {...changesProps} onCommitWithAI={onCommitWithAI} />)
+      fireEvent.click(screen.getByText('Commit with AI'))
+      expect(onCommitWithAI).toHaveBeenCalled()
     })
 
     it('shows staged and unstaged file sections', () => {
@@ -170,43 +169,6 @@ describe('SCWorkingView', () => {
       render(<SCWorkingView {...changesProps} />)
       expect(screen.getByText('src/app.ts')).toBeTruthy()
       expect(screen.getByText('src/index.ts')).toBeTruthy()
-    })
-
-    it('calls setCommitMessage on input change', () => {
-      const setCommitMessage = vi.fn()
-      render(<SCWorkingView {...changesProps} setCommitMessage={setCommitMessage} />)
-      fireEvent.change(screen.getByPlaceholderText('Commit message'), { target: { value: 'test' } })
-      expect(setCommitMessage).toHaveBeenCalledWith('test')
-    })
-
-    it('calls onCommit on Enter key', () => {
-      const onCommit = vi.fn()
-      render(<SCWorkingView {...changesProps} commitMessage="test" onCommit={onCommit} />)
-      fireEvent.keyDown(screen.getByPlaceholderText('Commit message'), { key: 'Enter' })
-      expect(onCommit).toHaveBeenCalled()
-    })
-
-    it('calls onCommit when commit button is clicked', () => {
-      const onCommit = vi.fn()
-      render(<SCWorkingView {...changesProps} commitMessage="test" onCommit={onCommit} />)
-      fireEvent.click(screen.getByText('Commit'))
-      expect(onCommit).toHaveBeenCalled()
-    })
-
-    it('disables commit button when no message', () => {
-      render(<SCWorkingView {...changesProps} commitMessage="" />)
-      const commitBtn = screen.getByText('Commit')
-      expect(commitBtn.hasAttribute('disabled')).toBe(true)
-    })
-
-    it('shows Committing... when committing', () => {
-      render(<SCWorkingView {...changesProps} isCommitting={true} />)
-      expect(screen.getByText('Committing...')).toBeTruthy()
-    })
-
-    it('shows commit error', () => {
-      render(<SCWorkingView {...changesProps} commitError="pre-commit hook failed" />)
-      expect(screen.getByText(/pre-commit hook failed/)).toBeTruthy()
     })
 
     it('calls onFileSelect when clicking a staged file', () => {
@@ -283,9 +245,9 @@ describe('SCWorkingView', () => {
       expect(screen.getByText('Committing...')).toBeTruthy()
     })
 
-    it('shows normal commit input when not merging', () => {
+    it('shows Commit with AI button when not merging', () => {
       render(<SCWorkingView {...changesProps} isMerging={false} />)
-      expect(screen.getByPlaceholderText('Commit message')).toBeTruthy()
+      expect(screen.getByText('Commit with AI')).toBeTruthy()
       expect(screen.queryByText('Commit Merge')).toBeNull()
     })
 

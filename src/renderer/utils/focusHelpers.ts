@@ -30,6 +30,14 @@ export function focusAgentTerminal(): void {
 }
 
 /**
+ * Write a prompt to the agent terminal and focus it.
+ */
+export async function sendAgentPrompt(agentPtyId: string, prompt: string): Promise<void> {
+  await window.pty.write(agentPtyId, prompt)
+  focusAgentTerminal()
+}
+
+/**
  * Focus the explorer search input.
  * Uses requestAnimationFrame to ensure the DOM has updated after any state changes.
  */

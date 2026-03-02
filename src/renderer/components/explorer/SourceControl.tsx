@@ -145,17 +145,11 @@ export function SourceControl({
         branchBaseName={data.branchBaseName}
         stagedFiles={data.stagedFiles}
         unstagedFiles={data.unstagedFiles}
-        commitMessage={data.commitMessage}
-        setCommitMessage={data.setCommitMessage}
-        isCommitting={data.isCommitting}
         isMerging={syncStatus?.isMerging ?? false}
         hasConflicts={syncStatus?.hasConflicts ?? false}
-        commitError={data.commitError}
-        commitErrorExpanded={data.commitErrorExpanded}
-        setCommitErrorExpanded={data.setCommitErrorExpanded}
-        setCommitError={data.setCommitError}
+        isCommitting={data.isCommitting}
         isSyncing={data.isSyncing}
-        onCommit={actions.handleCommit}
+        onCommitWithAI={actions.handleCommitWithAI}
         onCommitMerge={actions.handleCommitMerge}
         onResolveConflicts={actions.handleResolveConflicts}
         askedAgentToResolve={data.askedAgentToResolve}
@@ -169,7 +163,6 @@ export function SourceControl({
         onOpenReview={onOpenReview}
         prStatus={data.prStatus}
         hasWriteAccess={data.hasWriteAccess}
-        isPushingToMain={data.isPushingToMain}
         allowPushToMain={data.currentRepo?.allowPushToMain ?? true}
         onCreatePr={actions.handleCreatePr}
         onPushToMain={actions.handlePushToMain}
