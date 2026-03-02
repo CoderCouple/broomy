@@ -59,6 +59,7 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
   const defaultProps = {
     title: 'Test Session',
     isDev: false,
+    platform: 'darwin',
     profileChip: undefined as React.ReactNode,
     toolbarPanelInfo: makeToolbarPanelInfo(),
     onToggle: vi.fn(),
@@ -141,6 +142,23 @@ describe('LayoutToolbar', () => {
     expect(onOpenPanelPicker).toHaveBeenCalled()
   })
 
+  it('shows hamburger menu button when onMenuButtonClick is provided', () => {
+    renderToolbar({ onMenuButtonClick: vi.fn() })
+    expect(screen.getByTitle('Menu')).toBeTruthy()
+  })
+
+  it('does not show hamburger menu button when onMenuButtonClick is undefined', () => {
+    renderToolbar({ onMenuButtonClick: undefined })
+    expect(screen.queryByTitle('Menu')).toBeNull()
+  })
+
+  it('calls onMenuButtonClick when hamburger button is clicked', () => {
+    const onMenuButtonClick = vi.fn()
+    renderToolbar({ onMenuButtonClick })
+    fireEvent.click(screen.getByTitle('Menu'))
+    expect(onMenuButtonClick).toHaveBeenCalled()
+  })
+
   it('applies active style to visible panels', () => {
     renderToolbar()
     // Sessions is visible, so its button should have bg-accent
@@ -158,5 +176,41 @@ describe('LayoutToolbar', () => {
   it('renders error indicator', () => {
     renderToolbar()
     expect(screen.getByTestId('error-indicator')).toBeTruthy()
+  })
+
+  it('renders Linux window controls when platform is linux', () => {
+    renderToolbar({ platform: 'linux' })
+    expect(screen.getByTestId('linux-window-controls')).toBeTruthy()
+    expect(screen.getByTitle('Minimize')).toBeTruthy()
+    expect(screen.getByTitle('Maximize')).toBeTruthy()
+    expect(screen.getByTitle('Close')).toBeTruthy()
+  })
+
+  it('does not render Linux window controls on macOS', () => {
+    renderToolbar({ platform: 'darwin' })
+    expect(screen.queryByTestId('linux-window-controls')).toBeNull()
+  })
+
+  it('does not render Linux window controls on Windows', () => {
+    renderToolbar({ platform: 'win32' })
+    expect(screen.queryByTestId('linux-window-controls')).toBeNull()
+  })
+
+  it('calls windowControls.minimize when minimize button clicked', () => {
+    renderToolbar({ platform: 'linux' })
+    fireEvent.click(screen.getByTitle('Minimize'))
+    expect(window.windowControls.minimize).toHaveBeenCalled()
+  })
+
+  it('calls windowControls.maximize when maximize button clicked', () => {
+    renderToolbar({ platform: 'linux' })
+    fireEvent.click(screen.getByTitle('Maximize'))
+    expect(window.windowControls.maximize).toHaveBeenCalled()
+  })
+
+  it('calls windowControls.close when close button clicked', () => {
+    renderToolbar({ platform: 'linux' })
+    fireEvent.click(screen.getByTitle('Close'))
+    expect(window.windowControls.close).toHaveBeenCalled()
   })
 })

@@ -16,9 +16,10 @@ const { autoUpdater } = pkg
 import { join, dirname } from 'path'
 import { existsSync, readFileSync, FSWatcher } from 'fs'
 import * as pty from 'node-pty'
-import { isWindows, isMac, resolveWindowsCommand } from './platform'
+import { isWindows, isMac, isLinux, resolveWindowsCommand } from './platform'
 import { registerAllHandlers, HandlerContext, PROFILES_FILE } from './handlers'
 import { resolveShellEnv } from './shellEnv'
+import { writeCrashLog } from './crashLog'
 
 // Ensure app name is correct (in dev mode Electron defaults to "Electron")
 app.name = 'Broomy'
@@ -47,6 +48,31 @@ if (isWindows) {
   }
 }
 
+// Crash handlers — write crash report to disk so the next launch can show recovery UI
+if (!isE2ETest) {
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception:', error)
+    try {
+      writeCrashLog(error, 'main')
+      dialog.showErrorBox('Broomy crashed', error.message || String(error))
+    } catch {
+      // Best-effort — avoid infinite crash loops
+    }
+    app.exit(1)
+  })
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled rejection:', reason)
+    try {
+      writeCrashLog(reason, 'main')
+      dialog.showErrorBox('Broomy crashed', reason instanceof Error ? reason.message : String(reason))
+    } catch {
+      // Best-effort
+    }
+    app.exit(1)
+  })
+}
+
 // PTY instances map
 const ptyProcesses = new Map<string, pty.IPty>()
 // File watchers map
@@ -70,6 +96,9 @@ function createWindow(profileId?: string): BrowserWindow {
     ...(isMac ? {
       titleBarStyle: 'hiddenInset' as const,
       trafficLightPosition: { x: 15, y: 10 },
+    } : isLinux ? {
+      frame: false,
+      autoHideMenuBar: true,
     } : {
       titleBarStyle: 'hidden' as const,
       titleBarOverlay: {
@@ -77,6 +106,7 @@ function createWindow(profileId?: string): BrowserWindow {
         symbolColor: '#e0e0e0',
         height: 40,
       },
+      autoHideMenuBar: true,
     }),
     // Hide window in E2E test mode for headless-like behavior (unless E2E_HEADLESS=false)
     show: !(isE2ETest && isHeadless),
@@ -123,6 +153,13 @@ function createWindow(profileId?: string): BrowserWindow {
 
   window.webContents.on('render-process-gone', (_event, details) => {
     console.error('Render process gone:', details)
+    if (details.reason !== 'clean-exit') {
+      try {
+        writeCrashLog(new Error(`Renderer process gone: ${details.reason} (exit code ${details.exitCode})`), 'renderer')
+      } catch {
+        // best-effort
+      }
+    }
   })
 
   // Kill PTY processes when the renderer reloads — prevents FD exhaustion
