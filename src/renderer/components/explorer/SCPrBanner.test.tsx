@@ -100,6 +100,32 @@ describe('SCPrBanner', () => {
     expect(screen.getByText(/Branch merged to main/)).toBeTruthy()
   })
 
+  it('shows issue link when issueNumber and issueUrl are provided', () => {
+    render(
+      <SCPrBanner
+        {...defaultProps}
+        issueNumber={42}
+        issueTitle="Fix login bug"
+        issueUrl="https://github.com/test/issues/42"
+      />
+    )
+    expect(screen.getByText('ISSUE')).toBeTruthy()
+    expect(screen.getByText('#42: Fix login bug')).toBeTruthy()
+  })
+
+  it('opens issue URL when issue link is clicked', () => {
+    render(
+      <SCPrBanner
+        {...defaultProps}
+        issueNumber={42}
+        issueTitle="Fix login bug"
+        issueUrl="https://github.com/test/issues/42"
+      />
+    )
+    fireEvent.click(screen.getByText('#42: Fix login bug'))
+    expect(window.shell.openExternal).toHaveBeenCalledWith('https://github.com/test/issues/42')
+  })
+
   it('shows git operation error banner', () => {
     const gitOpError = { operation: 'Push', message: 'Authentication failed' }
     render(<SCPrBanner {...defaultProps} gitOpError={gitOpError} />)
