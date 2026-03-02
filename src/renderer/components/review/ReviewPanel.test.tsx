@@ -164,7 +164,7 @@ describe('ReviewPanel', () => {
   it('shows prompt instructions when waiting and no review data', () => {
     mockReviewDataState.waitingForAgent = true
     render(<ReviewPanel session={makeSession()} onSelectFile={vi.fn()} />)
-    expect(screen.getByText(/Review instructions have been pasted/)).toBeTruthy()
+    expect(screen.getByText(/Review instructions have been sent/)).toBeTruthy()
   })
 
   it('shows error message when error is set', () => {

@@ -8,9 +8,11 @@ beforeEach(() => {
 })
 
 describe('sendAgentPrompt', () => {
-  it('writes prompt to pty and focuses agent terminal', async () => {
+  it('writes prompt text and \\r as separate calls so agent treats Enter as a keypress', async () => {
     await sendAgentPrompt('pty-1', 'do something')
 
-    expect(window.pty.write).toHaveBeenCalledWith('pty-1', 'do something')
+    expect(window.pty.write).toHaveBeenCalledTimes(2)
+    expect(window.pty.write).toHaveBeenNthCalledWith(1, 'pty-1', 'do something')
+    expect(window.pty.write).toHaveBeenNthCalledWith(2, 'pty-1', '\r')
   })
 })

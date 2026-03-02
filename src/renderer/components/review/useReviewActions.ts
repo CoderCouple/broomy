@@ -165,9 +165,9 @@ export function useReviewActions(
       // Write the prompt file
       await window.fs.writeFile(promptFilePath, prompt)
 
-      // Send command to agent terminal (user must press enter to confirm)
+      // Send command to agent terminal
       await sendAgentPrompt(session.agentPtyId!, 'Please read and follow the instructions in .broomy/review-prompt.md')
-      setFetchingStatus('pasted')
+      setFetchingStatus('sent')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setFetching(false)

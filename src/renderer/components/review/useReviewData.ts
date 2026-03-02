@@ -7,7 +7,7 @@ import type { GitHubReaction } from '../../../preload/apis/types'
 import { useGitHubPrData } from './useGitHubPrData'
 import { useReviewFilePoller } from './useReviewFilePoller'
 
-export type FetchingStatus = 'fetching' | 'pasted' | null
+export type FetchingStatus = 'fetching' | 'sent' | null
 
 export interface NormalizedComment {
   id: number

@@ -50,10 +50,7 @@ function ReviewEmptyState({
           ) : (
             <>
               <div className="text-sm mb-3">
-                Review instructions have been pasted into your agent terminal.
-              </div>
-              <div className="text-sm text-text-secondary mb-4">
-                Press <kbd className="px-1.5 py-0.5 rounded bg-bg-tertiary border border-border font-mono text-xs">Enter</kbd> in the agent terminal to start the review.
+                Review instructions have been sent to your agent terminal.
               </div>
               <div className="text-xs text-text-secondary">
                 The review will appear here once your agent writes it to <code className="font-mono bg-bg-tertiary px-1 rounded">.broomy/review.json</code>
