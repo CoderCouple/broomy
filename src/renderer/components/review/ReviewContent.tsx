@@ -4,10 +4,12 @@
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
-import type { ReviewData, ReviewComparison, PendingComment, CodeLocation } from '../../types/review'
+import type { ReviewData, PendingComment, CodeLocation } from '../../types/review'
 import type { NormalizedComment } from './useReviewData'
 import { CollapsibleSection } from './CollapsibleSection'
 import { LocationLink, SeverityBadge, ChangeStatusBadge } from './ReviewHelpers'
+
+type SinceLastReviewData = NonNullable<ReviewData['changesSinceLastReview']>
 import { PrCommentsSection } from './PrComments'
 import { createMarkdownComponents } from '../../utils/markdownComponents'
 
@@ -28,7 +30,15 @@ export function MarkdownBody({ content }: { content: string }) {
   )
 }
 
-function SinceLastReviewSection({ data }: { data: NonNullable<ReviewData['changesSinceLastReview']> }) {
+function SinceLastReviewSection({
+  data,
+  directory,
+  onClickLocation,
+}: {
+  data: SinceLastReviewData
+  directory: string
+  onClickLocation: (location: CodeLocation) => void
+}) {
   return (
     <CollapsibleSection title="Since Last Review" defaultOpen={true}>
       <div className="space-y-3">
@@ -39,21 +49,34 @@ function SinceLastReviewSection({ data }: { data: NonNullable<ReviewData['change
             <div className="space-y-1.5">
               {data.responsesToComments.map((item, i) => (
                 <div key={i} className="text-sm rounded border border-border bg-bg-primary p-2">
-                  <div className="text-text-secondary text-xs">{item.comment}</div>
+                  <div className="flex items-center gap-2">
+                    <ChangeStatusBadge status={item.status} />
+                    <div className="text-text-secondary text-xs flex-1">{item.comment}</div>
+                  </div>
                   <div className="text-text-primary mt-0.5">{item.response}</div>
                 </div>
               ))}
             </div>
           </div>
         )}
-        {data.otherNotableChanges.length > 0 && (
+        {data.changePatterns.length > 0 && (
           <div>
-            <div className="text-xs font-medium text-text-secondary mb-1">Other Notable Changes</div>
-            <ul className="list-disc list-inside text-sm text-text-primary space-y-0.5">
-              {data.otherNotableChanges.map((change, i) => (
-                <li key={i}>{change}</li>
+            <div className="text-xs font-medium text-text-secondary mb-1">Changes Since Last Review</div>
+            <div className="space-y-2">
+              {data.changePatterns.map((pattern) => (
+                <div key={pattern.id} className="text-sm">
+                  <div className="font-medium text-text-primary">{pattern.title}</div>
+                  <div className="text-text-secondary mt-0.5 leading-relaxed">{pattern.description}</div>
+                  {pattern.locations.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {pattern.locations.map((loc, i) => (
+                        <LocationLink key={i} location={loc} directory={directory} onClick={() => onClickLocation(loc)} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         )}
       </div>
@@ -63,7 +86,6 @@ function SinceLastReviewSection({ data }: { data: NonNullable<ReviewData['change
 
 export interface ReviewContentProps {
   reviewData: ReviewData
-  comparison: ReviewComparison | null
   comments: PendingComment[]
   unpushedCount: number
   directory: string
@@ -81,7 +103,6 @@ export interface ReviewContentProps {
 
 export function ReviewContent({
   reviewData,
-  comparison,
   comments,
   unpushedCount,
   directory,
@@ -98,35 +119,8 @@ export function ReviewContent({
 }: ReviewContentProps) {
   return (
     <>
-      {/* Changes Since Last Review */}
-      {comparison && comparison.requestedChangeStatus.length > 0 && (
-        <CollapsibleSection title="Changes Since Last Review" count={comparison.requestedChangeStatus.length} defaultOpen={true}>
-          <div className="space-y-2">
-            <div className="text-sm text-text-primary mb-2">
-              Status of previously requested changes:
-            </div>
-            {comparison.requestedChangeStatus.map((item, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm">
-                <ChangeStatusBadge status={item.status} />
-                <div className="flex-1">
-                  <div className="text-text-primary">{item.change.description}</div>
-                  {item.notes && (
-                    <div className="text-xs text-text-secondary mt-0.5">{item.notes}</div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {comparison.newCommitsSince.length > 0 && (
-              <div className="text-xs text-text-secondary mt-2 pt-2 border-t border-border">
-                {comparison.newCommitsSince.length} new commit{comparison.newCommitsSince.length !== 1 ? 's' : ''} since last review
-              </div>
-            )}
-          </div>
-        </CollapsibleSection>
-      )}
-
       {reviewData.changesSinceLastReview && (
-        <SinceLastReviewSection data={reviewData.changesSinceLastReview} />
+        <SinceLastReviewSection data={reviewData.changesSinceLastReview} directory={directory} onClickLocation={onClickLocation} />
       )}
 
       {prDescription && (

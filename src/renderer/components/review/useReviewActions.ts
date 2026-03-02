@@ -12,7 +12,7 @@ import type { ReviewDataState } from './useReviewData'
 async function fetchReviewContext(
   session: Session,
   historyFilePath: string,
-): Promise<{ previousRequestedChanges: RequestedChange[]; previousHeadCommit?: string; prComments?: PrComment[]; prDescription?: string }> {
+): Promise<{ previousRequestedChanges: RequestedChange[]; previousHeadCommit?: string; prComments?: PrComment[]; prDescription?: string; currentUser?: string }> {
   let previousRequestedChanges: RequestedChange[] = []
   let previousHeadCommit: string | undefined
 
@@ -55,7 +55,17 @@ async function fetchReviewContext(
     }
   }
 
-  return { previousRequestedChanges, previousHeadCommit, prComments, prDescription }
+  let currentUser: string | undefined
+  if (previousHeadCommit) {
+    try {
+      const user = await window.gh.currentUser()
+      if (user) currentUser = user
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  return { previousRequestedChanges, previousHeadCommit, prComments, prDescription, currentUser }
 }
 
 export interface ReviewActions {

@@ -8,7 +8,7 @@ import type { Session } from '../../store/sessions'
 const mockReviewDataState = {
   reviewData: null as unknown,
   comments: [] as unknown[],
-  comparison: null,
+
   fetching: false,
   waitingForAgent: false,
   fetchingStatus: null as string | null,
@@ -31,7 +31,7 @@ const mockReviewDataState = {
   loadOlderComments: vi.fn(),
   setReviewData: vi.fn(),
   setComments: vi.fn(),
-  setComparison: vi.fn(),
+
   setFetching: vi.fn(),
   setWaitingForAgent: vi.fn(),
   setFetchingStatus: vi.fn(),
