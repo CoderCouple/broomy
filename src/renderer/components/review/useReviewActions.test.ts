@@ -8,7 +8,6 @@ vi.mock('../../utils/focusHelpers', () => ({
   focusAgentTerminal: vi.fn(),
 }))
 
-import { sendAgentPrompt } from '../../utils/focusHelpers'
 import { useReviewActions } from './useReviewActions'
 import type { Session } from '../../store/sessions'
 import type { ReviewDataState } from './useReviewData'
@@ -370,6 +369,7 @@ describe('useReviewActions', () => {
       await result.current.handleGenerateReview()
     })
 
+    const { sendAgentPrompt } = await import('../../utils/focusHelpers')
     expect(state.setWaitingForAgent).toHaveBeenCalledWith(true)
     expect(sendAgentPrompt).toHaveBeenCalled()
   })

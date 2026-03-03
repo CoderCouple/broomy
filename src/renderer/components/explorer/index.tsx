@@ -139,6 +139,7 @@ export default function Explorer({
         issueNumber={issueNumber}
         issuePlanExists={issuePlanExists}
         agentPtyId={agentPtyId}
+        agentId={session?.agentId}
         onFileSelect={onFileSelect}
       />
 
@@ -166,6 +167,7 @@ export default function Explorer({
               branchStatus={branchStatus}
               repoId={repoId}
               agentPtyId={agentPtyId}
+              agentId={session?.agentId}
               onUpdatePrState={onUpdatePrState}
               issueNumber={issueNumber}
               issueTitle={issueTitle}

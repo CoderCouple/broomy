@@ -226,7 +226,8 @@ describe('gitBasic handlers', () => {
         tracking: null,
         current: 'feature',
       })
-      mockGitInstance.raw.mockImplementation((args: string[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      mockGitInstance.raw.mockImplementation((args: string[]): Promise<string> => {
         if (args[0] === 'rev-parse' && args[2] === 'MERGE_HEAD') {
           return Promise.resolve('abc123')
         }
@@ -245,7 +246,8 @@ describe('gitBasic handlers', () => {
         tracking: null,
         current: 'feature',
       })
-      mockGitInstance.raw.mockImplementation((args: string[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      mockGitInstance.raw.mockImplementation((args: string[]): Promise<string> => {
         if (args[0] === 'rev-parse' && args[2] === 'MERGE_HEAD') {
           return Promise.reject(new Error('not a merge'))
         }

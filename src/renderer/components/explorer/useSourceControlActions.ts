@@ -2,7 +2,7 @@
  * Hook providing git action handlers for committing, syncing, pushing, and PR operations.
  */
 import type { SourceControlData } from './useSourceControlData'
-import { sendAgentPrompt } from '../../utils/focusHelpers'
+import { sendSkillAwarePrompt, type SkillAwarePromptResult } from '../../utils/skillAwarePrompt'
 import { withGitProgress } from '../../utils/gitOperationProgress'
 import { useSessionStore } from '../../store/sessions'
 import { buildCreatePrPrompt } from '../../utils/prPromptBuilder'
@@ -12,7 +12,9 @@ export interface SourceControlActionsProps {
   directory?: string
   onGitStatusRefresh?: () => void
   agentPtyId?: string
+  agentId?: string | null
   onRecordPushToMain?: (commitHash: string) => void
+  onSkillCheck?: (result: SkillAwarePromptResult) => void
   data: SourceControlData
 }
 
@@ -20,13 +22,15 @@ interface GitActionsConfig {
   directory: string | undefined
   onGitStatusRefresh: (() => void) | undefined
   agentPtyId: string | undefined
+  agentId: string | null | undefined
   onRecordPushToMain: ((commitHash: string) => void) | undefined
+  onSkillCheck: ((result: SkillAwarePromptResult) => void) | undefined
   data: SourceControlData
   sessionId: string | null
 }
 
 function createGitActions(config: GitActionsConfig) {
-  const { directory, onGitStatusRefresh, agentPtyId, data, sessionId } = config
+  const { directory, onGitStatusRefresh, agentPtyId, agentId, onSkillCheck, data, sessionId } = config
   const {
     setIsSyncing, setIsSyncingWithMain, setGitOpError,
     branchBaseName, gitStatus,
@@ -90,8 +94,17 @@ function createGitActions(config: GitActionsConfig) {
   }
 
   const handlePushToMain = async () => {
-    if (!agentPtyId) return
-    await sendAgentPrompt(agentPtyId, `Push this branch to ${branchBaseName} safely. Follow these steps in order:\n1. Pull the latest from ${branchBaseName} and merge it into this branch, resolving any merge conflicts\n2. Run the project's validation checks to make sure everything still passes, and fix any failures\n3. Push this branch to its remote tracking branch\n4. If the push fails, resolve the error and retry\n5. Once the branch is pushed, run: git push origin HEAD:${branchBaseName}`)
+    if (!agentPtyId || !directory) return
+    const fallback = `Push this branch to ${branchBaseName} safely. Follow these steps in order:\n1. Pull the latest from ${branchBaseName} and merge it into this branch, resolving any merge conflicts\n2. Run the project's validation checks to make sure everything still passes, and fix any failures\n3. Push this branch to its remote tracking branch\n4. If the push fails, resolve the error and retry\n5. Once the branch is pushed, run: git push origin HEAD:${branchBaseName}`
+    const result = await sendSkillAwarePrompt({
+      action: 'push-to-main',
+      agentPtyId,
+      directory,
+      agentId: agentId ?? null,
+      fallbackPrompt: fallback,
+      context: { targetBranch: branchBaseName },
+    })
+    onSkillCheck?.(result)
   }
 
   const handleCreatePr = async () => {
@@ -112,8 +125,16 @@ function createGitActions(config: GitActionsConfig) {
     const prompt = buildCreatePrPrompt(baseBranch)
     await window.fs.writeFile(promptPath, prompt)
 
-    // Send instruction to agent
-    await sendAgentPrompt(agentPtyId, 'Please read and follow the instructions in .broomy/create-pr-prompt.md')
+    // Send instruction to agent (skill-aware)
+    const fallback = 'Please read and follow the instructions in .broomy/create-pr-prompt.md'
+    const result = await sendSkillAwarePrompt({
+      action: 'create-pr',
+      agentPtyId,
+      directory,
+      agentId: agentId ?? null,
+      fallbackPrompt: fallback,
+    })
+    onSkillCheck?.(result)
   }
 
   const handlePushNewBranch = async (branchName: string) => {
@@ -144,7 +165,9 @@ export function useSourceControlActions({
   directory,
   onGitStatusRefresh,
   agentPtyId,
+  agentId,
   onRecordPushToMain,
+  onSkillCheck,
   data,
 }: SourceControlActionsProps) {
   const {
@@ -156,7 +179,7 @@ export function useSourceControlActions({
   } = data
 
   const activeSessionId = useSessionStore((s) => s.activeSessionId)
-  const gitActions = createGitActions({ directory, onGitStatusRefresh, agentPtyId, onRecordPushToMain, data, sessionId: activeSessionId })
+  const gitActions = createGitActions({ directory, onGitStatusRefresh, agentPtyId, agentId, onRecordPushToMain, onSkillCheck, data, sessionId: activeSessionId })
 
   const handleCommitMerge = async () => {
     if (!directory) return
@@ -200,8 +223,16 @@ export function useSourceControlActions({
     const prompt = buildMergePrompt(baseBranch)
     await window.fs.writeFile(promptPath, prompt)
 
-    // Send instruction to agent
-    await sendAgentPrompt(agentPtyId, 'Please read and follow the instructions in .broomy/merge-prompt.md')
+    // Send instruction to agent (skill-aware)
+    const fallback = 'Please read and follow the instructions in .broomy/merge-prompt.md'
+    const result = await sendSkillAwarePrompt({
+      action: 'resolve-conflicts',
+      agentPtyId,
+      directory,
+      agentId: agentId ?? null,
+      fallbackPrompt: fallback,
+    })
+    onSkillCheck?.(result)
     setAskedAgentToResolve(true)
     setAgentMergeMessage('Asked agent to resolve merge conflicts. Wait for the agent to finish.')
   }
@@ -248,8 +279,16 @@ export function useSourceControlActions({
   }
 
   const handleCommitWithAI = async () => {
-    if (!agentPtyId) return
-    await sendAgentPrompt(agentPtyId, 'Look at the current git diff and make a commit. Stage all relevant files, write a clear commit message that describes what changed and why, and commit. Do not commit any files that contain secrets or credentials.')
+    if (!agentPtyId || !directory) return
+    const fallback = 'Look at the current git diff and make a commit. Stage all relevant files, write a clear commit message that describes what changed and why, and commit. Do not commit any files that contain secrets or credentials.'
+    const result = await sendSkillAwarePrompt({
+      action: 'commit',
+      agentPtyId,
+      directory,
+      agentId: agentId ?? null,
+      fallbackPrompt: fallback,
+    })
+    onSkillCheck?.(result)
   }
 
   const handleToggleCommit = async (commitHash: string) => {
