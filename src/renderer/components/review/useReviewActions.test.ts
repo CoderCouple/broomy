@@ -6,6 +6,11 @@ import { useReviewActions } from './useReviewActions'
 import type { Session } from '../../store/sessions'
 import type { ReviewDataState } from './useReviewData'
 
+vi.mock('../../utils/focusHelpers', () => ({
+  sendAgentPrompt: vi.fn().mockResolvedValue(undefined),
+  focusAgentTerminal: vi.fn(),
+}))
+
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     id: 'session-1',
@@ -361,8 +366,9 @@ describe('useReviewActions', () => {
       await result.current.handleGenerateReview()
     })
 
+    const { sendAgentPrompt } = await import('../../utils/focusHelpers')
     expect(state.setWaitingForAgent).toHaveBeenCalledWith(true)
-    expect(window.pty.write).toHaveBeenCalled()
+    expect(sendAgentPrompt).toHaveBeenCalled()
   })
 
   it('handleGenerateReview fetches base branch before generating', async () => {
