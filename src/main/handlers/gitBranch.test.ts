@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockGitInstance = {
+const mockGitInstance: Record<string, ReturnType<typeof vi.fn>> = {
   clone: vi.fn(),
   raw: vi.fn(),
   push: vi.fn(),
@@ -10,6 +10,7 @@ const mockGitInstance = {
   fetch: vi.fn(),
   merge: vi.fn(),
   reset: vi.fn(),
+  env: vi.fn().mockImplementation(() => mockGitInstance),
 }
 
 vi.mock('simple-git', () => ({
@@ -50,6 +51,7 @@ function createMockCtx(overrides: Partial<HandlerContext> = {}): HandlerContext 
     mainWindow: null,
     E2E_MOCK_SHELL: undefined,
     FAKE_CLAUDE_SCRIPT: undefined,
+    dockerContainers: new Map(),
     ...overrides,
   }
 }
@@ -68,6 +70,7 @@ function setupHandlers(ctx?: HandlerContext) {
 describe('gitBranch handlers', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockGitInstance.env.mockImplementation(() => mockGitInstance)
   })
 
   describe('registration', () => {

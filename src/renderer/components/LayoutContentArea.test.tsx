@@ -19,6 +19,7 @@ function renderContentArea(overrides: Record<string, unknown> = {}) {
     containerRef: createRef<HTMLDivElement>(),
     showSettings: false,
     showFileViewer: false,
+    showAgent: true,
     fileViewerPosition: 'top' as const,
     layoutSizes: {
       explorerWidth: 256,
@@ -33,7 +34,7 @@ function renderContentArea(overrides: Record<string, unknown> = {}) {
     terminal: <div data-testid="terminal">Terminal</div>,
     flashedPanel: null as string | null,
     draggingDivider: null,
-    handleMouseDown: vi.fn(() => vi.fn()),
+    onMouseDown: vi.fn(() => vi.fn()),
     ...overrides,
   }
 
@@ -104,10 +105,10 @@ describe('LayoutContentArea', () => {
   })
 
   it('renders divider between file viewer and terminal when both visible', () => {
-    const handleMouseDown = vi.fn(() => vi.fn())
+    const onMouseDown = vi.fn(() => vi.fn())
     const { container } = renderContentArea({
       showFileViewer: true,
-      handleMouseDown,
+      onMouseDown,
     })
     // Should have divider elements (cursor-row-resize or cursor-col-resize)
     const dividers = container.querySelectorAll('.cursor-row-resize, .cursor-col-resize')
@@ -156,15 +157,15 @@ describe('LayoutContentArea', () => {
     expect(wrapper.className).not.toContain('hidden')
   })
 
-  it('calls handleMouseDown when divider is pressed', () => {
+  it('calls onMouseDown when divider is pressed', () => {
     const innerFn = vi.fn()
-    const handleMouseDown = vi.fn(() => innerFn)
+    const onMouseDown = vi.fn(() => innerFn)
     const { container } = renderContentArea({
       showFileViewer: true,
-      handleMouseDown,
+      onMouseDown,
     })
     const divider = container.querySelector('.cursor-row-resize')!
     fireEvent.mouseDown(divider)
-    expect(handleMouseDown).toHaveBeenCalled()
+    expect(onMouseDown).toHaveBeenCalled()
   })
 })

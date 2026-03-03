@@ -15,17 +15,11 @@ interface SCWorkingViewProps {
   branchBaseName: string
   stagedFiles: GitFileStatus[]
   unstagedFiles: GitFileStatus[]
-  commitMessage: string
-  setCommitMessage: (msg: string) => void
-  isCommitting: boolean
   isMerging: boolean
   hasConflicts: boolean
-  commitError: string | null
-  commitErrorExpanded: boolean
-  setCommitErrorExpanded: (expanded: boolean) => void
-  setCommitError: (error: string | null) => void
+  isCommitting: boolean
   isSyncing: boolean
-  onCommit: () => void
+  onCommitWithAI: () => void
   onCommitMerge: () => void
   onResolveConflicts: () => void
   askedAgentToResolve: boolean
@@ -40,7 +34,6 @@ interface SCWorkingViewProps {
   // PR and push to main
   prStatus: { number: number; state: string } | null
   hasWriteAccess: boolean
-  isPushingToMain: boolean
   allowPushToMain: boolean
   onCreatePr: () => void
   onPushToMain: () => void
@@ -59,7 +52,6 @@ function SyncStatusContent({
   onOpenReview,
   prStatus,
   hasWriteAccess,
-  isPushingToMain,
   allowPushToMain,
   onCreatePr,
   onPushToMain,
@@ -72,7 +64,6 @@ function SyncStatusContent({
   onOpenReview?: () => void
   prStatus: { number: number; state: string } | null
   hasWriteAccess: boolean
-  isPushingToMain: boolean
   allowPushToMain: boolean
   onCreatePr: () => void
   onPushToMain: () => void
@@ -113,10 +104,9 @@ function SyncStatusContent({
             {hasWriteAccess && allowPushToMain && (
               <button
                 onClick={onPushToMain}
-                disabled={isPushingToMain}
-                className="px-2 py-1 text-xs rounded bg-bg-tertiary text-text-primary hover:bg-bg-secondary disabled:opacity-50"
+                className="px-2 py-1 text-xs rounded bg-bg-tertiary text-text-primary hover:bg-bg-secondary"
               >
-                {isPushingToMain ? 'Pushing...' : `Push to ${branchBaseName}`}
+                {`Push to ${branchBaseName}`}
               </button>
             )}
           </div>
@@ -156,14 +146,13 @@ function SyncView({
   onOpenReview,
   prStatus,
   hasWriteAccess,
-  isPushingToMain,
   allowPushToMain,
   onCreatePr,
   onPushToMain,
   behindMainCount,
   isFetchingBehindMain,
   isSyncingWithMain,
-}: Pick<SCWorkingViewProps, 'syncStatus' | 'branchStatus' | 'branchBaseName' | 'isSyncing' | 'onSync' | 'onSyncWithMain' | 'onPushNewBranch' | 'onOpenReview' | 'prStatus' | 'hasWriteAccess' | 'isPushingToMain' | 'allowPushToMain' | 'onCreatePr' | 'onPushToMain' | 'behindMainCount' | 'isFetchingBehindMain' | 'isSyncingWithMain'>) {
+}: Pick<SCWorkingViewProps, 'syncStatus' | 'branchStatus' | 'branchBaseName' | 'isSyncing' | 'onSync' | 'onSyncWithMain' | 'onPushNewBranch' | 'onOpenReview' | 'prStatus' | 'hasWriteAccess' | 'allowPushToMain' | 'onCreatePr' | 'onPushToMain' | 'behindMainCount' | 'isFetchingBehindMain' | 'isSyncingWithMain'>) {
   const ahead = syncStatus?.ahead ?? 0
   const behind = syncStatus?.behind ?? 0
   const hasRemoteChanges = ahead > 0 || behind > 0
@@ -188,7 +177,6 @@ function SyncView({
         onOpenReview={onOpenReview}
         prStatus={prStatus}
         hasWriteAccess={hasWriteAccess}
-        isPushingToMain={isPushingToMain}
         allowPushToMain={allowPushToMain}
         onCreatePr={onCreatePr}
         onPushToMain={onPushToMain}
@@ -257,7 +245,7 @@ function BehindMainBanner({ branchStatus, branchBaseName, behindMainCount, isFet
   )
 }
 
-function CommitArea({ isMerging, hasConflicts, isCommitting, commitMessage, setCommitMessage, onCommit, onCommitMerge, onResolveConflicts, askedAgentToResolve, onStageAll, gitStatus, unstagedFiles, commitError, commitErrorExpanded, setCommitErrorExpanded, setCommitError }: Pick<SCWorkingViewProps, 'isMerging' | 'hasConflicts' | 'isCommitting' | 'commitMessage' | 'setCommitMessage' | 'onCommit' | 'onCommitMerge' | 'onResolveConflicts' | 'askedAgentToResolve' | 'onStageAll' | 'gitStatus' | 'unstagedFiles' | 'commitError' | 'commitErrorExpanded' | 'setCommitErrorExpanded' | 'setCommitError'>) {
+function CommitArea({ isMerging, hasConflicts, isCommitting, onCommitWithAI, onCommitMerge, onResolveConflicts, askedAgentToResolve }: Pick<SCWorkingViewProps, 'isMerging' | 'hasConflicts' | 'isCommitting' | 'onCommitWithAI' | 'onCommitMerge' | 'onResolveConflicts' | 'askedAgentToResolve'>) {
   return (
     <div className="px-3 py-2 border-b border-border">
       {isMerging ? (
@@ -284,55 +272,12 @@ function CommitArea({ isMerging, hasConflicts, isCommitting, commitMessage, setC
           )}
         </div>
       ) : (
-        <div className="flex items-center gap-1">
-          <input
-            type="text"
-            value={commitMessage}
-            onChange={(e) => setCommitMessage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onCommit()
-            }}
-            placeholder="Commit message"
-            className="flex-1 bg-bg-tertiary border border-border rounded px-2 py-1 text-xs text-text-primary outline-none focus:border-accent min-w-0"
-          />
-          <button
-            onClick={onCommit}
-            disabled={isCommitting || gitStatus.length === 0 || !commitMessage.trim()}
-            className="px-2 py-1 text-xs rounded bg-accent text-white hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-          >
-            {isCommitting ? 'Committing...' : 'Commit'}
-          </button>
-          <button
-            onClick={async () => {
-              const action = await window.menu.popup([
-                { id: 'stage-all', label: 'Stage All Changes' },
-              ])
-              if (action === 'stage-all') onStageAll()
-            }}
-            disabled={unstagedFiles.length === 0}
-            className="px-1 py-1 text-xs rounded text-text-secondary hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-            title="More actions"
-          >
-            &#x22EF;
-          </button>
-        </div>
-      )}
-      {commitError && (
-        <div className="mt-1 flex items-start gap-1 bg-red-500/10 border border-red-500/30 rounded px-2 py-1">
-          <div
-            className="flex-1 text-xs text-red-400 cursor-pointer"
-            onClick={() => setCommitErrorExpanded(!commitErrorExpanded)}
-          >
-            {commitErrorExpanded ? commitError : (commitError.length > 80 ? `${commitError.slice(0, 80)  }...` : commitError)}
-          </div>
-          <button
-            onClick={() => setCommitError(null)}
-            className="text-red-400 hover:text-red-300 text-xs shrink-0 px-1"
-            title="Dismiss"
-          >
-            x
-          </button>
-        </div>
+        <button
+          onClick={onCommitWithAI}
+          className="w-full px-2 py-1.5 text-xs rounded bg-accent text-white hover:bg-accent/80"
+        >
+          Commit with AI
+        </button>
       )}
     </div>
   )
@@ -346,17 +291,11 @@ export function SCWorkingView({
   branchBaseName,
   stagedFiles,
   unstagedFiles,
-  commitMessage,
-  setCommitMessage,
-  isCommitting,
   isMerging,
   hasConflicts,
-  commitError,
-  commitErrorExpanded,
-  setCommitErrorExpanded,
-  setCommitError,
+  isCommitting,
   isSyncing,
-  onCommit,
+  onCommitWithAI,
   onCommitMerge,
   onResolveConflicts,
   askedAgentToResolve,
@@ -370,7 +309,6 @@ export function SCWorkingView({
   onOpenReview,
   prStatus,
   hasWriteAccess,
-  isPushingToMain,
   allowPushToMain,
   onCreatePr,
   onPushToMain,
@@ -391,7 +329,6 @@ export function SCWorkingView({
         onOpenReview={onOpenReview}
         prStatus={prStatus}
         hasWriteAccess={hasWriteAccess}
-        isPushingToMain={isPushingToMain}
         allowPushToMain={allowPushToMain}
         onCreatePr={onCreatePr}
         onPushToMain={onPushToMain}
@@ -409,19 +346,10 @@ export function SCWorkingView({
         isMerging={isMerging}
         hasConflicts={hasConflicts}
         isCommitting={isCommitting}
-        commitMessage={commitMessage}
-        setCommitMessage={setCommitMessage}
-        onCommit={onCommit}
+        onCommitWithAI={onCommitWithAI}
         onCommitMerge={onCommitMerge}
         onResolveConflicts={onResolveConflicts}
         askedAgentToResolve={askedAgentToResolve}
-        onStageAll={onStageAll}
-        gitStatus={gitStatus}
-        unstagedFiles={unstagedFiles}
-        commitError={commitError}
-        commitErrorExpanded={commitErrorExpanded}
-        setCommitErrorExpanded={setCommitErrorExpanded}
-        setCommitError={setCommitError}
       />
 
       <div className="flex-1 overflow-y-auto text-sm">

@@ -13,14 +13,16 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 // Re-export all types so existing imports from '../../preload/index' still work
-export type { FileEntry, GitFileStatus, GitStatusResult, SearchResult, ManagedRepo, GitHubIssue, GitHubPrStatus, GitHubPrComment, GitHubPrForReview, GitHubReaction, GitCommitInfo, WorktreeInfo, AgentData, LayoutSizesData, PanelVisibility, SessionData, ConfigData, ProfileData, ProfilesData, MenuItemDef, TsProjectContext, ShellOption } from './apis/types'
+export type { FileEntry, GitFileStatus, GitStatusResult, SearchResult, ManagedRepo, GitHubIssue, GitHubPrStatus, GitHubPrComment, GitHubPrForReview, GitHubReaction, GitCommitInfo, WorktreeInfo, AgentData, LayoutSizesData, PanelVisibility, SessionData, ConfigData, ProfileData, ProfilesData, MenuItemDef, TsProjectContext, ShellOption, CrashReport, DockerStatus, ContainerInfo, DevcontainerStatus, DevcontainerConfigStatus } from './apis/types'
 export type { PtyApi } from './apis/pty'
 export type { FsApi } from './apis/fs'
 export type { GitApi } from './apis/git'
 export type { GhApi } from './apis/gh'
 export type { ConfigApi, ProfilesApi, AgentsApi, ReposApi } from './apis/config'
-export type { ShellApi, DialogApi, AppApi, UpdateApi, UpdateCheckResult } from './apis/shell'
+export type { ShellApi, DialogApi, AppApi, UpdateApi, UpdateCheckResult, WindowControlsApi } from './apis/shell'
 export type { MenuApi, TsApi } from './apis/menu'
+export type { DockerApi } from './apis/docker'
+export type { DevcontainerApi } from './apis/devcontainer'
 
 export type HelpMenuEvent = 'getting-started' | 'shortcuts' | 'reset-tutorial'
 
@@ -42,8 +44,10 @@ import type { FsApi } from './apis/fs'
 import type { GitApi } from './apis/git'
 import type { GhApi } from './apis/gh'
 import type { ConfigApi, ProfilesApi, AgentsApi, ReposApi } from './apis/config'
-import type { ShellApi, DialogApi, AppApi, UpdateApi } from './apis/shell'
+import type { ShellApi, DialogApi, AppApi, UpdateApi, WindowControlsApi } from './apis/shell'
 import type { MenuApi, TsApi } from './apis/menu'
+import type { DockerApi } from './apis/docker'
+import type { DevcontainerApi } from './apis/devcontainer'
 
 // Import API implementations
 import { ptyApi } from './apis/pty'
@@ -51,8 +55,10 @@ import { fsApi } from './apis/fs'
 import { gitApi } from './apis/git'
 import { ghApi } from './apis/gh'
 import { configApi, profilesApi, agentsApi, reposApi } from './apis/config'
-import { shellApi, dialogApi, appApi, updateApi } from './apis/shell'
+import { shellApi, dialogApi, appApi, updateApi, windowControlsApi } from './apis/shell'
 import { menuApi, tsApi } from './apis/menu'
+import { dockerApi } from './apis/docker'
+import { devcontainerApi } from './apis/devcontainer'
 
 // Forward menu:select-all from main process to a DOM CustomEvent
 ipcRenderer.on('menu:select-all', () => {
@@ -76,6 +82,9 @@ contextBridge.exposeInMainWorld('agents', agentsApi)
 contextBridge.exposeInMainWorld('ts', tsApi)
 contextBridge.exposeInMainWorld('help', helpApi)
 contextBridge.exposeInMainWorld('update', updateApi)
+contextBridge.exposeInMainWorld('docker', dockerApi)
+contextBridge.exposeInMainWorld('devcontainer', devcontainerApi)
+contextBridge.exposeInMainWorld('windowControls', windowControlsApi)
 
 declare global {
   interface Window {
@@ -95,5 +104,8 @@ declare global {
     ts: TsApi
     help: HelpApi
     update: UpdateApi
+    docker: DockerApi
+    devcontainer: DevcontainerApi
+    windowControls: WindowControlsApi
   }
 }

@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('child_process', () => ({
   execFile: vi.fn(),
-  exec: vi.fn(),
 }))
 
 vi.mock('util', async (importOriginal) => {
@@ -13,10 +12,11 @@ vi.mock('util', async (importOriginal) => {
   }
 })
 
-const mockGitInstance = {
+const mockGitInstance: Record<string, ReturnType<typeof vi.fn>> = {
   status: vi.fn(),
   raw: vi.fn(),
   push: vi.fn(),
+  env: vi.fn().mockImplementation(() => mockGitInstance),
 }
 
 vi.mock('simple-git', () => ({
@@ -44,7 +44,7 @@ vi.mock('./types', async (importOriginal) => {
   }
 })
 
-import { execFile, exec } from 'child_process'
+import { execFile } from 'child_process'
 import { register } from './ghCore'
 import { E2EScenario, type HandlerContext } from './types'
 
@@ -62,6 +62,7 @@ function createMockCtx(overrides: Partial<HandlerContext> = {}): HandlerContext 
     mainWindow: null,
     E2E_MOCK_SHELL: undefined,
     FAKE_CLAUDE_SCRIPT: undefined,
+    dockerContainers: new Map(),
     ...overrides,
   }
 }
@@ -80,6 +81,7 @@ function setupHandlers(ctx?: HandlerContext) {
 describe('ghCore handlers', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockGitInstance.env.mockImplementation(() => mockGitInstance)
   })
 
   describe('registration', () => {
@@ -104,25 +106,25 @@ describe('ghCore handlers', () => {
     })
 
     it('returns true when command exists', async () => {
-      // Non-Windows path uses runShellCommand which uses exec
-      vi.mocked(exec).mockResolvedValue({ stdout: '/usr/bin/claude', stderr: '' } as never)
+      // Non-Windows path uses execFileAsync with shell -c to avoid command injection
+      vi.mocked(execFile).mockResolvedValue({ stdout: '/usr/bin/claude', stderr: '' } as never)
       const handlers = setupHandlers()
       expect(await handlers['agent:isInstalled'](null, 'claude')).toBe(true)
     })
 
     it('returns false when command not found', async () => {
-      vi.mocked(exec).mockRejectedValue(new Error('not found'))
+      vi.mocked(execFile).mockRejectedValue(new Error('not found'))
       const handlers = setupHandlers()
       expect(await handlers['agent:isInstalled'](null, 'missing-cmd')).toBe(false)
     })
 
     it('extracts base command from commands with flags', async () => {
-      vi.mocked(exec).mockResolvedValue({ stdout: '/usr/bin/claude', stderr: '' } as never)
+      vi.mocked(execFile).mockResolvedValue({ stdout: '/usr/bin/claude', stderr: '' } as never)
       const handlers = setupHandlers()
       expect(await handlers['agent:isInstalled'](null, 'claude --dangerously-skip-permissions')).toBe(true)
-      // The shell command should use the base command, not the full string with flags
-      const callArgs = vi.mocked(exec).mock.calls[0]
-      expect(callArgs[0]).toBe('command -v claude')
+      // The shell args should use the base command, not the full string with flags
+      const callArgs = vi.mocked(execFile).mock.calls[0]
+      expect(callArgs[1]).toContain('claude')
     })
   })
 

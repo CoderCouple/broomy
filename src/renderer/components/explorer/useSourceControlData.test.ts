@@ -276,58 +276,6 @@ describe('useSourceControlData', () => {
     expect(onUpdatePrState).toHaveBeenCalledWith(null)
   })
 
-  it('fetches PR comments when scView is comments', async () => {
-    vi.mocked(window.gh.prStatus).mockResolvedValue({
-      number: 42,
-      title: 'Test PR',
-      state: 'OPEN',
-      url: 'https://github.com/test/pr/42',
-      headRefName: '',
-      baseRefName: '',
-    })
-    vi.mocked(window.gh.hasWriteAccess).mockResolvedValue(true)
-    vi.mocked(window.git.headCommit).mockResolvedValue('abc123')
-    vi.mocked(window.gh.prComments).mockResolvedValue([
-      { id: 1, body: 'Review comment', author: 'reviewer', path: '', line: null, side: 'RIGHT' as const, createdAt: '', url: '' },
-    ])
-
-    const { result } = renderHook(() =>
-      useSourceControlData({ ...defaultProps, scView: 'comments' })
-    )
-
-    await act(async () => {
-      await new Promise(r => setTimeout(r, 10))
-    })
-
-    expect(result.current.prComments).toEqual([
-      { id: 1, body: 'Review comment', author: 'reviewer', path: '', line: null, side: 'RIGHT' as const, createdAt: '', url: '' },
-    ])
-  })
-
-  it('handles PR comments fetch error', async () => {
-    vi.mocked(window.gh.prStatus).mockResolvedValue({
-      number: 42,
-      title: 'Test PR',
-      state: 'OPEN',
-      url: 'https://github.com/test/pr/42',
-      headRefName: '',
-      baseRefName: '',
-    })
-    vi.mocked(window.gh.hasWriteAccess).mockResolvedValue(true)
-    vi.mocked(window.git.headCommit).mockResolvedValue('abc123')
-    vi.mocked(window.gh.prComments).mockRejectedValue(new Error('network'))
-
-    const { result } = renderHook(() =>
-      useSourceControlData({ ...defaultProps, scView: 'comments' })
-    )
-
-    await act(async () => {
-      await new Promise(r => setTimeout(r, 10))
-    })
-
-    expect(result.current.prComments).toEqual([])
-  })
-
   it('clears pushed status when there are changes since push', async () => {
     const onClearPushToMain = vi.fn()
     vi.mocked(window.git.headCommit).mockResolvedValue('differentcommit')

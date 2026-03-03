@@ -12,34 +12,19 @@ import type { LayoutSizes, FileViewerPosition } from '../store/sessions'
 import { usePanelContext, PANEL_IDS } from '../panels'
 import type { PanelDefinition } from '../panels'
 import { useDividerResize } from '../hooks/useDividerResize'
-import type { DividerType } from '../hooks/useDividerResize'
+import { useLayoutClamp } from '../hooks/useLayoutClamp'
 import { useLayoutKeyboard } from '../hooks/useLayoutKeyboard'
 import { useAppBannerError } from '../hooks/useErrorBanners'
 import LayoutToolbar from './LayoutToolbar'
 import LayoutContentArea from './LayoutContentArea'
 import { ErrorBanner } from './ErrorBanner'
 import PanelErrorBoundary from './PanelErrorBoundary'
+import { Divider } from './Divider'
 
-// Divider component - wide hit area, visible line
-function Divider({ type, direction, draggingDivider, onMouseDown }: {
-  type: DividerType; direction: 'horizontal' | 'vertical'
-  draggingDivider: DividerType | null; onMouseDown: (type: DividerType) => (e: React.MouseEvent) => void
-}) {
-  return (
-    <div
-      onMouseDown={onMouseDown(type)}
-      className={`flex-shrink-0 group relative ${
-        direction === 'vertical' ? 'w-px cursor-col-resize' : 'h-px cursor-row-resize'
-      }`}
-    >
-      <div className={`absolute z-10 ${
-        direction === 'vertical' ? 'w-4 h-full -left-2 top-0' : 'h-4 w-full -top-2 left-0'
-      }`} />
-      <div className={`absolute transition-colors ${
-        draggingDivider === type ? 'bg-accent' : 'bg-[#4a4a4a] group-hover:bg-accent/70'
-      } ${direction === 'vertical' ? 'w-px h-full left-0 top-0' : 'h-px w-full top-0 left-0'}`} />
-    </div>
-  )
+function FlashOverlay({ panelId, flashedPanel }: { panelId: string; flashedPanel: string | null }) {
+  return flashedPanel === panelId ? (
+    <div className="absolute inset-0 bg-white/10 pointer-events-none z-10" />
+  ) : null
 }
 
 interface LayoutProps {
@@ -62,6 +47,7 @@ interface LayoutProps {
   onTogglePanel: (panelId: string) => void
   onToggleGlobalPanel: (panelId: string) => void
   onOpenPanelPicker?: () => void
+  onMenuButtonClick?: () => void
   onSearchFiles?: () => void
   onNewSession?: () => void
   onNextSession?: () => void
@@ -74,6 +60,7 @@ interface LayoutProps {
   onNextTerminalTab?: () => void
   onPrevTerminalTab?: () => void
   onExplorerTab?: (filter: string) => void
+  platform?: string
 }
 
 export default function Layout({
@@ -92,6 +79,7 @@ export default function Layout({
   onTogglePanel,
   onToggleGlobalPanel,
   onOpenPanelPicker,
+  onMenuButtonClick,
   onSearchFiles,
   onNewSession,
   onNextSession,
@@ -101,57 +89,54 @@ export default function Layout({
   onArchiveSession,
   onToggleSettings,
   onShowShortcuts,
-  onNextTerminalTab,
-  onPrevTerminalTab,
-  onExplorerTab,
+  onNextTerminalTab, onPrevTerminalTab,
+  onExplorerTab, platform = 'darwin',
 }: LayoutProps) {
   const [isDev, setIsDev] = useState(false)
   const { registry, toolbarPanels, getShortcutKey } = usePanelContext()
   const appBannerError = useAppBannerError()
+  useEffect(() => { void window.app.isDev().then(setIsDev) }, [])
 
-  // Check if we're in dev mode on mount
-  useEffect(() => {
-    void window.app.isDev().then(setIsDev)
-  }, [])
-
-  // Get visibility for a panel, considering global vs session state
   const isPanelVisible = useCallback((panelId: string): boolean => {
     const panel = registry.get(panelId)
     if (!panel) return false
-    if (panel.isGlobal) {
-      return globalPanelVisibility[panelId] ?? panel.defaultVisible
-    }
-    return panelVisibility[panelId] ?? panel.defaultVisible
+    const vis = panel.isGlobal ? globalPanelVisibility : panelVisibility
+    return vis[panelId] ?? panel.defaultVisible
   }, [registry, panelVisibility, globalPanelVisibility])
-
-  // Computed visibility states
   const showSidebar = isPanelVisible(PANEL_IDS.SIDEBAR)
   const showExplorer = isPanelVisible(PANEL_IDS.EXPLORER)
   const showFileViewer = isPanelVisible(PANEL_IDS.FILE_VIEWER)
+  const showAgent = isPanelVisible(PANEL_IDS.AGENT)
   const showSettings = isPanelVisible(PANEL_IDS.SETTINGS)
   const showTutorial = isPanelVisible(PANEL_IDS.TUTORIAL)
-
-  // Handle toggle for any panel
   const handleToggle = useCallback((panelId: string) => {
     const panel = registry.get(panelId)
     if (!panel) return
-    if (panel.isGlobal) {
-      onToggleGlobalPanel(panelId)
-    } else {
-      onTogglePanel(panelId)
-    }
+    ;(panel.isGlobal ? onToggleGlobalPanel : onTogglePanel)(panelId)
   }, [registry, onTogglePanel, onToggleGlobalPanel])
-
-  // Drag-to-resize logic
   const { draggingDivider, containerRef, mainContentRef, handleMouseDown } = useDividerResize({
     fileViewerPosition,
     sidebarWidth,
     showSidebar,
+    showExplorer,
+    showTutorial,
+    explorerWidth: layoutSizes.explorerWidth,
+    tutorialWidth: layoutSizes.tutorialPanelWidth,
     onSidebarWidthChange,
     onLayoutSizeChange,
   })
 
-  // Keyboard shortcuts (Cmd+1-6, Ctrl+Tab cycling, focus management)
+  useLayoutClamp({
+    mainContentRef,
+    showSidebar,
+    showExplorer,
+    showTutorial,
+    sidebarWidth,
+    layoutSizes,
+    onSidebarWidthChange,
+    onLayoutSizeChange,
+  })
+
   const { flashedPanel } = useLayoutKeyboard({
     toolbarPanels,
     isPanelVisible,
@@ -170,27 +155,14 @@ export default function Layout({
     onPrevTerminalTab,
     onExplorerTab,
   })
-
-  // Get toolbar panels info with visibility status
-  const toolbarPanelInfo = useMemo(() => {
-    return toolbarPanels
-      .map(id => {
-        const panel = registry.get(id)
-        if (!panel) return null
-        return {
-          ...panel,
-          shortcutKey: getShortcutKey(id),
-          isVisible: isPanelVisible(id),
-        }
-      })
-      .filter((p): p is PanelDefinition & { shortcutKey: string | null; isVisible: boolean } => p !== null)
-  }, [registry, toolbarPanels, getShortcutKey, isPanelVisible])
-
-  // Brief flash overlay shown when cycling panels with Ctrl+Tab
-  const FlashOverlay = ({ panelId }: { panelId: string }) =>
-    flashedPanel === panelId ? (
-      <div className="absolute inset-0 bg-white/10 pointer-events-none z-10" />
-    ) : null
+  const toolbarPanelInfo = useMemo(() => toolbarPanels
+    .map(id => {
+      const panel = registry.get(id)
+      if (!panel) return null
+      return { ...panel, shortcutKey: getShortcutKey(id), isVisible: isPanelVisible(id) }
+    })
+    .filter((p): p is PanelDefinition & { shortcutKey: string | null; isVisible: boolean } => p !== null),
+  [registry, toolbarPanels, getShortcutKey, isPanelVisible])
 
   return (
     <div className="h-screen flex flex-col bg-bg-primary">
@@ -198,10 +170,12 @@ export default function Layout({
       <LayoutToolbar
         title={title}
         isDev={isDev}
+        platform={platform}
         profileChip={profileChip}
         toolbarPanelInfo={toolbarPanelInfo}
         onToggle={handleToggle}
         onOpenPanelPicker={onOpenPanelPicker}
+        onMenuButtonClick={onMenuButtonClick}
         settingsPanelId={PANEL_IDS.SETTINGS}
       />
 
@@ -219,7 +193,7 @@ export default function Layout({
               className="relative flex-shrink-0 bg-bg-secondary overflow-y-auto outline-none"
               style={{ width: sidebarWidth }}
             >
-              <FlashOverlay panelId={PANEL_IDS.SIDEBAR} />
+              <FlashOverlay flashedPanel={flashedPanel} panelId={PANEL_IDS.SIDEBAR} />
               <PanelErrorBoundary name="Sidebar">
                 {panels[PANEL_IDS.SIDEBAR]}
               </PanelErrorBoundary>
@@ -250,7 +224,7 @@ export default function Layout({
                   className="relative flex-shrink-0 bg-bg-secondary overflow-hidden outline-none"
                   style={{ width: layoutSizes.explorerWidth }}
                 >
-                  <FlashOverlay panelId={PANEL_IDS.EXPLORER} />
+                  <FlashOverlay flashedPanel={flashedPanel} panelId={PANEL_IDS.EXPLORER} />
                   <PanelErrorBoundary name="Explorer">
                     {panels[PANEL_IDS.EXPLORER]}
                   </PanelErrorBoundary>
@@ -264,6 +238,7 @@ export default function Layout({
               containerRef={containerRef}
               showSettings={showSettings}
               showFileViewer={showFileViewer}
+              showAgent={showAgent}
               fileViewerPosition={fileViewerPosition}
               layoutSizes={layoutSizes}
               errorMessage={errorMessage}
@@ -272,7 +247,7 @@ export default function Layout({
               terminal={panels.terminal}
               flashedPanel={flashedPanel}
               draggingDivider={draggingDivider}
-              handleMouseDown={handleMouseDown}
+              onMouseDown={handleMouseDown}
             />
 
             {/* Tutorial panel (right side) - hidden when error */}
@@ -285,7 +260,7 @@ export default function Layout({
                   className="relative flex-shrink-0 bg-bg-secondary overflow-y-auto outline-none"
                   style={{ width: layoutSizes.tutorialPanelWidth }}
                 >
-                  <FlashOverlay panelId={PANEL_IDS.TUTORIAL} />
+                  <FlashOverlay flashedPanel={flashedPanel} panelId={PANEL_IDS.TUTORIAL} />
                   <PanelErrorBoundary name="Tutorial">
                     {panels[PANEL_IDS.TUTORIAL]}
                   </PanelErrorBoundary>

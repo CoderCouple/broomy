@@ -187,7 +187,7 @@ describe('ReviewPrsView', () => {
         { number: 101, title: 'Add tests', author: 'alice', headRefName: 'add-tests', baseRefName: 'main', url: '', labels: [] },
       ])
       vi.mocked(window.git.worktreeList).mockResolvedValue([
-        { path: '/repos/my-project/add-tests', branch: 'add-tests' },
+        { path: '/repos/my-project/add-tests', branch: 'add-tests', head: 'abc1234' },
       ])
       vi.mocked(window.git.syncReviewBranch).mockResolvedValue({ success: true })
       const onComplete = vi.fn()
@@ -349,7 +349,7 @@ describe('ReviewPrsView', () => {
         { number: 101, title: 'Add tests', author: 'alice', headRefName: 'add-tests', baseRefName: 'main', url: '', labels: [] },
       ])
       vi.mocked(window.git.worktreeList).mockResolvedValue([
-        { path: '/repos/my-project/add-tests', branch: 'add-tests' },
+        { path: '/repos/my-project/add-tests', branch: 'add-tests', head: 'abc1234' },
       ])
       vi.mocked(window.git.syncReviewBranch).mockRejectedValue(new Error('No network'))
       const onComplete = vi.fn()

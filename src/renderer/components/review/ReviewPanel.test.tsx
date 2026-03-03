@@ -8,7 +8,7 @@ import type { Session } from '../../store/sessions'
 const mockReviewDataState = {
   reviewData: null as unknown,
   comments: [] as unknown[],
-  comparison: null,
+
   fetching: false,
   waitingForAgent: false,
   fetchingStatus: null as string | null,
@@ -31,7 +31,7 @@ const mockReviewDataState = {
   loadOlderComments: vi.fn(),
   setReviewData: vi.fn(),
   setComments: vi.fn(),
-  setComparison: vi.fn(),
+
   setFetching: vi.fn(),
   setWaitingForAgent: vi.fn(),
   setFetchingStatus: vi.fn(),
@@ -96,6 +96,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     terminalTabs: { tabs: [{ id: 'tab-1', name: 'Terminal' }], activeTabId: 'tab-1' },
     branchStatus: 'in-progress',
     isArchived: false,
+    isRestored: false,
     prTitle: 'Test PR',
     prNumber: 42,
     prUrl: 'https://github.com/pr/42',
@@ -164,7 +165,7 @@ describe('ReviewPanel', () => {
   it('shows prompt instructions when waiting and no review data', () => {
     mockReviewDataState.waitingForAgent = true
     render(<ReviewPanel session={makeSession()} onSelectFile={vi.fn()} />)
-    expect(screen.getByText(/Review instructions have been pasted/)).toBeTruthy()
+    expect(screen.getByText(/Review instructions have been sent/)).toBeTruthy()
   })
 
   it('shows error message when error is set', () => {

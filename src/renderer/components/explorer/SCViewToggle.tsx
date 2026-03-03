@@ -1,17 +1,15 @@
 /**
- * Toggle bar for switching between source control views: uncommitted, branch, commits, and comments.
+ * Toggle bar for switching between source control views: uncommitted, branch, and commits.
  */
-import type { GitHubPrStatus } from '../../../preload/index'
 
-type SCView = 'working' | 'branch' | 'commits' | 'comments'
+type SCView = 'working' | 'branch' | 'commits'
 
 interface SCViewToggleProps {
   scView: SCView
   setScView: (view: SCView) => void
-  prStatus: GitHubPrStatus
 }
 
-export function SCViewToggle({ scView, setScView, prStatus }: SCViewToggleProps) {
+export function SCViewToggle({ scView, setScView }: SCViewToggleProps) {
   return (
     <div className="px-3 py-1.5 border-b border-border flex items-center gap-1">
       <button
@@ -38,16 +36,6 @@ export function SCViewToggle({ scView, setScView, prStatus }: SCViewToggleProps)
       >
         Commits
       </button>
-      {prStatus && (
-        <button
-          onClick={() => setScView('comments')}
-          className={`px-2 py-1 text-xs rounded transition-colors ${
-            scView === 'comments' ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
-          }`}
-        >
-          Comments
-        </button>
-      )}
     </div>
   )
 }

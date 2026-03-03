@@ -22,6 +22,12 @@ export enum E2EScenario {
   Marketing = 'marketing',
 }
 
+export type DockerContainerState = {
+  containerId: string
+  repoDir: string
+  image: string
+}
+
 export interface HandlerContext {
   isE2ETest: boolean
   e2eScenario: E2EScenario
@@ -35,6 +41,7 @@ export interface HandlerContext {
   mainWindow: BrowserWindow | null
   E2E_MOCK_SHELL: string | undefined
   FAKE_CLAUDE_SCRIPT: string | undefined
+  dockerContainers: Map<string, DockerContainerState>
 }
 
 // Config directory and file constants
@@ -46,20 +53,29 @@ export function getConfigFileName(isDev: boolean): string {
   return isDev ? 'config.dev.json' : 'config.json'
 }
 
+/** Validate that a profile ID is safe for use in file paths (no traversal). */
+export function validateProfileId(profileId: string): void {
+  if (!/^[a-zA-Z0-9_-]+$/.test(profileId)) {
+    throw new Error(`Invalid profile ID: ${profileId}`)
+  }
+}
+
 export function getProfileConfigFile(profileId: string, isDev: boolean): string {
+  validateProfileId(profileId)
   return join(PROFILES_DIR, profileId, getConfigFileName(isDev))
 }
 
 export function getProfileInitScriptsDir(profileId: string): string {
+  validateProfileId(profileId)
   return join(PROFILES_DIR, profileId, 'init-scripts')
 }
 
 // Default agents
 export const DEFAULT_AGENTS = [
-  { id: 'claude', name: 'Claude Code', command: 'claude', color: '#D97757' },
-  { id: 'codex', name: 'Codex', command: 'codex', color: '#10A37F' },
+  { id: 'claude', name: 'Claude Code', command: 'claude', color: '#D97757', skipApprovalFlag: '--dangerously-skip-permissions', resumeCommand: '/resume' },
+  { id: 'codex', name: 'Codex', command: 'codex', color: '#10A37F', skipApprovalFlag: '--full-auto', resumeCommand: '/resume' },
   { id: 'gemini', name: 'Gemini CLI', command: 'gemini', color: '#4285F4' },
-  { id: 'copilot', name: 'GitHub Copilot', command: 'copilot', color: '#6E40C9' },
+  { id: 'copilot', name: 'GitHub Copilot', command: 'copilot', color: '#6E40C9', resumeCommand: '/resume' },
 ]
 
 // Default profiles

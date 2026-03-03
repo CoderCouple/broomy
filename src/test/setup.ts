@@ -18,8 +18,10 @@ import type { FsApi } from '../preload/apis/fs'
 import type { GitApi } from '../preload/apis/git'
 import type { GhApi } from '../preload/apis/gh'
 import type { ConfigApi, ProfilesApi, AgentsApi, ReposApi } from '../preload/apis/config'
-import type { ShellApi, DialogApi, AppApi, UpdateApi } from '../preload/apis/shell'
+import type { ShellApi, DialogApi, AppApi, UpdateApi, WindowControlsApi } from '../preload/apis/shell'
 import type { MenuApi, TsApi } from '../preload/apis/menu'
+import type { DockerApi } from '../preload/apis/docker'
+import type { DevcontainerApi } from '../preload/apis/devcontainer'
 
 /** Maps every key of an API type to a Vitest Mock — catches missing/extra keys and non-function values. */
 type Mocked<T> = { [K in keyof T]: Mock }
@@ -77,6 +79,9 @@ const mockApp: Mocked<AppApi> = {
   platform: vi.fn().mockResolvedValue('darwin'),
   tmpdir: vi.fn().mockResolvedValue('/tmp'),
   getVersion: vi.fn().mockResolvedValue('0.6.1'),
+  getCrashLog: vi.fn().mockResolvedValue(null),
+  dismissCrashLog: vi.fn().mockResolvedValue(undefined),
+  getCrashReportUrl: vi.fn().mockResolvedValue(null),
 }
 
 // Mock window.update
@@ -101,6 +106,7 @@ const mockProfiles: Mocked<ProfilesApi> = {
 const mockGh: Mocked<GhApi> = {
   isInstalled: vi.fn().mockResolvedValue(true),
   issues: vi.fn().mockResolvedValue([]),
+  searchIssues: vi.fn().mockResolvedValue([]),
   repoSlug: vi.fn().mockResolvedValue(null),
   prStatus: vi.fn().mockResolvedValue(null),
   hasWriteAccess: vi.fn().mockResolvedValue(false),
@@ -113,6 +119,7 @@ const mockGh: Mocked<GhApi> = {
   addReaction: vi.fn().mockResolvedValue({ success: true }),
   prsToReview: vi.fn().mockResolvedValue([]),
   submitDraftReview: vi.fn().mockResolvedValue({ success: true }),
+  currentUser: vi.fn().mockResolvedValue('test-user'),
 }
 
 // Mock window.shell
@@ -150,6 +157,7 @@ const mockHelp = {
 // Mock window.menu
 const mockMenu: Mocked<MenuApi> = {
   popup: vi.fn().mockResolvedValue(null),
+  appMenuPopup: vi.fn().mockResolvedValue(null),
 }
 
 // Mock window.fs
@@ -180,9 +188,30 @@ const mockPty: Mocked<PtyApi> = {
   onExit: vi.fn().mockReturnValue(() => {}),
 }
 
+// Mock window.windowControls
+const mockWindowControls: Mocked<WindowControlsApi> = {
+  minimize: vi.fn().mockResolvedValue(undefined),
+  maximize: vi.fn().mockResolvedValue(undefined),
+  close: vi.fn().mockResolvedValue(undefined),
+}
+
 // Mock window.dialog
 const mockDialog: Mocked<DialogApi> = {
   openFolder: vi.fn().mockResolvedValue(null),
+}
+
+// Mock window.docker
+const mockDocker: Mocked<DockerApi> = {
+  status: vi.fn().mockResolvedValue({ available: true }),
+  containerInfo: vi.fn().mockResolvedValue(null),
+  resetContainer: vi.fn().mockResolvedValue(undefined),
+}
+
+// Mock window.devcontainer
+const mockDevcontainer: Mocked<DevcontainerApi> = {
+  status: vi.fn().mockResolvedValue({ available: true, version: '0.71.0' }),
+  hasConfig: vi.fn().mockResolvedValue(false),
+  generateDefaultConfig: vi.fn().mockResolvedValue(undefined),
 }
 
 // All Broomy-specific mocks to attach to window
@@ -202,6 +231,9 @@ const broomyMocks = {
   fs: mockFs,
   pty: mockPty,
   dialog: mockDialog,
+  docker: mockDocker,
+  devcontainer: mockDevcontainer,
+  windowControls: mockWindowControls,
 }
 
 // If running in a DOM environment (jsdom/happy-dom), extend the existing window.

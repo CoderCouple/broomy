@@ -51,10 +51,13 @@ describe('getCloneErrorHint', () => {
       expect(hint).toContain('ssh -T git@github.com')
     })
 
-    it('detects "Host key verification failed"', () => {
+    it('detects "Host key verification failed" with host-key-specific hint', () => {
       const hint = getCloneErrorHint('Host key verification failed.', sshUrl)
-      expect(hint).toContain('could not authenticate over SSH')
+      expect(hint).toContain('SSH host key is not yet trusted')
+      expect(hint).toContain('ssh -T git@github.com')
+      expect(hint).toContain('type "yes"')
       expect(hint).toContain('https://github.com/user/repo.git')
+      expect(hint).toContain('gh auth login')
     })
 
     it('detects "Connection refused" with SSH URL', () => {
@@ -97,6 +100,23 @@ describe('getCloneErrorHint', () => {
     it('still suggests SSH URL when gh unavailable', () => {
       const hint = getCloneErrorHint('fatal: could not read Username', httpsUrl, { ghAvailable: false })
       expect(hint).toContain('git@github.com:user/repo.git')
+    })
+  })
+
+  describe('SSH host key errors', () => {
+    const sshUrl = 'git@github.com:user/repo.git'
+
+    it('suggests installing gh CLI when gh is not available', () => {
+      const hint = getCloneErrorHint('Host key verification failed.', sshUrl, { ghAvailable: false })
+      expect(hint).toContain('SSH host key is not yet trusted')
+      expect(hint).toContain('Install GitHub CLI')
+      expect(hint).not.toContain('Run "gh auth login"')
+    })
+
+    it('omits HTTPS URL for non-GitHub SSH URLs', () => {
+      const hint = getCloneErrorHint('Host key verification failed.', 'git@gitlab.com:user/repo.git')
+      expect(hint).toContain('SSH host key is not yet trusted')
+      expect(hint).not.toContain('https://github.com')
     })
   })
 

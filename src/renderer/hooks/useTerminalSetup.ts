@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SerializeAddon } from '@xterm/addon-serialize'
-import { WebglAddon } from '@xterm/addon-webgl'
+
 import { useErrorStore } from '../store/errors'
 import { useSessionStore } from '../store/sessions'
 import { useRepoStore } from '../store/repos'
@@ -22,6 +22,10 @@ export interface TerminalConfig {
   isAgentTerminal: boolean
   isActive: boolean
   restartKey: number
+  isolated?: boolean
+  isolationMode?: 'docker' | 'devcontainer'
+  dockerImage?: string
+  repoRootDir?: string
 }
 
 export interface TerminalSetupResult {
@@ -66,7 +70,7 @@ export interface ViewportHelpers {
 function createViewportHelpers(terminal: XTerm): ViewportHelpers {
   const isAtBottom = () => {
     const buffer = terminal.buffer.active
-    return buffer.viewportY >= buffer.baseY - 1
+    return buffer.viewportY >= buffer.baseY
   }
 
   return { isAtBottom }
@@ -94,7 +98,8 @@ function createScrollTracking(
 
   const updateFollowingFromScroll = (e: Event) => {
     // Immediately disengage following on upward scroll gestures.
-    if (e instanceof WheelEvent && e.deltaY < 0) {
+    const isScrollUp = e instanceof WheelEvent && e.deltaY < 0
+    if (isScrollUp) {
       isFollowingRef.current = false
       if (state.pendingScrollRAF) {
         cancelAnimationFrame(state.pendingScrollRAF)
@@ -104,7 +109,12 @@ function createScrollTracking(
 
     requestAnimationFrame(() => {
       const atBottom = helpers.isAtBottom()
-      isFollowingRef.current = atBottom
+      // Only re-engage following on downward scroll that reaches bottom.
+      // Don't override the explicit upward-scroll disengage — the rAF may
+      // fire before the viewport has actually moved, falsely reading "at bottom".
+      if (!isScrollUp) {
+        isFollowingRef.current = atBottom
+      }
       setShowScrollButton(!atBottom && terminal.buffer.active.baseY > 0)
     })
   }
@@ -133,7 +143,7 @@ function createScrollTracking(
 // ── Terminal state hook (refs, store wiring, callbacks) ──────────────
 
 function useTerminalState(config: TerminalConfig) {
-  const { sessionId, command, env, isAgentTerminal, cwd } = config
+  const { sessionId, command, env, isAgentTerminal, cwd, isolated, isolationMode, dockerImage, repoRootDir } = config
 
   const terminalRef = useRef<XTerm | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -159,6 +169,14 @@ function useTerminalState(config: TerminalConfig) {
   isAgentTerminalRef.current = isAgentTerminal
   const cwdRef = useRef(cwd)
   cwdRef.current = cwd
+  const isolatedRef = useRef(isolated)
+  isolatedRef.current = isolated
+  const isolationModeRef = useRef(isolationMode)
+  isolationModeRef.current = isolationMode
+  const dockerImageRef = useRef(dockerImage)
+  dockerImageRef.current = dockerImage
+  const repoRootDirRef = useRef(repoRootDir)
+  repoRootDirRef.current = repoRootDir
 
   const { addError } = useErrorStore()
   const addErrorRef = useRef(addError)
@@ -209,7 +227,7 @@ function useTerminalState(config: TerminalConfig) {
     lastUserInputRef, lastInteractionRef, ptyIdRef, isFollowingRef,
     isActiveRef, dataHandlerRef,
     showScrollButton, setShowScrollButton,
-    commandRef, envRef, isAgentTerminalRef, cwdRef,
+    commandRef, envRef, isAgentTerminalRef, cwdRef, isolatedRef, isolationModeRef, dockerImageRef, repoRootDirRef,
     addErrorRef, updateAgentMonitorRef, markSessionReadRef,
     sessionIdRef, setAgentPtyId,
     handleKeyEvent, processPlanDetection,
@@ -262,9 +280,9 @@ export function useTerminalSetup(
 
     terminal.open(containerRef.current)
 
-    // Load WebGL renderer for better performance; fall back to DOM renderer
-    // if WebGL is unavailable (e.g., E2E tests, low-end GPUs).
-    try { terminal.loadAddon(new WebglAddon()) } catch { /* DOM renderer fallback */ }
+    // xterm.js 6 uses a canvas renderer by default, which is performant enough.
+    // The WebGL addon is intentionally not loaded — it crashes the GPU process
+    // on some hardware, causing a white screen / sad-face. Revisit later.
 
     // Register all terminals in the buffer registry so content is accessible.
     // Agent terminals are keyed by sessionId; non-agent terminals use the pty ID.
@@ -306,7 +324,7 @@ export function useTerminalSetup(
     const id = `${sessionId}-${Date.now()}`
     s.ptyIdRef.current = id
 
-    window.pty.create({ id, cwd: effectCwd, command: cmd, sessionId, env: envVars, shell: defaultShell || undefined })
+    window.pty.create({ id, cwd: effectCwd, command: cmd, sessionId, env: envVars, shell: defaultShell || undefined, isolated: s.isolatedRef.current, isolationMode: s.isolationModeRef.current, dockerImage: s.dockerImageRef.current, repoRootDir: s.repoRootDirRef.current })
       .then(() => {
         if (isAgentTerminal && sessionId) s.setAgentPtyId(sessionId, id)
 

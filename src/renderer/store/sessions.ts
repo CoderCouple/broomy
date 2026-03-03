@@ -30,6 +30,7 @@ export type FileViewerPosition = 'top' | 'left'
 export interface TerminalTab {
   id: string
   name: string
+  isolated?: boolean
 }
 
 export interface TerminalTabsState {
@@ -102,6 +103,8 @@ export interface Session {
   lastKnownPrUrl?: string
   // Archive state (persisted)
   isArchived: boolean
+  // Whether this session was loaded from config (runtime only, not persisted)
+  isRestored: boolean
 }
 
 // Global panel visibility (sidebar, settings, tutorial)
@@ -148,7 +151,7 @@ interface SessionStore {
   updateAgentMonitor: (id: string, update: { status?: SessionStatus; lastMessage?: string }) => void
   markSessionRead: (id: string) => void
   // Terminal tab actions
-  addTerminalTab: (sessionId: string, name?: string) => string
+  addTerminalTab: (sessionId: string, name?: string, isolated?: boolean) => string
   removeTerminalTab: (sessionId: string, tabId: string) => void
   renameTerminalTab: (sessionId: string, tabId: string, name: string) => void
   reorderTerminalTabs: (sessionId: string, tabs: TerminalTab[]) => void
@@ -201,7 +204,7 @@ export const useSessionStore = create<SessionStore>((set, get) => {
   },
 
   selectFile: (id: string, filePath: string) => {
-    const { sessions, globalPanelVisibility, sidebarWidth, toolbarPanels } = get()
+    const { sessions } = get()
     const updatedSessions = sessions.map((s) => {
       if (s.id !== id) return s
       const newVisibility = {
@@ -218,34 +221,34 @@ export const useSessionStore = create<SessionStore>((set, get) => {
       })
     })
     set({ sessions: updatedSessions })
-    debouncedSave(updatedSessions, globalPanelVisibility, sidebarWidth, toolbarPanels)
+    debouncedSave()
   },
 
   setFileViewerPosition: (id: string, position: FileViewerPosition) => {
-    const { sessions, globalPanelVisibility, sidebarWidth, toolbarPanels } = get()
+    const { sessions } = get()
     const updatedSessions = sessions.map((s) =>
       s.id === id ? { ...s, fileViewerPosition: position } : s
     )
     set({ sessions: updatedSessions })
-    debouncedSave(updatedSessions, globalPanelVisibility, sidebarWidth, toolbarPanels)
+    debouncedSave()
   },
 
   updateLayoutSize: (id: string, key: keyof LayoutSizes, value: number) => {
-    const { sessions, globalPanelVisibility, sidebarWidth, toolbarPanels } = get()
+    const { sessions } = get()
     const updatedSessions = sessions.map((s) =>
       s.id === id ? { ...s, layoutSizes: { ...s.layoutSizes, [key]: value } } : s
     )
     set({ sessions: updatedSessions })
-    debouncedSave(updatedSessions, globalPanelVisibility, sidebarWidth, toolbarPanels)
+    debouncedSave()
   },
 
   setExplorerFilter: (id: string, filter: ExplorerFilter) => {
-    const { sessions, globalPanelVisibility, sidebarWidth, toolbarPanels } = get()
+    const { sessions } = get()
     const updatedSessions = sessions.map((s) =>
       s.id === id ? { ...s, explorerFilter: filter } : s
     )
     set({ sessions: updatedSessions })
-    debouncedSave(updatedSessions, globalPanelVisibility, sidebarWidth, toolbarPanels)
+    debouncedSave()
   },
 
   updateAgentMonitor: (id: string, update: { status?: SessionStatus; lastMessage?: string }) => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import '../../../test/react-setup'
 import { formatRelativeTime, PrCommentsSection } from './PrComments'
 import type { NormalizedComment } from './useReviewData'

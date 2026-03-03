@@ -58,7 +58,7 @@ describe('useGitHubPrData', () => {
       { id: 1, body: 'Issue comment', author: 'alice', createdAt: '2024-01-02T00:00:00Z', url: 'url1', reactions: [] },
     ])
     vi.mocked(window.gh.prComments).mockResolvedValue([
-      { id: 2, body: 'Review comment', author: 'bob', createdAt: '2024-01-01T00:00:00Z', url: 'url2', path: 'file.ts', line: 10, inReplyToId: undefined, reactions: [] },
+      { id: 2, body: 'Review comment', author: 'bob', createdAt: '2024-01-01T00:00:00Z', url: 'url2', path: 'file.ts', line: 10, inReplyToId: undefined, reactions: [], side: 'RIGHT' as const },
     ])
 
     const { result } = renderHook(() => useGitHubPrData('session-1', '/test/dir', 42))

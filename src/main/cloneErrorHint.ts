@@ -9,6 +9,63 @@
  * setup commands (e.g. `gh auth setup-git`, `ssh -T git@github.com`).
  */
 
+function sshToHttpsUrl(url: string): string | null {
+  const ghMatch = /git@github\.com:([^/]+\/[^/.]+?)(?:\.git)?$/.exec(url)
+  return ghMatch ? `https://github.com/${ghMatch[1]}.git` : null
+}
+
+function httpsToSshUrl(url: string): string | null {
+  const ghMatch = /https?:\/\/github\.com\/([^/]+\/[^/.]+)/.exec(url)
+  return ghMatch ? `git@github.com:${ghMatch[1]}.git` : null
+}
+
+function getHttpsAuthHint(url: string, options?: { ghAvailable?: boolean }): string {
+  const sshUrl = httpsToSshUrl(url)
+  let hint = '\n\nGit could not authenticate over HTTPS.'
+  hint += '\n\nTry one of:'
+  if (sshUrl) {
+    hint += `\n• Use the SSH URL instead: ${sshUrl}`
+  }
+  if (options?.ghAvailable === false) {
+    hint += '\n• Install GitHub CLI (cli.github.com) to set up credentials automatically'
+  } else {
+    hint += '\n• Run "gh auth setup-git" in your terminal to set up HTTPS credentials'
+  }
+  return hint
+}
+
+function getHostKeyHint(url: string, options?: { ghAvailable?: boolean }): string {
+  const httpsUrl = sshToHttpsUrl(url)
+  let hint = '\n\nGitHub\'s SSH host key is not yet trusted on this machine.'
+  hint += '\n\nTry one of:'
+  hint += '\n• Run "ssh -T git@github.com" in your terminal and type "yes" to trust GitHub\'s key'
+  if (httpsUrl) {
+    hint += `\n• Use the HTTPS URL instead: ${httpsUrl}`
+  }
+  if (options?.ghAvailable === false) {
+    hint += '\n• Install GitHub CLI (cli.github.com) and run "gh auth login" choosing SSH to set up everything automatically'
+  } else {
+    hint += '\n• Run "gh auth login" and choose SSH to set up everything automatically'
+  }
+  return hint
+}
+
+function getSshAuthHint(url: string, options?: { ghAvailable?: boolean }): string {
+  const httpsUrl = sshToHttpsUrl(url)
+  let hint = '\n\nGit could not authenticate over SSH.'
+  hint += '\n\nTry one of:'
+  if (httpsUrl) {
+    hint += `\n• Use the HTTPS URL instead: ${httpsUrl}`
+  }
+  hint += '\n• Check that your SSH key is added: run "ssh -T git@github.com" to test'
+  if (options?.ghAvailable === false) {
+    hint += '\n• Install GitHub CLI (cli.github.com) to set up HTTPS credentials, then use an HTTPS URL'
+  } else {
+    hint += '\n• Run "gh auth setup-git" to set up HTTPS credentials, then use an HTTPS URL'
+  }
+  return hint
+}
+
 /**
  * Detects common git clone authentication errors and returns actionable hints.
  * Covers both HTTPS-when-SSH-is-needed and SSH-when-HTTPS-is-needed cases.
@@ -22,41 +79,20 @@ export function getCloneErrorHint(errorStr: string, url: string, options?: { ghA
     || errorStr.includes('Authentication failed')
     || errorStr.includes('terminal prompts disabled')
   if (isHttpsAuthError && isHttpsUrl) {
-    const ghMatch = /https?:\/\/github\.com\/([^/]+\/[^/.]+)/.exec(url)
-    const sshUrl = ghMatch ? `git@github.com:${ghMatch[1]}.git` : null
-    let hint = '\n\nGit could not authenticate over HTTPS.'
-    hint += '\n\nTry one of:'
-    if (sshUrl) {
-      hint += `\n• Use the SSH URL instead: ${sshUrl}`
-    }
-    if (options?.ghAvailable === false) {
-      hint += '\n• Install GitHub CLI (cli.github.com) to set up credentials automatically'
-    } else {
-      hint += '\n• Run "gh auth setup-git" in your terminal to set up HTTPS credentials'
-    }
-    return hint
+    return getHttpsAuthHint(url, options)
+  }
+
+  // SSH host key not trusted — specific hint for fresh machines
+  if (errorStr.includes('Host key verification failed') && isSshUrl) {
+    return getHostKeyHint(url, options)
   }
 
   // SSH auth failures — suggest HTTPS URL or SSH key setup
   const isSshAuthError = errorStr.includes('Permission denied (publickey)')
-    || errorStr.includes('Host key verification failed')
     || (errorStr.includes('Connection refused') && isSshUrl)
     || (errorStr.includes('Connection timed out') && isSshUrl)
   if (isSshAuthError && isSshUrl) {
-    const ghMatch = /git@github\.com:([^/]+\/[^/.]+?)(?:\.git)?$/.exec(url)
-    const httpsUrl = ghMatch ? `https://github.com/${ghMatch[1]}.git` : null
-    let hint = '\n\nGit could not authenticate over SSH.'
-    hint += '\n\nTry one of:'
-    if (httpsUrl) {
-      hint += `\n• Use the HTTPS URL instead: ${httpsUrl}`
-    }
-    hint += '\n• Check that your SSH key is added: run "ssh -T git@github.com" to test'
-    if (options?.ghAvailable === false) {
-      hint += '\n• Install GitHub CLI (cli.github.com) to set up HTTPS credentials, then use an HTTPS URL'
-    } else {
-      hint += '\n• Run "gh auth setup-git" to set up HTTPS credentials, then use an HTTPS URL'
-    }
-    return hint
+    return getSshAuthHint(url, options)
   }
 
   return null

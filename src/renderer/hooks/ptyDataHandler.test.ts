@@ -6,13 +6,9 @@ vi.mock('../utils/terminalActivityDetector', () => ({
   evaluateActivity: vi.fn().mockReturnValue({ status: null, scheduleIdle: false }),
 }))
 
-vi.stubGlobal('requestAnimationFrame', (cb: () => void) => { cb(); return 1 })
-vi.stubGlobal('cancelAnimationFrame', vi.fn())
-
 function makeTerminal() {
   return {
-    write: vi.fn((_data: string, cb?: () => void) => { cb?.() }),
-    scrollToBottom: vi.fn(),
+    write: vi.fn(),
     buffer: { active: { viewportY: 0, baseY: 0 } },
     cols: 80,
     rows: 24,
@@ -22,7 +18,6 @@ function makeTerminal() {
 
 function makeState() {
   return {
-    isFollowingRef: { current: true },
     processPlanDetection: vi.fn(),
     lastUserInputRef: { current: 0 },
     lastInteractionRef: { current: 0 },
@@ -57,24 +52,14 @@ describe('createPtyDataHandler', () => {
   it('writes data to terminal when active', () => {
     const handler = createHandler()
     handler.handleData('hello')
-    expect(terminal.write).toHaveBeenCalledWith('hello', expect.any(Function))
+    expect(terminal.write).toHaveBeenCalledWith('hello')
   })
 
-  it('scrolls to bottom when following and data arrives', () => {
-    state.isFollowingRef.current = true
-    let rafId = 0
-    vi.stubGlobal('requestAnimationFrame', (cb: () => void) => { cb(); return ++rafId })
-
+  it('does not call scrollToBottom — xterm 6 handles scroll pinning natively', () => {
     const handler = createHandler()
     handler.handleData('data')
-    expect(terminal.scrollToBottom).toHaveBeenCalled()
-  })
-
-  it('does not scroll to bottom when not following', () => {
-    state.isFollowingRef.current = false
-    const handler = createHandler()
-    handler.handleData('data')
-    expect(terminal.scrollToBottom).not.toHaveBeenCalled()
+    // scrollToBottom should never be called by the data handler
+    expect((terminal as { scrollToBottom?: unknown }).scrollToBottom).toBeUndefined()
   })
 
   it('buffers data when inactive instead of writing to terminal', () => {
@@ -96,7 +81,7 @@ describe('createPtyDataHandler', () => {
     handler.flush()
 
     expect(terminal.write).toHaveBeenCalledTimes(1)
-    expect(terminal.write).toHaveBeenCalledWith('hello world!', expect.any(Function))
+    expect(terminal.write).toHaveBeenCalledWith('hello world!')
   })
 
   it('flush is a no-op when buffer is empty', () => {
@@ -155,9 +140,8 @@ describe('createPtyDataHandler', () => {
   })
 
   describe('clearTimers', () => {
-    it('clears scroll RAF', () => {
+    it('is a no-op (kept for interface compatibility)', () => {
       const handler = createHandler()
-      handler.handleData('data')
       handler.clearTimers()
       // Should not throw
     })

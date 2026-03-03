@@ -1,11 +1,11 @@
 /**
- * Hook that manages source control data fetching for PR status, branch changes, commits, and comments.
+ * Hook that manages source control data fetching for PR status, branch changes, and commits.
  */
 import { useState, useEffect, useMemo } from 'react'
-import type { PrComment } from './types'
 import type { GitFileStatus, GitStatusResult, GitHubPrStatus, GitCommitInfo } from '../../../preload/index'
 import type { BranchStatus, PrState } from '../../store/sessions'
 import { useRepoStore } from '../../store/repos'
+import { usePrResultWatcher } from './usePrResultWatcher'
 
 export interface SourceControlDataProps {
   directory?: string
@@ -17,32 +17,26 @@ export interface SourceControlDataProps {
   pushedToMainCommit?: string
   onClearPushToMain?: () => void
   repoId?: string
-  scView: 'working' | 'branch' | 'commits' | 'comments'
+  scView: 'working' | 'branch' | 'commits'
 }
 
 interface PrEffectsConfig {
   directory?: string
   syncStatus?: GitStatusResult | null
-  scView: string
   onUpdatePrState?: (prState: PrState, prNumber?: number, prUrl?: string) => void
   pushedToMainAt?: number
   pushedToMainCommit?: string
   onClearPushToMain?: () => void
 }
 
-/** PR and comments data-fetching effects, extracted for function size limits. */
+/** PR data-fetching effects, extracted for function size limits. */
 function usePrEffects(config: PrEffectsConfig) {
-  const { directory, syncStatus, scView, onUpdatePrState, pushedToMainAt, pushedToMainCommit, onClearPushToMain } = config
+  const { directory, syncStatus, onUpdatePrState, pushedToMainAt, pushedToMainCommit, onClearPushToMain } = config
   const [prStatus, setPrStatus] = useState<GitHubPrStatus>(null)
   const [isPrLoading, setIsPrLoading] = useState(false)
   const [hasWriteAccess, setHasWriteAccess] = useState(false)
   const [isPushingToMain, setIsPushingToMain] = useState(false)
   const [currentHeadCommit, setCurrentHeadCommit] = useState<string | null>(null)
-
-  const [prComments, setPrComments] = useState<PrComment[]>([])
-  const [isCommentsLoading, setIsCommentsLoading] = useState(false)
-  const [replyText, setReplyText] = useState<Record<number, string | undefined>>({})
-  const [isSubmittingReply, setIsSubmittingReply] = useState<number | null>(null)
 
   const hasChangesSincePush = useMemo(() => {
     if (!pushedToMainCommit || !currentHeadCommit) return true
@@ -89,28 +83,6 @@ function usePrEffects(config: PrEffectsConfig) {
     }
   }, [prStatus, isPrLoading])
 
-  // Fetch PR comments when comments view is active
-  useEffect(() => {
-    if (scView !== 'comments' || !directory || !prStatus) return
-    let cancelled = false
-    setIsCommentsLoading(true)
-
-    const fetchComments = async () => {
-      try {
-        const result = await window.gh.prComments(directory, prStatus.number)
-        if (cancelled) return
-        setPrComments(result)
-      } catch {
-        if (cancelled) return
-        setPrComments([])
-      }
-      setIsCommentsLoading(false)
-    }
-
-    void fetchComments()
-    return () => { cancelled = true }
-  }, [scView, directory, prStatus])
-
   // Clear pushed status if there are new changes
   useEffect(() => {
     if (pushedToMainAt && hasChangesSincePush && onClearPushToMain) {
@@ -118,9 +90,11 @@ function usePrEffects(config: PrEffectsConfig) {
     }
   }, [pushedToMainAt, hasChangesSincePush, onClearPushToMain])
 
+  // Watch for pr-result.json creation by the agent
+  usePrResultWatcher({ directory, onUpdatePrState, setPrStatus })
+
   // Reset on directory change
   const resetPr = () => {
-    setPrComments([])
     setPrStatus(null)
     setHasWriteAccess(false)
   }
@@ -130,10 +104,6 @@ function usePrEffects(config: PrEffectsConfig) {
     hasWriteAccess,
     isPushingToMain, setIsPushingToMain,
     currentHeadCommit,
-    prComments, setPrComments,
-    isCommentsLoading,
-    replyText, setReplyText,
-    isSubmittingReply, setIsSubmittingReply,
     hasChangesSincePush,
     resetPr,
   }
@@ -182,7 +152,7 @@ export function useSourceControlData({
   const [askedAgentToResolve, setAskedAgentToResolve] = useState(false)
 
   // PR effects
-  const pr = usePrEffects({ directory, syncStatus, scView, onUpdatePrState, pushedToMainAt, pushedToMainCommit, onClearPushToMain })
+  const pr = usePrEffects({ directory, syncStatus, onUpdatePrState, pushedToMainAt, pushedToMainCommit, onClearPushToMain })
 
   // Repo lookup for allowPushToMain
   const repos = useRepoStore((s) => s.repos)

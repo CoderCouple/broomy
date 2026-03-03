@@ -6,12 +6,13 @@ describe('PANEL_IDS', () => {
     expect(PANEL_IDS.SIDEBAR).toBe('sidebar')
     expect(PANEL_IDS.EXPLORER).toBe('explorer')
     expect(PANEL_IDS.FILE_VIEWER).toBe('fileViewer')
+    expect(PANEL_IDS.AGENT).toBe('agent')
     expect(PANEL_IDS.SETTINGS).toBe('settings')
     expect(PANEL_IDS.TUTORIAL).toBe('tutorial')
   })
 
-  it('has 5 panel IDs', () => {
-    expect(Object.keys(PANEL_IDS)).toHaveLength(5)
+  it('has 6 panel IDs', () => {
+    expect(Object.keys(PANEL_IDS)).toHaveLength(6)
   })
 })
 
@@ -21,6 +22,7 @@ describe('DEFAULT_TOOLBAR_PANELS', () => {
       'sidebar',
       'explorer',
       'fileViewer',
+      'agent',
       'tutorial',
       'settings',
     ])

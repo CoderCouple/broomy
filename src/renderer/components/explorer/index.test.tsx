@@ -17,7 +17,7 @@ vi.mock('./RecentFiles', () => ({
   RecentFiles: () => <div data-testid="recent-files">RecentFiles</div>,
 }))
 vi.mock('../review', () => ({
-  default: (props: Record<string, unknown>) => <div data-testid="review-panel">ReviewPanel</div>,
+  default: (_props: Record<string, unknown>) => <div data-testid="review-panel">ReviewPanel</div>,
 }))
 
 import Explorer from './index'

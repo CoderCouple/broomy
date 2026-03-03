@@ -10,8 +10,7 @@
 import { create } from 'zustand'
 import type { ManagedRepo } from '../../preload/index'
 import { scheduleSave, setLoadedCounts } from './configPersistence'
-
-const generateId = () => `repo-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+import { generateId } from './generateId'
 
 // Normalize backslashes to forward slashes (Windows paths from config/dialog)
 function normalizePath(p: string): string {
@@ -78,7 +77,7 @@ export const useRepoStore = create<RepoStore>((set, get) => ({
 
   addRepo: (repoData) => {
     const repo: ManagedRepo = {
-      id: generateId(),
+      id: generateId('repo'),
       ...repoData,
     }
 

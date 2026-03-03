@@ -30,6 +30,21 @@ export function focusAgentTerminal(): void {
 }
 
 /**
+ * Write a prompt to the agent terminal, submit it (Enter), and focus the terminal.
+ *
+ * The text and carriage return are sent as separate writes so the agent
+ * treats the \r as a distinct Enter keypress rather than part of pasted text.
+ */
+export async function sendAgentPrompt(agentPtyId: string, prompt: string): Promise<void> {
+  await window.pty.write(agentPtyId, prompt)
+  // Brief pause so the terminal finishes processing the pasted text before
+  // receiving Enter — without this, longer prompts can swallow the \r.
+  await new Promise(resolve => setTimeout(resolve, 50))
+  await window.pty.write(agentPtyId, '\r')
+  focusAgentTerminal()
+}
+
+/**
  * Focus the explorer search input.
  * Uses requestAnimationFrame to ensure the DOM has updated after any state changes.
  */

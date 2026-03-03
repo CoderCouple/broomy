@@ -5,31 +5,31 @@
  * repository metadata queries.
  */
 import { IpcMain } from 'electron'
-import { execFile, exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import simpleGit from 'simple-git'
 import { buildPrCreateUrl } from '../gitStatusParser'
 import { isWindows, getExecShell, resolveWindowsCommand } from '../platform'
 import { HandlerContext, expandHomePath } from './types'
 import { getScenarioData } from './scenarios'
+import { getDefaultBranch } from './gitUtils'
 
 const execFileAsync = promisify(execFile)
-const execAsync = promisify(exec)
+
+function parseIssuesJson(result: string) {
+  const issues = JSON.parse(result)
+  return issues.map((issue: { number: number; title: string; labels: { name: string }[]; url: string }) => ({
+    number: issue.number,
+    title: issue.title,
+    labels: issue.labels.map((l: { name: string }) => l.name),
+    url: issue.url,
+  }))
+}
 
 async function runCommand(command: string, args: string[], options: { cwd?: string; timeout?: number }): Promise<string> {
   const { stdout } = await execFileAsync(command, args, {
     ...options,
     encoding: 'utf-8',
-  })
-  return stdout
-}
-
-async function runShellCommand(command: string, options: { cwd?: string; timeout?: number }): Promise<string> {
-  const shell = getExecShell()
-  const { stdout } = await execAsync(command, {
-    ...options,
-    encoding: 'utf-8',
-    shell: shell || undefined,
   })
   return stdout
 }
@@ -44,7 +44,8 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
       if (isWindows) {
         await execFileAsync('where', [baseCommand], { encoding: 'utf-8' })
       } else {
-        await runShellCommand(`command -v ${baseCommand}`, { timeout: 5000 })
+        const shell = getExecShell() || '/bin/sh'
+        await execFileAsync(shell, ['-c', 'command -v "$1"', '--', baseCommand], { encoding: 'utf-8', timeout: 5000 })
       }
       return true
     } catch {
@@ -92,13 +93,29 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
         cwd: expandHomePath(repoDir),
         timeout: 30000,
       })
-      const issues = JSON.parse(result)
-      return issues.map((issue: { number: number; title: string; labels: { name: string }[]; url: string }) => ({
-        number: issue.number,
-        title: issue.title,
-        labels: issue.labels.map((l: { name: string }) => l.name),
-        url: issue.url,
-      }))
+      return parseIssuesJson(result)
+    } catch {
+      return []
+    }
+  })
+
+  ipcMain.handle('gh:searchIssues', async (_event, repoDir: string, query: string) => {
+    if (ctx.isE2ETest) {
+      const allIssues = [
+        { number: 42, title: 'Add support for the dark mode toggle in the user settings panel', labels: ['feature', 'priority'], url: 'https://github.com/user/demo-project/issues/42' },
+        { number: 17, title: 'Fix the crash that happens when clicking on an empty notification list', labels: ['bug'], url: 'https://github.com/user/demo-project/issues/17' },
+        { number: 8, title: 'Implement search functionality for the dashboard', labels: ['feature'], url: 'https://github.com/user/demo-project/issues/8' },
+      ]
+      const q = query.toLowerCase()
+      return allIssues.filter(i => i.title.toLowerCase().includes(q) || i.labels.some(l => l.toLowerCase().includes(q)))
+    }
+
+    try {
+      const result = await runCommand('gh', ['issue', 'list', '--search', query, '--state', 'open', '--json', 'number,title,labels,url', '--limit', '50'], {
+        cwd: expandHomePath(repoDir),
+        timeout: 30000,
+      })
+      return parseIssuesJson(result)
     } catch {
       return []
     }
@@ -178,7 +195,7 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
     }
 
     try {
-      const git = simpleGit(expandHomePath(repoDir))
+      const git = simpleGit(expandHomePath(repoDir)).env('GIT_TERMINAL_PROMPT', '0').env('GIT_SSH_COMMAND', 'ssh -o BatchMode=yes')
 
       const status = await git.status()
       const currentBranch = status.current
@@ -186,18 +203,7 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
         return { success: false, error: 'Could not determine current branch' }
       }
 
-      let defaultBranch = 'main'
-      try {
-        const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-        defaultBranch = ref.trim().replace('refs/remotes/origin/', '')
-      } catch {
-        try {
-          await git.raw(['rev-parse', '--verify', 'origin/main'])
-          defaultBranch = 'main'
-        } catch {
-          defaultBranch = 'master'
-        }
-      }
+      const defaultBranch = await getDefaultBranch(git)
 
       await git.push()
       await git.push('origin', `HEAD:${defaultBranch}`)
@@ -228,20 +234,27 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
 
       if (!repoSlug) return null
 
-      let defaultBranch = 'main'
-      try {
-        const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
-        defaultBranch = ref.trim().replace('refs/remotes/origin/', '')
-      } catch {
-        try {
-          await git.raw(['rev-parse', '--verify', 'origin/main'])
-          defaultBranch = 'main'
-        } catch {
-          defaultBranch = 'master'
-        }
-      }
+      const defaultBranch = await getDefaultBranch(git)
 
       return buildPrCreateUrl(repoSlug, defaultBranch, currentBranch)
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('gh:currentUser', async () => {
+    if (ctx.isE2ETest) {
+      return 'test-user'
+    }
+
+    try {
+      const { stdout } = await execFileAsync('gh', [
+        'api', 'user', '--jq', '.login',
+      ], {
+        encoding: 'utf-8',
+        timeout: 30000,
+      })
+      return stdout.trim()
     } catch {
       return null
     }

@@ -90,12 +90,14 @@ export default function TerminalTabBar({
   return (
     <div className="flex items-center h-6 flex-shrink-0 bg-bg-primary">
       {/* Tabs container */}
-      <div ref={tabsContainerRef} className="flex-1 flex items-center overflow-x-auto scrollbar-thin min-w-0 gap-1 px-1">
+      <div ref={tabsContainerRef} role="tablist" aria-label="Terminal tabs" className="flex-1 flex items-center overflow-x-auto scrollbar-thin min-w-0 gap-1 px-1">
         {tabs.map((tab) => {
           const isAgent = tab.id === agentTabId
           return (
           <div
             key={tab.id}
+            role="tab"
+            aria-selected={tab.id === activeTabId}
             className={`
               group flex items-center gap-1 px-2 h-6 cursor-pointer
               transition-colors duration-100 select-none min-w-0 text-xs
@@ -127,7 +129,10 @@ export default function TerminalTabBar({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <span className={`truncate max-w-32 ${tab.id === activeTabId ? 'border-b-2 border-accent pb-0.5' : ''}`}>{tab.name}</span>
+              <span className={`truncate max-w-32 flex items-center gap-1 ${tab.id === activeTabId ? 'border-b-2 border-accent pb-0.5' : ''}`}>
+                {tab.isolated && <span className="text-blue-400 text-[9px] font-medium">[C]</span>}
+                {tab.name}
+              </span>
             )}
             {!isAgent && editingTabId !== tab.id && (
               <button

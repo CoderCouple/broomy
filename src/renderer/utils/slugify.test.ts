@@ -87,4 +87,9 @@ describe('issueToBranchName', () => {
     expect(result.split('-').length).toBeGreaterThanOrEqual(2)
     expect(result).toContain('crash')
   })
+
+  it('deduplicates consecutive identical words', () => {
+    expect(issueToBranchName({ number: 99, title: 'add add support' }))
+      .toBe('add-support')
+  })
 })

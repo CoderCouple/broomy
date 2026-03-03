@@ -12,6 +12,8 @@ import * as shellHandlers from './shell'
 import * as appHandlers from './app'
 import * as typescriptHandlers from './typescript'
 import * as updaterHandlers from './updater'
+import * as dockerHandlers from './docker'
+import * as devcontainerHandlers from './devcontainer'
 
 export function registerAllHandlers(ipcMain: IpcMain, ctx: HandlerContext): void {
   ptyHandlers.register(ipcMain, ctx)
@@ -23,6 +25,8 @@ export function registerAllHandlers(ipcMain: IpcMain, ctx: HandlerContext): void
   appHandlers.register(ipcMain, ctx)
   typescriptHandlers.register(ipcMain, ctx)
   updaterHandlers.register(ipcMain, ctx)
+  dockerHandlers.register(ipcMain, ctx)
+  devcontainerHandlers.register(ipcMain, ctx)
 }
 
 export type { HandlerContext } from './types'

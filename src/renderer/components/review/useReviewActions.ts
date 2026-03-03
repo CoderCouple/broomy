@@ -6,13 +6,13 @@ import type { CodeLocation, PendingComment, RequestedChange, ReviewHistory } fro
 import type { Session } from '../../store/sessions'
 import type { ManagedRepo } from '../../../preload/index'
 import { buildReviewPrompt, type PrComment } from '../../utils/reviewPromptBuilder'
-import { focusAgentTerminal } from '../../utils/focusHelpers'
+import { sendAgentPrompt } from '../../utils/focusHelpers'
 import type { ReviewDataState } from './useReviewData'
 
 async function fetchReviewContext(
   session: Session,
   historyFilePath: string,
-): Promise<{ previousRequestedChanges: RequestedChange[]; previousHeadCommit?: string; prComments?: PrComment[]; prDescription?: string }> {
+): Promise<{ previousRequestedChanges: RequestedChange[]; previousHeadCommit?: string; prComments?: PrComment[]; prDescription?: string; currentUser?: string }> {
   let previousRequestedChanges: RequestedChange[] = []
   let previousHeadCommit: string | undefined
 
@@ -55,10 +55,20 @@ async function fetchReviewContext(
     }
   }
 
-  return { previousRequestedChanges, previousHeadCommit, prComments, prDescription }
+  let currentUser: string | undefined
+  if (previousHeadCommit) {
+    try {
+      const user = await window.gh.currentUser()
+      if (user) currentUser = user
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  return { previousRequestedChanges, previousHeadCommit, prComments, prDescription, currentUser }
 }
 
-async function sendAgentPrompt(
+async function writePromptAndSend(
   agentPtyId: string,
   broomyDir: string,
   fileName: string,
@@ -66,8 +76,8 @@ async function sendAgentPrompt(
 ): Promise<void> {
   await window.fs.mkdir(broomyDir)
   await window.fs.writeFile(`${broomyDir}/${fileName}`, prompt)
-  await window.pty.write(agentPtyId, `Please read and follow the instructions in .broomy/${fileName}`)
-  focusAgentTerminal()
+  const instruction = `Please read and follow the instructions in .broomy/${fileName}`
+  await sendAgentPrompt(agentPtyId, instruction)
 }
 
 function buildExplainPrompt(issue: { title: string; severity: string; description: string; locations: { file: string; startLine: number; endLine?: number }[] }): string {
@@ -217,10 +227,9 @@ export function useReviewActions(
       // Write the prompt file
       await window.fs.writeFile(promptFilePath, prompt)
 
-      // Send command to agent terminal (user must press enter to confirm)
-      await window.pty.write(session.agentPtyId!, 'Please read and follow the instructions in .broomy/review-prompt.md')
-      setFetchingStatus('pasted')
-      focusAgentTerminal()
+      // Send command to agent terminal
+      await sendAgentPrompt(session.agentPtyId!, 'Please read and follow the instructions in .broomy/review-prompt.md')
+      setFetchingStatus('sent')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setFetching(false)
@@ -331,7 +340,7 @@ export function useReviewActions(
     const issue = state.reviewData?.potentialIssues.find(i => i.id === issueId)
     if (!issue) return
     try {
-      await sendAgentPrompt(session.agentPtyId, broomyDir, 'explain-prompt.md', buildExplainPrompt(issue))
+      await writePromptAndSend(session.agentPtyId, broomyDir, 'explain-prompt.md', buildExplainPrompt(issue))
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -375,7 +384,7 @@ export function useReviewActions(
     if (!state.reviewData) return
     try {
       const prComments = state.prGitHubComments.map(c => ({ body: c.body, author: c.author, path: c.path, line: c.line }))
-      await sendAgentPrompt(session.agentPtyId, broomyDir, 'response-plan-prompt.md', buildResponsePlanPrompt(state.reviewData, prComments))
+      await writePromptAndSend(session.agentPtyId, broomyDir, 'response-plan-prompt.md', buildResponsePlanPrompt(state.reviewData, prComments))
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }

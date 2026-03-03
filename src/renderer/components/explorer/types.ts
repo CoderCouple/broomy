@@ -5,19 +5,6 @@ import type { FileEntry, GitFileStatus, GitStatusResult, SearchResult, ManagedRe
 import type { ExplorerFilter, BranchStatus, PrState, Session } from '../../store/sessions'
 import type { NavigationTarget } from '../../utils/fileNavigation'
 
-// PR comment type from GitHub API
-export type PrComment = {
-  id: number
-  body: string
-  path: string
-  line: number | null
-  side: 'LEFT' | 'RIGHT'
-  author: string
-  createdAt: string
-  url: string
-  inReplyToId?: number
-}
-
 export interface ExplorerProps {
   directory?: string
   onFileSelect?: (target: NavigationTarget) => void

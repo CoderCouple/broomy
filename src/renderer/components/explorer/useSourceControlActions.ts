@@ -2,10 +2,11 @@
  * Hook providing git action handlers for committing, syncing, pushing, and PR operations.
  */
 import type { SourceControlData } from './useSourceControlData'
-import { focusAgentTerminal } from '../../utils/focusHelpers'
+import { sendAgentPrompt } from '../../utils/focusHelpers'
 import { withGitProgress } from '../../utils/gitOperationProgress'
 import { useSessionStore } from '../../store/sessions'
 import { buildCreatePrPrompt } from '../../utils/prPromptBuilder'
+import { buildMergePrompt } from '../../utils/mergePromptBuilder'
 
 export interface SourceControlActionsProps {
   directory?: string
@@ -25,10 +26,10 @@ interface GitActionsConfig {
 }
 
 function createGitActions(config: GitActionsConfig) {
-  const { directory, onGitStatusRefresh, agentPtyId, onRecordPushToMain, data, sessionId } = config
+  const { directory, onGitStatusRefresh, agentPtyId, data, sessionId } = config
   const {
     setIsSyncing, setIsSyncingWithMain, setGitOpError,
-    branchBaseName, setIsPushingToMain, gitStatus,
+    branchBaseName, gitStatus,
     setAgentMergeMessage,
   } = data
   const refreshBranches = () => { void useSessionStore.getState().refreshAllBranches() }
@@ -89,41 +90,8 @@ function createGitActions(config: GitActionsConfig) {
   }
 
   const handlePushToMain = async () => {
-    if (!directory) return
-    setIsPushingToMain(true)
-    setGitOpError(null)
-    try {
-      await withGitProgress(sessionId, async () => {
-        const behindInfo = await window.git.isBehindMain(directory)
-        if (behindInfo.behind > 0) {
-          setIsPushingToMain(false)
-          const shouldSync = window.confirm(
-            `Main has ${behindInfo.behind} new commit${behindInfo.behind !== 1 ? 's' : ''}. Sync with main first?`
-          )
-          if (shouldSync) {
-            await handleSyncWithMain()
-            return
-          }
-          setIsPushingToMain(true)
-        }
-
-        const result = await window.gh.mergeBranchToMain(directory)
-        if (result.success) {
-          const headCommit = await window.git.headCommit(directory)
-          if (headCommit && onRecordPushToMain) {
-            onRecordPushToMain(headCommit)
-          }
-          onGitStatusRefresh?.()
-          refreshBranches()
-        } else {
-          setGitOpError({ operation: `Push to ${branchBaseName}`, message: result.error || 'Push to main failed' })
-        }
-      })
-    } catch (err) {
-      setGitOpError({ operation: `Push to ${branchBaseName}`, message: String(err) })
-    } finally {
-      setIsPushingToMain(false)
-    }
+    if (!agentPtyId) return
+    await sendAgentPrompt(agentPtyId, `Push this branch to ${branchBaseName} safely. Follow these steps in order:\n1. Pull the latest from ${branchBaseName} and merge it into this branch, resolving any merge conflicts\n2. Run the project's validation checks to make sure everything still passes, and fix any failures\n3. Push this branch to its remote tracking branch\n4. If the push fails, resolve the error and retry\n5. Once the branch is pushed, run: git push origin HEAD:${branchBaseName}`)
   }
 
   const handleCreatePr = async () => {
@@ -131,18 +99,21 @@ function createGitActions(config: GitActionsConfig) {
 
     const broomyDir = `${directory}/.broomy`
     const promptPath = `${broomyDir}/create-pr-prompt.md`
+    const prResultPath = `${broomyDir}/pr-result.json`
     const baseBranch = branchBaseName || 'main'
 
     // Ensure .broomy directory exists
     await window.fs.mkdir(broomyDir)
+
+    // Remove stale pr-result.json so the watcher doesn't trigger on old data
+    await window.fs.rm(prResultPath)
 
     // Write the prompt file
     const prompt = buildCreatePrPrompt(baseBranch)
     await window.fs.writeFile(promptPath, prompt)
 
     // Send instruction to agent
-    await window.pty.write(agentPtyId, 'Please read and follow the instructions in .broomy/create-pr-prompt.md')
-    focusAgentTerminal()
+    await sendAgentPrompt(agentPtyId, 'Please read and follow the instructions in .broomy/create-pr-prompt.md')
   }
 
   const handlePushNewBranch = async (branchName: string) => {
@@ -177,15 +148,11 @@ export function useSourceControlActions({
   data,
 }: SourceControlActionsProps) {
   const {
-    stagedFiles, unstagedFiles,
-    commitMessage, setCommitMessage,
-    setIsCommitting, setCommitError, setCommitErrorExpanded,
+    setIsCommitting, setCommitError,
     setGitOpError, setAgentMergeMessage, setAskedAgentToResolve,
     expandedCommits, setExpandedCommits,
     commitFilesByHash, setCommitFilesByHash,
     setLoadingCommitFiles,
-    prStatus, setPrComments,
-    replyText, setReplyText, setIsSubmittingReply,
   } = data
 
   const activeSessionId = useSessionStore((s) => s.activeSessionId)
@@ -220,11 +187,23 @@ export function useSourceControlActions({
   }
 
   const handleResolveConflicts = async () => {
-    if (!agentPtyId) return
-    await window.pty.write(agentPtyId, 'resolve all merge conflicts\r')
-    focusAgentTerminal()
+    if (!directory || !agentPtyId) return
+
+    const broomyDir = `${directory}/.broomy`
+    const promptPath = `${broomyDir}/merge-prompt.md`
+    const baseBranch = data.branchBaseName || 'main'
+
+    // Ensure .broomy directory exists
+    await window.fs.mkdir(broomyDir)
+
+    // Write the prompt file
+    const prompt = buildMergePrompt(baseBranch)
+    await window.fs.writeFile(promptPath, prompt)
+
+    // Send instruction to agent
+    await sendAgentPrompt(agentPtyId, 'Please read and follow the instructions in .broomy/merge-prompt.md')
     setAskedAgentToResolve(true)
-    setAgentMergeMessage('Asked agent to resolve merge conflicts. Wait for the agent to finish, then commit the merge.')
+    setAgentMergeMessage('Asked agent to resolve merge conflicts. Wait for the agent to finish.')
   }
 
   const handleRevertFile = async (filePath: string) => {
@@ -268,44 +247,9 @@ export function useSourceControlActions({
     }
   }
 
-  const handleCommit = async () => {
-    if (!directory || !commitMessage.trim()) return
-
-    if (stagedFiles.length === 0 && unstagedFiles.length > 0) {
-      const action = await window.menu.popup([
-        { id: 'stage-all-commit', label: `Stage All ${unstagedFiles.length} File${unstagedFiles.length !== 1 ? 's' : ''} & Commit` },
-      ])
-      if (action !== 'stage-all-commit') return
-      await window.git.stageAll(directory)
-    } else if (stagedFiles.length === 0) {
-      return
-    }
-
-    setIsCommitting(true)
-    setCommitError(null)
-    setGitOpError(null)
-    try {
-      await withGitProgress(activeSessionId, async () => {
-        const result = await window.git.commit(directory, commitMessage.trim())
-        if (result.success) {
-          setCommitMessage('')
-          setCommitError(null)
-          onGitStatusRefresh?.()
-        } else {
-          const errorMsg = result.error || 'Commit failed'
-          setCommitError(errorMsg)
-          setCommitErrorExpanded(false)
-          setGitOpError({ operation: 'Commit', message: errorMsg })
-        }
-      })
-    } catch (err) {
-      const errorMsg = String(err)
-      setCommitError(errorMsg)
-      setCommitErrorExpanded(false)
-      setGitOpError({ operation: 'Commit', message: errorMsg })
-    } finally {
-      setIsCommitting(false)
-    }
+  const handleCommitWithAI = async () => {
+    if (!agentPtyId) return
+    await sendAgentPrompt(agentPtyId, 'Look at the current git diff and make a commit. Stage all relevant files, write a clear commit message that describes what changed and why, and commit. Do not commit any files that contain secrets or credentials.')
   }
 
   const handleToggleCommit = async (commitHash: string) => {
@@ -332,36 +276,15 @@ export function useSourceControlActions({
     setExpandedCommits(newExpanded)
   }
 
-  const handleReplyToComment = async (commentId: number) => {
-    const text = replyText[commentId]
-    if (!directory || !prStatus || !text?.trim()) return
-    setIsSubmittingReply(commentId)
-    try {
-      const result = await window.gh.replyToComment(directory, prStatus.number, commentId, text)
-      if (result.success) {
-        setReplyText(prev => ({ ...prev, [commentId]: '' }))
-        const comments = await window.gh.prComments(directory, prStatus.number)
-        setPrComments(comments)
-      } else {
-        setGitOpError({ operation: 'Reply', message: result.error || 'Failed to post reply' })
-      }
-    } catch (err) {
-      setGitOpError({ operation: 'Reply', message: String(err) })
-    } finally {
-      setIsSubmittingReply(null)
-    }
-  }
-
   return {
     handleRevertFile,
     handleStage,
     handleStageAll,
     handleUnstage,
-    handleCommit,
+    handleCommitWithAI,
     handleCommitMerge,
     handleResolveConflicts,
     handleToggleCommit,
-    handleReplyToComment,
     ...gitActions,
   }
 }

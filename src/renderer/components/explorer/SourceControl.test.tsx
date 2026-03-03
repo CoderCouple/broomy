@@ -8,7 +8,6 @@ vi.mock('./SCViewToggle', () => ({
   SCViewToggle: ({ scView, setScView }: { scView: string; setScView: (v: string) => void }) => (
     <div data-testid="view-toggle">
       {scView}
-      <button data-testid="set-comments" onClick={() => setScView('comments')}>Comments</button>
       <button data-testid="set-commits" onClick={() => setScView('commits')}>Commits</button>
       <button data-testid="set-branch" onClick={() => setScView('branch')}>Branch</button>
       <button data-testid="set-working" onClick={() => setScView('working')}>Working</button>
@@ -17,9 +16,6 @@ vi.mock('./SCViewToggle', () => ({
 }))
 vi.mock('./SCPrBanner', () => ({
   SCPrBanner: () => <div data-testid="pr-banner">PRBanner</div>,
-}))
-vi.mock('./SCCommentsView', () => ({
-  SCCommentsView: () => <div data-testid="comments-view">CommentsView</div>,
 }))
 vi.mock('./SCCommitsView', () => ({
   SCCommitsView: () => <div data-testid="commits-view">CommitsView</div>,
@@ -44,11 +40,6 @@ const mockData = {
   expandedCommits: new Set<string>(),
   commitFilesByHash: {},
   loadingCommitFiles: new Set<string>(),
-  prComments: [],
-  isCommentsLoading: false,
-  replyText: {},
-  setReplyText: vi.fn(),
-  isSubmittingReply: null,
   stagedFiles: [],
   unstagedFiles: [],
   commitMessage: '',
@@ -68,8 +59,6 @@ const mockData = {
   setExpandedCommits: vi.fn(),
   setCommitFilesByHash: vi.fn(),
   setLoadingCommitFiles: vi.fn(),
-  setPrComments: vi.fn(),
-  setIsSubmittingReply: vi.fn(),
   gitOpError: null,
   hasWriteAccess: false,
   isPushingToMain: false,
@@ -90,9 +79,8 @@ const mockActions = {
   handleStage: vi.fn(),
   handleStageAll: vi.fn(),
   handleUnstage: vi.fn(),
-  handleCommit: vi.fn(),
+  handleCommitWithAI: vi.fn(),
   handleToggleCommit: vi.fn(),
-  handleReplyToComment: vi.fn(),
 }
 
 vi.mock('./useSourceControlData', () => ({
@@ -141,14 +129,6 @@ describe('SourceControl', () => {
       <SourceControl directory="/repos/project" gitStatus={[]} />
     )
     expect(screen.getByTestId('view-toggle').textContent).toContain('working')
-  })
-
-  it('shows comments view when toggled', () => {
-    render(
-      <SourceControl directory="/repos/project" gitStatus={[]} />
-    )
-    fireEvent.click(screen.getByTestId('set-comments'))
-    expect(screen.getByTestId('comments-view')).toBeTruthy()
   })
 
   it('shows commits view when toggled', () => {

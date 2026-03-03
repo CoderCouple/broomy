@@ -1,0 +1,187 @@
+/**
+ * Devcontainer CLI wrapper for container isolation.
+ *
+ * Uses the `devcontainer` CLI to manage dev containers declaratively.
+ * Containers are per-workspace-folder (matching how devcontainers work).
+ */
+import { execFile, spawn } from 'child_process'
+import { promisify } from 'util'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
+import { join } from 'path'
+import { ensureAgentInstalled } from './docker'
+
+const execFileAsync = promisify(execFile)
+
+/** ANSI escape helpers for styled terminal output. */
+const ANSI = {
+  dim: (text: string) => `\x1b[2m${text}\x1b[22m`,
+  cyan: (text: string) => `\x1b[36m${text}\x1b[39m`,
+}
+
+/** Check if the devcontainer CLI is available. */
+export async function isDevcontainerCliAvailable(): Promise<{ available: boolean; error?: string; version?: string }> {
+  try {
+    const { stdout } = await execFileAsync('devcontainer', ['--version'])
+    return { available: true, version: stdout.trim() }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (message.includes('ENOENT') || message.includes('not found')) {
+      return { available: false, error: 'devcontainer CLI is not installed' }
+    }
+    return { available: false, error: message }
+  }
+}
+
+/** Check if a .devcontainer config exists in the workspace. */
+export function hasDevcontainerConfig(workspaceFolder: string): boolean {
+  // Check both standard locations
+  if (existsSync(join(workspaceFolder, '.devcontainer', 'devcontainer.json'))) return true
+  if (existsSync(join(workspaceFolder, '.devcontainer.json'))) return true
+  return false
+}
+
+/** Default devcontainer.json content for repos without one. */
+export function generateDefaultDevcontainerJson(): { image: string; features: Record<string, object> } {
+  return {
+    image: 'mcr.microsoft.com/devcontainers/base:ubuntu',
+    features: {
+      'ghcr.io/devcontainers/features/node:1': {},
+      'ghcr.io/devcontainers/features/git:1': {},
+      'ghcr.io/devcontainers/features/github-cli:1': {},
+    },
+  }
+}
+
+/** Write a default devcontainer.json to the workspace if one doesn't exist. */
+export function writeDefaultDevcontainerConfig(workspaceFolder: string): void {
+  const dir = join(workspaceFolder, '.devcontainer')
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+  const configPath = join(dir, 'devcontainer.json')
+  const config = generateDefaultDevcontainerJson()
+  writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`)
+}
+
+/** Result from devcontainer up. */
+export type DevcontainerUpResult = {
+  containerId: string
+  remoteUser: string
+  remoteWorkspaceFolder: string
+}
+
+/**
+ * Start a devcontainer for the given workspace folder.
+ * Runs `devcontainer up --workspace-folder <dir>` and parses JSON output.
+ */
+export async function devcontainerUp(
+  workspaceFolder: string,
+  onProgress: (line: string) => void,
+): Promise<{ success: boolean; error?: string; result?: DevcontainerUpResult }> {
+  onProgress(`${ANSI.cyan('▸ Starting dev container...')}\r\n`)
+
+  return new Promise((resolve) => {
+    const child = spawn('devcontainer', [
+      'up',
+      '--workspace-folder', workspaceFolder,
+    ], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    let stdout = ''
+
+    child.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString()
+    })
+
+    child.stderr.on('data', (data: Buffer) => {
+      for (const line of data.toString().split('\n')) {
+        if (line) onProgress(`${ANSI.dim(`  ${line}`)}\r\n`)
+      }
+    })
+
+    child.on('error', (err) => {
+      resolve({ success: false, error: err.message })
+    })
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        resolve({ success: false, error: `devcontainer up exited with code ${code}` })
+        return
+      }
+
+      try {
+        // devcontainer up outputs JSON on stdout
+        const parsed = JSON.parse(stdout.trim()) as {
+          outcome: string
+          containerId: string
+          remoteUser: string
+          remoteWorkspaceFolder: string
+        }
+        resolve({
+          success: true,
+          result: {
+            containerId: parsed.containerId,
+            remoteUser: parsed.remoteUser,
+            remoteWorkspaceFolder: parsed.remoteWorkspaceFolder,
+          },
+        })
+      } catch (parseErr) {
+        resolve({ success: false, error: `Failed to parse devcontainer output: ${stdout.substring(0, 200)}` })
+      }
+    })
+  })
+}
+
+/**
+ * Build docker exec args for a devcontainer.
+ * Similar to buildDockerExecArgs but uses the remoteUser from devcontainer up.
+ */
+export function buildDevcontainerExecArgs(
+  containerId: string,
+  remoteUser: string,
+  cwd: string,
+  env: Record<string, string>,
+  command?: string,
+): string[] {
+  const args: string[] = ['exec', '-it', '-u', remoteUser, '-w', cwd]
+
+  for (const [key, value] of Object.entries(env)) {
+    args.push('-e', `${key}=${value}`)
+  }
+
+  args.push(containerId)
+
+  if (command) {
+    args.push('bash', '-l', '-c', command)
+  } else {
+    args.push('bash', '-l')
+  }
+
+  return args
+}
+
+/**
+ * Returns a friendly terminal error message when devcontainer CLI is unavailable.
+ */
+export function devcontainerSetupMessage(status: { available: boolean; error?: string }): string {
+  return [
+    '╭────────────────────────────────────────────────────╮',
+    '│  Dev Container CLI required for devcontainer mode   │',
+    '│                                                     │',
+    `│  ${status.error || 'devcontainer CLI is not available'}`,
+    '│                                                     │',
+    '│  To install:                                        │',
+    '│  npm install -g @devcontainers/cli                  │',
+    '│                                                     │',
+    '│  Docker Desktop must also be running.               │',
+    '│                                                     │',
+    '│  Or switch to "Lightweight Docker" mode in repo     │',
+    '│  settings.                                          │',
+    '╰────────────────────────────────────────────────────╯',
+    '',
+  ].join('\r\n')
+}
+
+/** Re-export ensureAgentInstalled for devcontainer use */
+export { ensureAgentInstalled }

@@ -40,6 +40,7 @@ export const PANEL_IDS = {
   SIDEBAR: 'sidebar',
   EXPLORER: 'explorer',
   FILE_VIEWER: 'fileViewer',
+  AGENT: 'agent',
   SETTINGS: 'settings',
   TUTORIAL: 'tutorial',
 } as const
@@ -51,6 +52,7 @@ export const DEFAULT_TOOLBAR_PANELS: string[] = [
   PANEL_IDS.SIDEBAR,
   PANEL_IDS.EXPLORER,
   PANEL_IDS.FILE_VIEWER,
+  PANEL_IDS.AGENT,
   PANEL_IDS.TUTORIAL,
   PANEL_IDS.SETTINGS,
 ]

@@ -2,8 +2,15 @@
  * Session store actions for toggling panels, managing layout sizes, and toolbar configuration.
  */
 import { PANEL_IDS } from '../panels/types'
+import { BUILTIN_PANELS } from '../panels/builtinPanels'
 import type { Session, PanelVisibility } from './sessions'
 import { debouncedSave, syncLegacyFields } from './sessionPersistence'
+
+function getEffectiveVisibility(panelVisibility: PanelVisibility, panelId: string): boolean {
+  if (panelId in panelVisibility) return panelVisibility[panelId]
+  const def = BUILTIN_PANELS.find(p => p.id === panelId)
+  return def?.defaultVisible ?? false
+}
 
 type StoreGet = () => {
   sessions: Session[]
@@ -23,12 +30,12 @@ type StoreSet = (partial: Partial<{
 export function createPanelActions(get: StoreGet, set: StoreSet) {
   return {
     togglePanel: (sessionId: string, panelId: string) => {
-      const { sessions, globalPanelVisibility, sidebarWidth, toolbarPanels } = get()
+      const { sessions } = get()
       const updatedSessions = sessions.map((s) => {
         if (s.id !== sessionId) return s
         const newVisibility = {
           ...s.panelVisibility,
-          [panelId]: !s.panelVisibility[panelId],
+          [panelId]: !getEffectiveVisibility(s.panelVisibility, panelId),
         }
         return syncLegacyFields({
           ...s,
@@ -36,25 +43,25 @@ export function createPanelActions(get: StoreGet, set: StoreSet) {
         })
       })
       set({ sessions: updatedSessions })
-      debouncedSave(updatedSessions, globalPanelVisibility, sidebarWidth, toolbarPanels)
+      debouncedSave()
     },
 
     toggleGlobalPanel: (panelId: string) => {
-      const { sessions, globalPanelVisibility, sidebarWidth, toolbarPanels } = get()
+      const { globalPanelVisibility } = get()
       const newVisibility = {
         ...globalPanelVisibility,
-        [panelId]: !globalPanelVisibility[panelId],
+        [panelId]: !getEffectiveVisibility(globalPanelVisibility, panelId),
       }
       set({
         globalPanelVisibility: newVisibility,
         showSidebar: newVisibility[PANEL_IDS.SIDEBAR] ?? true,
         showSettings: newVisibility[PANEL_IDS.SETTINGS] ?? false,
       })
-      debouncedSave(sessions, newVisibility, sidebarWidth, toolbarPanels)
+      debouncedSave()
     },
 
     setPanelVisibility: (sessionId: string, panelId: string, visible: boolean) => {
-      const { sessions, globalPanelVisibility, sidebarWidth, toolbarPanels } = get()
+      const { sessions } = get()
       const updatedSessions = sessions.map((s) => {
         if (s.id !== sessionId) return s
         const newVisibility = {
@@ -67,13 +74,12 @@ export function createPanelActions(get: StoreGet, set: StoreSet) {
         })
       })
       set({ sessions: updatedSessions })
-      debouncedSave(updatedSessions, globalPanelVisibility, sidebarWidth, toolbarPanels)
+      debouncedSave()
     },
 
     setToolbarPanels: (panels: string[]) => {
-      const { sessions, globalPanelVisibility, sidebarWidth } = get()
       set({ toolbarPanels: panels })
-      debouncedSave(sessions, globalPanelVisibility, sidebarWidth, panels)
+      debouncedSave()
     },
 
     toggleSidebar: () => {
@@ -82,9 +88,8 @@ export function createPanelActions(get: StoreGet, set: StoreSet) {
     },
 
     setSidebarWidth: (width: number) => {
-      const { sessions, globalPanelVisibility, toolbarPanels } = get()
       set({ sidebarWidth: width })
-      debouncedSave(sessions, globalPanelVisibility, width, toolbarPanels)
+      debouncedSave()
     },
 
     toggleExplorer: (id: string) => {

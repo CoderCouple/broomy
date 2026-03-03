@@ -1,13 +1,13 @@
 /**
- * Hook that manages all review panel state: review data, comments, comparison, and GitHub PR metadata.
+ * Hook that manages all review panel state: review data, comments, and GitHub PR metadata.
  */
 import { useState, useEffect, useRef } from 'react'
-import type { ReviewData, PendingComment, ReviewComparison, ReviewHistory } from '../../types/review'
+import type { ReviewData, PendingComment } from '../../types/review'
 import type { GitHubReaction } from '../../../preload/apis/types'
 import { useGitHubPrData } from './useGitHubPrData'
 import { useReviewFilePoller } from './useReviewFilePoller'
 
-export type FetchingStatus = 'fetching' | 'pasted' | null
+export type FetchingStatus = 'fetching' | 'sent' | null
 
 export interface NormalizedComment {
   id: number
@@ -25,7 +25,6 @@ export interface NormalizedComment {
 export interface ReviewDataState {
   reviewData: ReviewData | null
   comments: PendingComment[]
-  comparison: ReviewComparison | null
   fetching: boolean
   waitingForAgent: boolean
   fetchingStatus: FetchingStatus
@@ -50,7 +49,6 @@ export interface ReviewDataState {
   refreshComments: () => void
   setReviewData: React.Dispatch<React.SetStateAction<ReviewData | null>>
   setComments: React.Dispatch<React.SetStateAction<PendingComment[]>>
-  setComparison: React.Dispatch<React.SetStateAction<ReviewComparison | null>>
   setFetching: React.Dispatch<React.SetStateAction<boolean>>
   setWaitingForAgent: React.Dispatch<React.SetStateAction<boolean>>
   setFetchingStatus: React.Dispatch<React.SetStateAction<FetchingStatus>>
@@ -68,7 +66,6 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
 
   const [reviewData, setReviewData] = useState<ReviewData | null>(null)
   const [comments, setComments] = useState<PendingComment[]>([])
-  const [comparison, setComparison] = useState<ReviewComparison | null>(null)
   const [fetching, setFetching] = useState(false)
   const [waitingForAgent, setWaitingForAgent] = useState(false)
   const [fetchingStatus, setFetchingStatus] = useState<FetchingStatus>(null)
@@ -99,7 +96,6 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
       currentSessionRef.current = sessionId
       setReviewData(null)
       setComments([])
-      setComparison(null)
       setFetching(false)
       setWaitingForAgent(false)
       setFetchingStatus(null)
@@ -153,48 +149,6 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
     void loadData()
   }, [sessionId, reviewFilePath, commentsFilePath])
 
-  // Load comparison data if we have a previous review
-  useEffect(() => {
-    const loadComparison = async () => {
-      if (!reviewData) {
-        setComparison(null)
-        return
-      }
-
-      try {
-        const historyExists = await window.fs.exists(historyFilePath)
-        if (!historyExists) {
-          setComparison(null)
-          return
-        }
-
-        const historyContent = await window.fs.readFile(historyFilePath)
-        const history = JSON.parse(historyContent) as ReviewHistory
-
-        // Find previous review (not the current one)
-        const previousReview = history.reviews.find(r => r.headCommit !== reviewData.headCommit)
-        if (!previousReview) {
-          setComparison(null)
-          return
-        }
-
-        // Get comparison data from the review if it includes it
-        // The agent should include this in the review.json when there's history
-        const comparisonPath = `${broomyDir}/comparison.json`
-        const comparisonExists = await window.fs.exists(comparisonPath)
-        if (comparisonExists) {
-          const comparisonContent = await window.fs.readFile(comparisonPath)
-          setComparison(JSON.parse(comparisonContent) as ReviewComparison)
-        } else {
-          setComparison(null)
-        }
-      } catch {
-        setComparison(null)
-      }
-    }
-    void loadComparison()
-  }, [reviewData, historyFilePath, broomyDir])
-
   // Poll for review.json and comments.json changes every second
   useReviewFilePoller({
     reviewFilePath, commentsFilePath, historyFilePath, sessionDirectory,
@@ -208,7 +162,6 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
   return {
     reviewData,
     comments,
-    comparison,
     fetching,
     waitingForAgent,
     fetchingStatus,
@@ -233,7 +186,6 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
     promptFilePath,
     setReviewData,
     setComments,
-    setComparison,
     setFetching,
     setWaitingForAgent,
     setFetchingStatus,

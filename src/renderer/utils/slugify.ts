@@ -57,10 +57,10 @@ export function issueToBranchName(issue: { number: number; title: string }): str
 
   // Reconstruct in original word order
   const result = words.filter((w) => backfillWords.has(w))
-  // Deduplicate consecutive
+  // Deduplicate consecutive words (e.g., "add add support" → "add support")
   const deduped: string[] = []
   for (const w of result) {
-    if (deduped[deduped.length - 1] !== w || !backfillWords.has(w)) {
+    if (deduped[deduped.length - 1] !== w) {
       deduped.push(w)
     }
   }

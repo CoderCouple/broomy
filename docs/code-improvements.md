@@ -149,6 +149,420 @@ const expandHomePath = (path: string) => {
 
 ---
 
+### 8. Command Injection in `ghCore.ts`
+
+**Problem**: Shell command string interpolation allows potential command injection.
+
+**Current state**: In `src/main/handlers/ghCore.ts` (line 45):
+
+```typescript
+await runShellCommand(`command -v ${command}`, { timeout: 5000 })
+```
+
+The `command` parameter is interpolated directly into a shell string. If a malicious agent name like `; rm -rf /` were provided, it would execute arbitrary shell commands.
+
+**Proposed solution**: Use `execFileAsync` with array-style arguments instead of string interpolation:
+
+```typescript
+await execFileAsync('command', ['-v', command], { timeout: 5000 })
+```
+
+Or validate `command` against an allowlist of known CLI tool names before interpolation.
+
+**Expected benefit**: Eliminates a command injection vector. Even though this is somewhat mitigated by context isolation, defense-in-depth matters.
+
+---
+
+### 9. Deduplicate Default Branch Detection
+
+**Problem**: The "detect default branch" logic is copy-pasted 7+ times across 3 files, totalling ~60+ duplicated lines.
+
+**Current state**: The following nested try/catch pattern appears in:
+- `src/main/handlers/ghCore.ts` (lines 183-195, 225-237)
+- `src/main/handlers/gitSync.ts` (lines 17-28, 53-64, 114-130, 172-188)
+- `src/main/handlers/gitBranch.ts` (lines 87-113)
+
+```typescript
+try {
+  const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
+  defaultBranch = ref.trim().replace('refs/remotes/origin/', '')
+} catch {
+  try {
+    await git.raw(['rev-parse', '--verify', 'origin/main'])
+    defaultBranch = 'main'
+  } catch {
+    try {
+      await git.raw(['rev-parse', '--verify', 'origin/master'])
+      defaultBranch = 'master'
+    } catch {
+      defaultBranch = 'main'
+    }
+  }
+}
+```
+
+**Proposed solution**: Extract to a shared utility:
+
+```typescript
+// src/main/handlers/gitUtils.ts
+export async function getDefaultBranch(git: SimpleGit): Promise<string> {
+  try {
+    const ref = await git.raw(['symbolic-ref', 'refs/remotes/origin/HEAD'])
+    return ref.trim().replace('refs/remotes/origin/', '')
+  } catch {
+    for (const candidate of ['main', 'master']) {
+      try {
+        await git.raw(['rev-parse', '--verify', `origin/${candidate}`])
+        return candidate
+      } catch { /* try next */ }
+    }
+    return 'main'
+  }
+}
+```
+
+**Expected benefit**: Any bug fix or change to the detection logic only needs to happen once. Reduces ~60 lines of duplication to ~15 lines in one place.
+
+---
+
+### 10. Validate `profileId` to Prevent Path Traversal
+
+**Problem**: The `profileId` parameter in `config:save` and `config:load` handlers is used to construct file paths without validation.
+
+**Current state**: In `src/main/handlers/config.ts` (line 224):
+
+```typescript
+const configFile = config.profileId
+  ? getProfileConfigFile(config.profileId, ctx.isDev)
+  : legacyConfigFile
+```
+
+A crafted `profileId` like `../../../etc` could write config data to arbitrary filesystem locations.
+
+**Proposed solution**: Validate that `profileId` matches a safe pattern (e.g., alphanumeric + hyphens only) and/or check it against the known set of profiles from `profiles.json`.
+
+```typescript
+function isValidProfileId(id: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(id)
+}
+```
+
+**Expected benefit**: Prevents path traversal attacks via IPC. Defense-in-depth even with context isolation.
+
+---
+
+### 11. Validate URL Schemes Before `openExternal`
+
+**Problem**: Markdown link clicks call `window.shell.openExternal(href)` without validating the URL scheme, which could open arbitrary protocol handlers.
+
+**Current state**: In both `src/renderer/components/fileViewers/MarkdownViewer.tsx` (line 35) and `src/renderer/components/review/ReviewContent.tsx` (line 30):
+
+```typescript
+if (href) void window.shell.openExternal(href)
+```
+
+A markdown link with `file:///etc/passwd` or a custom protocol handler could be opened.
+
+**Proposed solution**: Validate the URL scheme before opening:
+
+```typescript
+if (href && /^https?:\/\//i.test(href)) {
+  void window.shell.openExternal(href)
+}
+```
+
+**Expected benefit**: Prevents opening unexpected protocol handlers from user-controlled markdown content.
+
+---
+
+### 12. Deduplicate `Divider` Component
+
+**Problem**: An identical `Divider` component is defined in two separate files with the same logic.
+
+**Current state**:
+- `src/renderer/components/Layout.tsx` (lines 24-43)
+- `src/renderer/components/LayoutContentArea.tsx` (lines 18-38)
+
+Both define a `Divider` component with identical drag-to-resize behavior, hover styling, and cursor handling.
+
+**Proposed solution**: Extract `Divider` into its own file `src/renderer/components/Divider.tsx` and import it in both locations.
+
+**Expected benefit**: Single source of truth. Changes to divider behavior only need to happen once.
+
+---
+
+### 13. Deduplicate Markdown Rendering Configuration
+
+**Problem**: Custom Markdown component configuration (link handling, code block styling) is duplicated across two files.
+
+**Current state**:
+- `src/renderer/components/fileViewers/MarkdownViewer.tsx` (lines 20-61)
+- `src/renderer/components/review/ReviewContent.tsx` (lines 14-61, `MarkdownBody` function)
+
+Both define identical custom component maps for the Markdown renderer.
+
+**Proposed solution**: Extract the shared Markdown component configuration into a shared utility, e.g. `src/renderer/utils/markdownComponents.tsx`.
+
+**Expected benefit**: Consistent markdown rendering behavior. Changes to link handling or code styling propagate automatically.
+
+---
+
+### 14. Deduplicate Store CRUD Patterns
+
+**Problem**: The `agents.ts`, `repos.ts`, and `profiles.ts` stores all implement identical ID generation, add/update/remove patterns.
+
+**Current state**: Each store has its own `generateId()` function (agents line 27, repos line 14, profiles line 28) and near-identical `addX`, `updateX`, `removeX` actions using the same spread-and-filter patterns.
+
+**Proposed solution**: Create a generic store factory or utility for CRUD operations:
+
+```typescript
+function createCrudActions<T extends { id: string }>(
+  get: () => { items: T[] },
+  set: (partial: { items: T[] }) => void
+) {
+  return {
+    add: (item: Omit<T, 'id'>) => { ... },
+    update: (id: string, changes: Partial<T>) => { ... },
+    remove: (id: string) => { ... },
+  }
+}
+```
+
+**Expected benefit**: Reduces boilerplate across 3 stores. Ensures consistent behavior for basic entity operations.
+
+---
+
+### 15. Fix `debouncedSave` Accepting Unused Parameters
+
+**Problem**: The `debouncedSave()` function in `sessionPersistence.ts` accepts parameters but ignores all of them.
+
+**Current state**: In `src/renderer/store/sessionPersistence.ts` (lines 45-52), `debouncedSave()` accepts `_sessions`, `_globalPanelVisibility`, `_sidebarWidth`, `_toolbarPanels` but just calls `scheduleSave()`. Callers in `sessionCoreActions.ts` and `sessionBranchActions.ts` still pass these values.
+
+**Proposed solution**: Remove the parameters from `debouncedSave()` and update all call sites to not pass them.
+
+**Expected benefit**: Eliminates confusion about whether the parameters are used. Makes the API honest.
+
+---
+
+### 16. Fix Potential Deduplication Bug in `slugify.ts`
+
+**Problem**: The deduplication logic in `issueToBranchName()` may not work as intended due to an operator precedence issue.
+
+**Current state**: In `src/renderer/utils/slugify.ts` (lines 59-66):
+
+```typescript
+if (deduped[deduped.length - 1] !== w || !backfillWords.has(w)) {
+  deduped.push(w)
+}
+```
+
+The condition uses `||` but the intent appears to be "don't add consecutive duplicates unless it's not a backfill word." With `||`, duplicates of non-backfill words are always added. This may need to be `&&`.
+
+**Proposed solution**: Verify intended behavior with tests, then fix the operator if needed. Add test cases covering consecutive duplicate words in branch names.
+
+**Expected benefit**: Correct branch name generation from issue titles.
+
+---
+
+### 17. Inconsistent Error Contracts Across IPC Handlers
+
+**Problem**: Different IPC handlers return errors in incompatible formats, making it hard for the renderer to handle failures consistently.
+
+**Current state**: Examples of inconsistency across `src/main/handlers/`:
+- `handleReadDir()` returns `[]` on error
+- `handleStatus()` returns a full object with empty arrays on error
+- `handleDiff()` returns `''` (empty string) on error
+- Other handlers return `{ success: false, error: string }`
+- Some handlers return `null`
+
+Many catch blocks silently swallow errors with no logging (e.g., `gitBasic.ts` lines 102, 235; `gitBranch.ts` lines 68-69, 174-175).
+
+**Proposed solution**: Define a standard error envelope type and apply it consistently:
+
+```typescript
+type IpcResult<T> = { success: true; data: T } | { success: false; error: string }
+```
+
+Add `console.error` logging to all catch blocks that currently swallow errors silently.
+
+**Expected benefit**: Renderer code can handle errors uniformly. Silent failures become diagnosable.
+
+---
+
+### 18. Reduce Review File Polling Frequency
+
+**Problem**: The review file poller creates aggressive IPC traffic with 1-second interval polling.
+
+**Current state**: In `src/renderer/components/review/useReviewFilePoller.ts` (lines 62-105), a `setInterval` polls at 1-second intervals, creating 60+ IPC calls per minute per session. Multiple review sessions compound this.
+
+**Proposed solution**: Either:
+- Increase the interval to 3-5 seconds (review content doesn't change that fast)
+- Use a file watcher instead of polling (the infrastructure already exists in `fsCore.ts`)
+- Debounce/batch the IPC calls
+
+**Expected benefit**: Reduced IPC overhead and CPU usage, especially with multiple sessions.
+
+---
+
+### 19. Add Missing Unit Tests for Key Files
+
+**Problem**: Several files with significant logic have no unit tests.
+
+**Current state**: Files without corresponding `.test.ts`:
+- `src/main/index.ts` - Window lifecycle, PTY cleanup, multi-profile logic
+- `src/main/shellEnv.ts` - Shell environment resolution (critical for PATH)
+- `src/main/handlers/scenarios.ts` - 528 lines of mock data generation, no validation
+- `src/renderer/utils/focusHelpers.ts` - DOM focus management with `requestAnimationFrame`
+- `src/renderer/utils/commonWords.ts` - Word list used by slugify
+
+**Proposed solution**: Add unit tests for at least the pure logic in these files. For `scenarios.ts`, add schema validation tests ensuring mock data matches real types. For `shellEnv.ts`, test PATH merging logic.
+
+**Expected benefit**: Catches regressions in critical paths. The `scenarios.ts` mock data drifting from real types is a particularly insidious class of bug.
+
+---
+
+### 20. Add Accessibility Attributes to `TerminalTabBar`
+
+**Problem**: The tab bar component lacks proper ARIA roles and attributes for screen reader support.
+
+**Current state**: In `src/renderer/components/TerminalTabBar.tsx` (lines 94-143):
+- Container lacks `role="tablist"`
+- Tabs lack `role="tab"` and `aria-selected` attributes
+- No keyboard navigation between tabs (Arrow keys)
+
+**Proposed solution**: Add standard ARIA tab pattern attributes:
+
+```tsx
+<div role="tablist" aria-label="Terminal tabs">
+  {tabs.map(tab => (
+    <button
+      role="tab"
+      aria-selected={tab.id === activeTabId}
+      // ...
+    >
+```
+
+**Expected benefit**: Screen reader users can navigate terminal tabs. Aligns with WAI-ARIA tab pattern.
+
+---
+
+### 21. Break Up `SessionList.tsx`
+
+**Problem**: `SessionList.tsx` is 516 lines with multiple inline sub-components and mixed concerns.
+
+**Current state**: The file contains:
+- `Spinner`, `StatusIndicator`, `BranchStatusChip` (lines 34-96) - pure display components
+- `UpdateBanner` (lines 217-276) - update notification UI
+- `DeleteSessionDialog` (lines 278-312) - confirmation dialog
+- `SessionCard` (lines 98-215) - session card with complex conditional rendering
+- Main `SessionList` component (lines 314-516) with 6 useState hooks
+
+**Proposed solution**: Extract sub-components to separate files:
+- `src/renderer/components/sessionList/SessionCard.tsx`
+- `src/renderer/components/sessionList/DeleteSessionDialog.tsx`
+- `src/renderer/components/sessionList/UpdateBanner.tsx`
+- Small shared components to a `ui/` directory
+
+**Expected benefit**: Each component is independently understandable and testable. Reduces cognitive load when working on any single piece.
+
+---
+
+### 22. Reduce `TerminalTabBar` Props Count
+
+**Problem**: `TerminalTabBar` accepts 27 props, indicating the component is orchestrating too many concerns.
+
+**Current state**: In `src/renderer/components/TerminalTabBar.tsx` (lines 33-60), the props interface includes tab data, active state, event handlers for clicking/closing/renaming/reordering/creating tabs, plus layout state.
+
+**Proposed solution**: Group related props into objects or extract sub-components:
+- Tab actions: `{ onClick, onClose, onRename, onReorder }`
+- Tab creation: `{ onAdd, defaultAgent }`
+- Layout: `{ isOverflowing, onDropdownToggle }`
+
+Or decompose into `TabBar` (rendering) + `useTabBarActions` (behavior) to reduce the interface surface.
+
+**Expected benefit**: Easier to understand what each prop group does. Simpler to test individual concerns.
+
+---
+
+### 23. Fix Map Mutation During Iteration in `index.ts`
+
+**Problem**: Maps are modified while being iterated, which is a code smell even though ES2015 Map handles it.
+
+**Current state**: In `src/main/index.ts` (lines 115-124):
+
+```typescript
+for (const [id, owner] of ptyOwnerWindows) {
+  if (owner === window) {
+    ptyOwnerWindows.delete(id)  // Modifying map during iteration
+    ptyProcesses.delete(id)
+  }
+}
+```
+
+**Proposed solution**: Collect IDs to delete first, then delete in a separate loop:
+
+```typescript
+const idsToDelete = [...ptyOwnerWindows.entries()]
+  .filter(([, owner]) => owner === window)
+  .map(([id]) => id)
+for (const id of idsToDelete) {
+  ptyOwnerWindows.delete(id)
+  ptyProcesses.delete(id)
+}
+```
+
+**Expected benefit**: Eliminates a subtle footgun. Makes the code's intent clearer.
+
+---
+
+### 24. Extract Hardcoded Values to Constants
+
+**Problem**: Magic numbers are scattered across the codebase without named constants or explanatory comments.
+
+**Current state**: Examples:
+- `src/main/handlers/pty.ts:137` - `setTimeout(..., 100)` (unexplained 100ms delay)
+- `src/main/handlers/shell.ts:16` - `timeout: 300000` (5 min timeout)
+- `src/main/handlers/fsCore.ts:66` - `5 * 1024 * 1024` (5MB file size limit)
+- `src/renderer/components/explorer/FileTree.tsx:93` - `depth * 16 + 8` (tree indent pixels)
+- `src/renderer/components/MonacoViewer.tsx:208` - `setTimeout(..., 100)` (another unexplained 100ms)
+
+**Proposed solution**: Define named constants in appropriate locations:
+
+```typescript
+// src/main/constants.ts
+export const PTY_STARTUP_DELAY_MS = 100
+export const SHELL_EXEC_TIMEOUT_MS = 300_000
+export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
+
+// src/renderer/constants.ts
+export const TREE_INDENT_PX = 16
+export const TREE_BASE_PADDING_PX = 8
+```
+
+**Expected benefit**: Self-documenting code. Easy to find and tune values. Grep-friendly.
+
+---
+
+### 25. Address Circular Module Dependency in Config Persistence
+
+**Problem**: There's a known circular dependency chain between store modules.
+
+**Current state**: In `src/renderer/store/configPersistence.ts` (lines 12-17), the code acknowledges: `sessions -> sessionPersistence -> configPersistence -> sessions`. This relies on runtime module initialization order.
+
+**Proposed solution**: Break the cycle by using lazy imports or dependency injection:
+
+```typescript
+// Instead of importing sessions directly
+let getSessionState: () => SessionState
+export function initConfigPersistence(getter: () => SessionState) {
+  getSessionState = getter
+}
+```
+
+**Expected benefit**: Eliminates fragile dependency on import order. Makes the data flow explicit.
+
+---
+
 ## Lower Priority
 
 ### 5. Replace Blind PTY Delay with Ready Event

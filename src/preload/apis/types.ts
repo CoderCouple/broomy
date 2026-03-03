@@ -42,6 +42,10 @@ export type ManagedRepo = {
   defaultAgentId?: string  // Default agent for sessions in this repo
   reviewInstructions?: string  // Custom instructions for AI review generation
   allowPushToMain?: boolean  // Whether "Push to main" button is shown for this repo
+  isolated?: boolean         // Run sessions in this repo inside Docker
+  isolationMode?: 'docker' | 'devcontainer'  // Isolation backend (default: 'docker')
+  dockerImage?: string       // Custom Docker image (default: broomy/isolation:latest)
+  skipApproval?: boolean     // Auto-approve agent commands when isolated
 }
 
 export type GitHubIssue = {
@@ -124,6 +128,34 @@ export type AgentData = {
   command: string
   color?: string
   env?: Record<string, string>  // Environment variables for this agent
+  skipApprovalFlag?: string    // Free-text flag to append for auto-approval (e.g. "--dangerously-skip-permissions")
+  resumeCommand?: string       // In-session command to resume previous conversation (e.g. "/resume")
+}
+
+export type DockerStatus = {
+  available: boolean
+  error?: string
+  installUrl?: string
+}
+
+export type ContainerInfo = {
+  containerId: string
+  status: 'running' | 'stopped' | 'starting'
+  image: string
+  repoDir: string
+  isolationMode?: 'docker' | 'devcontainer'
+  remoteUser?: string
+  remoteWorkspaceFolder?: string
+}
+
+export type DevcontainerStatus = {
+  available: boolean
+  error?: string
+  version?: string
+}
+
+export type DevcontainerConfigStatus = {
+  hasConfig: boolean
 }
 
 export type LayoutSizesData = {
@@ -211,4 +243,14 @@ export type TsProjectContext = {
   projectRoot: string
   compilerOptions: Record<string, unknown>
   files: { path: string; content: string }[]
+}
+
+export type CrashReport = {
+  timestamp: string
+  message: string
+  stack: string | null
+  electronVersion: string
+  appVersion: string
+  platform: string
+  processType: 'main' | 'renderer'
 }

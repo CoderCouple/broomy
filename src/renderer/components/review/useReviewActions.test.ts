@@ -2,6 +2,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import '../../../test/react-setup'
+
+vi.mock('../../utils/focusHelpers', () => ({
+  sendAgentPrompt: vi.fn().mockResolvedValue(undefined),
+  focusAgentTerminal: vi.fn(),
+}))
+
+import { sendAgentPrompt } from '../../utils/focusHelpers'
 import { useReviewActions } from './useReviewActions'
 import type { Session } from '../../store/sessions'
 import type { ReviewDataState } from './useReviewData'
@@ -38,6 +45,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     terminalTabs: { tabs: [{ id: 'tab-1', name: 'Terminal' }], activeTabId: 'tab-1' },
     branchStatus: 'in-progress',
     isArchived: false,
+    isRestored: false,
     prNumber: 42,
     prUrl: 'https://github.com/pr/42',
     prBaseBranch: 'main',
@@ -49,7 +57,6 @@ function makeState(overrides: Partial<ReviewDataState> = {}): ReviewDataState {
   return {
     reviewData: null,
     comments: [],
-    comparison: null,
     fetching: false,
     waitingForAgent: false,
     fetchingStatus: null,
@@ -74,7 +81,6 @@ function makeState(overrides: Partial<ReviewDataState> = {}): ReviewDataState {
     refreshComments: vi.fn(),
     setReviewData: vi.fn(),
     setComments: vi.fn(),
-    setComparison: vi.fn(),
     setFetching: vi.fn(),
     setWaitingForAgent: vi.fn(),
     setFetchingStatus: vi.fn(),
@@ -365,7 +371,7 @@ describe('useReviewActions', () => {
     })
 
     expect(state.setWaitingForAgent).toHaveBeenCalledWith(true)
-    expect(window.pty.write).toHaveBeenCalled()
+    expect(sendAgentPrompt).toHaveBeenCalled()
   })
 
   it('handleGenerateReview fetches base branch before generating', async () => {
@@ -544,10 +550,37 @@ describe('useReviewActions', () => {
     })
 
     expect(window.gh.prComments).toHaveBeenCalledWith('/test/repo', 42)
+    expect(window.gh.currentUser).toHaveBeenCalled()
     expect(window.fs.writeFile).toHaveBeenCalledWith(
       '/test/repo/.broomy/review-prompt.md',
       expect.any(String)
     )
+  })
+
+  it('handleGenerateReview does not call currentUser when no previous review', async () => {
+    vi.mocked(window.fs.exists).mockImplementation(async (path: string) => {
+      if (path.includes('.gitignore')) return true
+      return false
+    })
+    vi.mocked(window.fs.readFile).mockImplementation(async (path: string) => {
+      if (path.includes('.gitignore')) return '.broomy/\n'
+      return ''
+    })
+    vi.mocked(window.fs.mkdir).mockResolvedValue({ success: true })
+
+    const state = makeState()
+    const session = makeSession({ prNumber: 42 })
+    vi.mocked(window.git.getBranch).mockResolvedValue('feature/review')
+
+    const { result } = renderHook(() =>
+      useReviewActions(session, undefined, vi.fn(), state)
+    )
+
+    await act(async () => {
+      await result.current.handleGenerateReview()
+    })
+
+    expect(window.gh.currentUser).not.toHaveBeenCalled()
   })
 
   it('addToGitignore creates new .gitignore when none exists', async () => {

@@ -8,6 +8,7 @@ import {
   getConfigFileName,
   getProfileConfigFile,
   getProfileInitScriptsDir,
+  validateProfileId,
   expandHomePath,
   getE2EDemoRepos,
   E2EScenario,
@@ -40,6 +41,39 @@ describe('getConfigFileName', () => {
   })
 })
 
+describe('validateProfileId', () => {
+  it('accepts alphanumeric IDs with hyphens and underscores', () => {
+    expect(() => validateProfileId('default')).not.toThrow()
+    expect(() => validateProfileId('my-profile')).not.toThrow()
+    expect(() => validateProfileId('profile_2')).not.toThrow()
+    expect(() => validateProfileId('ABC-123')).not.toThrow()
+  })
+
+  it('rejects path traversal attempts', () => {
+    expect(() => validateProfileId('../../../etc')).toThrow('Invalid profile ID')
+    expect(() => validateProfileId('../../passwd')).toThrow('Invalid profile ID')
+  })
+
+  it('rejects IDs with slashes', () => {
+    expect(() => validateProfileId('foo/bar')).toThrow('Invalid profile ID')
+    expect(() => validateProfileId('foo\\bar')).toThrow('Invalid profile ID')
+  })
+
+  it('rejects IDs with dots', () => {
+    expect(() => validateProfileId('.')).toThrow('Invalid profile ID')
+    expect(() => validateProfileId('..')).toThrow('Invalid profile ID')
+    expect(() => validateProfileId('profile.name')).toThrow('Invalid profile ID')
+  })
+
+  it('rejects empty strings', () => {
+    expect(() => validateProfileId('')).toThrow('Invalid profile ID')
+  })
+
+  it('rejects IDs with spaces', () => {
+    expect(() => validateProfileId('my profile')).toThrow('Invalid profile ID')
+  })
+})
+
 describe('getProfileConfigFile', () => {
   it('returns the full path for a dev config', () => {
     const result = getProfileConfigFile('my-profile', true)
@@ -50,12 +84,20 @@ describe('getProfileConfigFile', () => {
     const result = getProfileConfigFile('my-profile', false)
     expect(result).toBe(join(PROFILES_DIR, 'my-profile', 'config.json'))
   })
+
+  it('throws on invalid profile IDs', () => {
+    expect(() => getProfileConfigFile('../evil', false)).toThrow('Invalid profile ID')
+  })
 })
 
 describe('getProfileInitScriptsDir', () => {
   it('returns the init-scripts directory for a profile', () => {
     const result = getProfileInitScriptsDir('my-profile')
     expect(result).toBe(join(PROFILES_DIR, 'my-profile', 'init-scripts'))
+  })
+
+  it('throws on invalid profile IDs', () => {
+    expect(() => getProfileInitScriptsDir('../evil')).toThrow('Invalid profile ID')
   })
 })
 

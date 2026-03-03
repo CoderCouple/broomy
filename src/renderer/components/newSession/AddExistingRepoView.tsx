@@ -1,10 +1,12 @@
 /**
  * View for adding an existing multi-worktree folder as a managed repository.
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAgentStore } from '../../store/agents'
 import { useRepoStore } from '../../store/repos'
 import { DialogErrorBanner } from '../ErrorBanner'
+import { IsolationSettings } from '../IsolationSettings'
+import type { DockerStatus, DevcontainerStatus } from '../../../preload/index'
 
 async function validateWorktreeFolder(folder: string): Promise<{ worktrees: { path: string; branch: string }[]; error?: string }> {
   try {
@@ -65,6 +67,35 @@ async function validateWorktreeFolder(folder: string): Promise<{ worktrees: { pa
   }
 }
 
+function useIsolationState(rootDir: string) {
+  const [isolated, setIsolated] = useState(false)
+  const [isolationMode, setIsolationMode] = useState<'docker' | 'devcontainer'>('docker')
+  const [dockerImage, setDockerImage] = useState('')
+  const [skipApproval, setSkipApproval] = useState(false)
+  const [dockerStatus, setDockerStatus] = useState<DockerStatus | null>(null)
+  const [devcontainerStatus, setDevcontainerStatus] = useState<DevcontainerStatus | null>(null)
+  const [hasDevcontainerConfigState, setHasDevcontainerConfig] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (isolated || dockerStatus === null) {
+      void window.docker.status().then(setDockerStatus)
+    }
+  }, [isolated])
+
+  useEffect(() => {
+    if (isolated && isolationMode === 'devcontainer' && rootDir) {
+      void window.devcontainer.status().then(setDevcontainerStatus)
+      void window.devcontainer.hasConfig(rootDir).then(setHasDevcontainerConfig)
+    }
+  }, [isolated, isolationMode, rootDir])
+
+  return {
+    isolated, setIsolated, isolationMode, setIsolationMode, dockerImage, setDockerImage,
+    skipApproval, setSkipApproval, dockerStatus, devcontainerStatus,
+    hasDevcontainerConfigState, setHasDevcontainerConfig,
+  }
+}
+
 export function AddExistingRepoView({
   onBack,
   onComplete,
@@ -79,6 +110,7 @@ export function AddExistingRepoView({
   const [repoName, setRepoName] = useState('')
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(agents[0]?.id || null)
   const [worktrees, setWorktrees] = useState<{ path: string; branch: string }[]>([])
+  const iso = useIsolationState(rootDir)
   const [loading, setLoading] = useState(false)
   const [validating, setValidating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -137,6 +169,10 @@ export function AddExistingRepoView({
         defaultBranch,
         defaultAgentId: selectedAgentId || undefined,
         allowPushToMain,
+        isolated: iso.isolated || undefined,
+        isolationMode: iso.isolated ? iso.isolationMode : undefined,
+        dockerImage: iso.dockerImage.trim() || undefined,
+        skipApproval: iso.skipApproval || undefined,
       })
 
       // Get the repo ID
@@ -241,6 +277,18 @@ export function AddExistingRepoView({
                 This agent will be pre-selected when creating branches in this repo.
               </p>
             </div>
+
+            <IsolationSettings
+              isolated={iso.isolated} isolationMode={iso.isolationMode} dockerImage={iso.dockerImage} skipApproval={iso.skipApproval}
+              dockerStatus={iso.dockerStatus} devcontainerStatus={iso.devcontainerStatus}
+              hasDevcontainerConfig={iso.hasDevcontainerConfigState}
+              onIsolatedChange={iso.setIsolated} onIsolationModeChange={iso.setIsolationMode}
+              onDockerImageChange={iso.setDockerImage} onSkipApprovalChange={iso.setSkipApproval}
+              onGenerateDevcontainerConfig={rootDir ? async () => {
+                await window.devcontainer.generateDefaultConfig(rootDir)
+                iso.setHasDevcontainerConfig(true)
+              } : undefined}
+            />
           </>
         )}
 

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import '../../test/react-setup'
-import SessionList from './SessionList'
+import SessionList from './sessionList'
 import type { Session } from '../store/sessions'
 
 function makeSession(overrides: Partial<Session> = {}): Session {
@@ -36,6 +36,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     terminalTabs: { tabs: [{ id: 'tab-1', name: 'Terminal' }], activeTabId: 'tab-1' },
     branchStatus: 'in-progress',
     isArchived: false,
+    isRestored: false,
     ...overrides,
   }
 }

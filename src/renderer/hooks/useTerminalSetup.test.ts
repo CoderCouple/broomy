@@ -58,10 +58,6 @@ vi.mock('@xterm/addon-serialize', () => {
   }
 })
 
-vi.mock('@xterm/addon-webgl', () => ({
-  WebglAddon: vi.fn(),
-}))
-
 // Mock the sub-hooks
 vi.mock('./useTerminalKeyboard', () => ({
   useTerminalKeyboard: vi.fn().mockReturnValue(vi.fn().mockReturnValue(true)),

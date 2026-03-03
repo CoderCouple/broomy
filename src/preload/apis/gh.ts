@@ -7,6 +7,7 @@ import type { GitHubIssue, GitHubPrStatus, GitHubPrComment, GitHubIssueComment, 
 export type GhApi = {
   isInstalled: () => Promise<boolean>
   issues: (repoDir: string) => Promise<GitHubIssue[]>
+  searchIssues: (repoDir: string, query: string) => Promise<GitHubIssue[]>
   repoSlug: (repoDir: string) => Promise<string | null>
   prStatus: (repoDir: string) => Promise<GitHubPrStatus>
   hasWriteAccess: (repoDir: string) => Promise<boolean>
@@ -19,11 +20,13 @@ export type GhApi = {
   addReaction: (repoDir: string, commentId: number, reaction: string, commentType: 'review' | 'issue') => Promise<{ success: boolean; error?: string }>
   prsToReview: (repoDir: string) => Promise<GitHubPrForReview[]>
   submitDraftReview: (repoDir: string, prNumber: number, comments: { path: string; line: number; body: string }[]) => Promise<{ success: boolean; reviewId?: number; error?: string }>
+  currentUser: () => Promise<string | null>
 }
 
 export const ghApi: GhApi = {
   isInstalled: () => ipcRenderer.invoke('gh:isInstalled'),
   issues: (repoDir) => ipcRenderer.invoke('gh:issues', repoDir),
+  searchIssues: (repoDir, query) => ipcRenderer.invoke('gh:searchIssues', repoDir, query),
   repoSlug: (repoDir) => ipcRenderer.invoke('gh:repoSlug', repoDir),
   prStatus: (repoDir) => ipcRenderer.invoke('gh:prStatus', repoDir),
   hasWriteAccess: (repoDir) => ipcRenderer.invoke('gh:hasWriteAccess', repoDir),
@@ -36,4 +39,5 @@ export const ghApi: GhApi = {
   addReaction: (repoDir, commentId, reaction, commentType) => ipcRenderer.invoke('gh:addReaction', repoDir, commentId, reaction, commentType),
   prsToReview: (repoDir) => ipcRenderer.invoke('gh:prsToReview', repoDir),
   submitDraftReview: (repoDir, prNumber, comments) => ipcRenderer.invoke('gh:submitDraftReview', repoDir, prNumber, comments),
+  currentUser: () => ipcRenderer.invoke('gh:currentUser'),
 }
