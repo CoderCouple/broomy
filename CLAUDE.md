@@ -23,6 +23,10 @@ pnpm dist            # Build and package for macOS
 pnpm check:all       # Run all project-specific checks (workers, etc.)
 ```
 
+## Shell Commands
+
+**Never use `${}` syntax (shell parameter expansion) in Bash tool calls.** This includes `$(...)` subshells and `${VAR}` variable expansions. These trigger manual approval prompts. Instead, use plain variable references like `$VAR`, pipe chains, or break commands into multiple sequential tool calls.
+
 ## Troubleshooting
 
 `pnpm dev` runs preflight checks automatically and fixes common issues (missing Electron binary, native module problems). If preflight can't fix something, it tells you what to do.
