@@ -231,34 +231,36 @@ export function ReviewContent(props: ReviewContentProps) {
           <div className="space-y-3">
             {reviewData.potentialIssues.map((issue) => (
               <div key={issue.id} className="text-sm">
-                <div className="flex items-center gap-2">
-                  <SeverityBadge severity={issue.severity} />
-                  <span className="font-medium text-text-primary flex-1">{issue.title}</span>
-                  {onExplainIssue && (
-                    <button
-                      onClick={() => onExplainIssue(issue.id)}
-                      className="flex-shrink-0 px-1.5 py-0.5 text-[10px] rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
-                      title="Ask agent to explain this issue"
-                    >
-                      Explain
-                    </button>
-                  )}
-                  {onAddComment && issue.locations.length > 0 && (
-                    <button
-                      onClick={() => setCommentingItemId(commentingItemId === issue.id ? null : issue.id)}
-                      className="flex-shrink-0 px-1.5 py-0.5 text-[10px] rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
-                      title="Add a comment on this issue"
-                    >
-                      Comment
-                    </button>
-                  )}
-                </div>
+                <SeverityBadge severity={issue.severity} />
+                <div className="font-medium text-text-primary mt-0.5">{issue.title}</div>
                 <div className="text-text-secondary mt-0.5 leading-relaxed">{issue.description}</div>
                 {issue.locations.length > 0 && (
                   <div className="mt-1 space-y-0.5">
                     {issue.locations.map((loc, i) => (
                       <LocationLink key={i} location={loc} directory={directory} onClick={() => onClickLocation(loc)} />
                     ))}
+                  </div>
+                )}
+                {(onExplainIssue || (onAddComment && issue.locations.length > 0)) && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {onExplainIssue && (
+                      <button
+                        onClick={() => onExplainIssue(issue.id)}
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
+                        title="Ask agent to explain this issue"
+                      >
+                        Explain
+                      </button>
+                    )}
+                    {onAddComment && issue.locations.length > 0 && (
+                      <button
+                        onClick={() => setCommentingItemId(commentingItemId === issue.id ? null : issue.id)}
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
+                        title="Add a comment on this issue"
+                      >
+                        Comment
+                      </button>
+                    )}
                   </div>
                 )}
                 {commentingItemId === issue.id && issue.locations.length > 0 && (

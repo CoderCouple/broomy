@@ -59,6 +59,7 @@ function makeState(overrides: Partial<ReviewDataState> = {}): ReviewDataState {
     showGitignoreModal: false,
     pendingGenerate: false,
     mergeBase: 'abc123',
+    lastPushTime: null,
     unpushedCount: 0,
     broomyDir: '/test/repo/.broomy',
     reviewFilePath: '/test/repo/.broomy/review.json',
@@ -83,6 +84,7 @@ function makeState(overrides: Partial<ReviewDataState> = {}): ReviewDataState {
     setShowGitignoreModal: vi.fn(),
     setPendingGenerate: vi.fn(),
     setMergeBase: vi.fn(),
+    setLastPushTime: vi.fn(),
     ...overrides,
   }
 }

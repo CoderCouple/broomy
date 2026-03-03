@@ -11,7 +11,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import { screenshotElement, scrollToVisible } from '../_shared/screenshot-helpers'
+import { screenshotElement, scrollToVisible, waitForDiffEditor } from '../_shared/screenshot-helpers'
 import { generateFeaturePage, generateIndex, FeatureStep } from '../_shared/template'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -99,16 +99,21 @@ test.describe.serial('Feature: File Viewer Review Comments', () => {
   test('Step 1: Open a file from review location link — file viewer visible', async () => {
     await setupReviewSession(page)
 
-    // Click a location link in the review to open a file in diff mode
-    const locationLink = page.locator('button:has-text(".ts:")').first()
-    if (await locationLink.isVisible()) {
-      await scrollToVisible(locationLink)
-      await locationLink.click()
-    }
+    // Expand the Change Patterns section (collapsed by default) to reveal location links
+    const changePatternsButton = page.locator('button:has-text("Change Patterns")')
+    await expect(changePatternsButton).toBeVisible({ timeout: 5000 })
+    await scrollToVisible(changePatternsButton)
+    await changePatternsButton.click()
 
-    // File viewer should be visible since we toggled it on
+    // Click a location link to open a file in diff mode
+    const locationLink = page.locator('button:has-text("ThemeContext")').first()
+    await expect(locationLink).toBeVisible({ timeout: 5000 })
+    await scrollToVisible(locationLink)
+    await locationLink.click()
+
+    // Wait for the diff editor to fully render in the file viewer
     const fileViewer = page.locator('[data-panel-id="fileViewer"]')
-    await expect(fileViewer).toBeVisible({ timeout: 5000 })
+    await waitForDiffEditor(fileViewer)
 
     await page.screenshot({
       path: path.join(SCREENSHOTS, '01-file-opened.png'),
@@ -153,19 +158,22 @@ test.describe.serial('Feature: File Viewer Review Comments', () => {
   })
 
   test('Step 3: Diff viewer with glyph margin enabled', async () => {
-    // Click a location link to open a file in the diff viewer
-    const locationLink = page.locator('button:has-text(".ts:")').first()
-    if (await locationLink.isVisible()) {
-      await scrollToVisible(locationLink)
-      await locationLink.click()
+    // Expand Change Patterns if collapsed and click location link
+    const changePatternsButton = page.locator('button:has-text("Change Patterns")')
+    await expect(changePatternsButton).toBeVisible({ timeout: 5000 })
+    await scrollToVisible(changePatternsButton)
+    // Check if section content is visible; if not, click to expand
+    const locationLink = page.locator('button:has-text("ThemeContext")').first()
+    if (!(await locationLink.isVisible().catch(() => false))) {
+      await changePatternsButton.click()
     }
+    await expect(locationLink).toBeVisible({ timeout: 5000 })
+    await scrollToVisible(locationLink)
+    await locationLink.click()
 
-    // Wait for the file viewer to be visible with content
+    // Wait for the diff editor to fully render
     const fileViewer = page.locator('[data-panel-id="fileViewer"]')
-    await expect(fileViewer).toBeVisible({ timeout: 5000 })
-
-    // Give the file viewer a moment to load file content
-    await expect(fileViewer.locator('div').first()).toBeVisible()
+    await waitForDiffEditor(fileViewer)
 
     await screenshotElement(page, fileViewer, path.join(SCREENSHOTS, '03-diff-glyph-margin.png'), {
       maxHeight: 500,
@@ -184,19 +192,20 @@ test.describe.serial('Feature: File Viewer Review Comments', () => {
     const fileViewer = page.locator('[data-panel-id="fileViewer"]')
     await expect(fileViewer).toBeVisible()
 
-    // Try clicking glyph margin if the diff editor rendered
-    const glyphMargin = fileViewer.locator('.margin-view-overlays').first()
-    const glyphVisible = await glyphMargin.isVisible().catch(() => false)
-    if (glyphVisible) {
-      const box = await glyphMargin.boundingBox()
-      if (box) {
-        await page.mouse.click(box.x + 5, box.y + 40)
-      }
-      const commentInput = fileViewer.locator('input[placeholder="Type your comment..."]')
-      const hasInput = await commentInput.isVisible().catch(() => false)
-      if (hasInput) {
-        await commentInput.fill('This needs error handling for the edge case')
-      }
+    // Click glyph margin area on the modified side to trigger comment input
+    const glyphMargin = fileViewer.locator('.modified-in-monaco-diff-editor .margin-view-overlays').first()
+    await expect(glyphMargin).toBeVisible({ timeout: 5000 })
+    const box = await glyphMargin.boundingBox()
+    if (box) {
+      // Click near the left edge of the glyph margin, a few lines down
+      await page.mouse.click(box.x + 5, box.y + 40)
+    }
+
+    // Wait briefly for the comment input to appear
+    const commentInput = fileViewer.locator('input[placeholder="Type your comment..."]')
+    const hasInput = await commentInput.isVisible({ timeout: 3000 }).catch(() => false)
+    if (hasInput) {
+      await commentInput.fill('This needs error handling for the edge case')
     }
 
     await screenshotElement(page, fileViewer, path.join(SCREENSHOTS, '04-diff-comment-input.png'), {

@@ -117,8 +117,15 @@ test.describe.serial('Feature: Review Live Updates & Navigation', () => {
   })
 
   test('Step 2: Click a location link to open diff viewer', async () => {
+    // Expand Change Patterns to reveal location links (collapsed by default)
+    const changePatternsButton = page.locator('button:has-text("Change Patterns")')
+    if (await changePatternsButton.isVisible()) {
+      await scrollToVisible(changePatternsButton)
+      await changePatternsButton.click()
+    }
+
     // Find and click a location link in the review
-    const locationLink = page.locator('button:has-text(".ts:")').first()
+    const locationLink = page.locator('button:has-text("ThemeContext")').first()
 
     if (await locationLink.isVisible()) {
       await scrollToVisible(locationLink)

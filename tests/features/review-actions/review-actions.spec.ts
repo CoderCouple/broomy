@@ -67,7 +67,7 @@ async function setupReviewSession(p: Page) {
             prTitle: 'Add dark mode support',
             prUrl: 'https://github.com/user/demo-project/pull/123',
             prBaseBranch: 'main',
-            sessionType: 'review',
+            sessionType: 'default',
             agentPtyId: 'mock-agent-pty',
           }
         }
@@ -103,19 +103,31 @@ test.describe.serial('Feature: Review Panel Actions', () => {
     await scrollToVisible(issuesSection)
     await issuesSection.click()
 
-    // Wait for the Explain button to appear
+    // Wait for the Explain button to appear and scroll it into view
     const explainBtn = page.locator('button:has-text("Explain")').first()
     await expect(explainBtn).toBeVisible({ timeout: 5000 })
+    await scrollToVisible(explainBtn)
 
+    // Capture just the Potential Issues area with buttons visible
     const explorer = page.locator('[data-panel-id="explorer"]')
-    await screenshotElement(page, explorer, path.join(SCREENSHOTS, '01-issues-with-buttons.png'), {
-      maxHeight: 600,
-    })
+    const explorerBox = await explorer.boundingBox()
+    const btnBox = await explainBtn.boundingBox()
+    if (explorerBox && btnBox) {
+      // Capture from the Potential Issues header down to below the buttons
+      const captureTop = Math.max(explorerBox.y, btnBox.y - 150)
+      const captureBottom = Math.min(explorerBox.y + explorerBox.height, btnBox.y + btnBox.height + 20)
+      await screenshotClip(page, {
+        x: explorerBox.x,
+        y: captureTop,
+        width: explorerBox.width,
+        height: captureBottom - captureTop,
+      }, path.join(SCREENSHOTS, '01-issues-with-buttons.png'))
+    }
     steps.push({
       screenshotPath: 'screenshots/01-issues-with-buttons.png',
       caption: 'Potential issues with Explain and Comment action buttons',
       description:
-        'Each potential issue now shows small "Explain" and "Comment" buttons in its header row. ' +
+        'Each potential issue shows "Explain" and "Comment" buttons at the bottom of the issue. ' +
         'Explain sends the issue details to the agent for analysis. Comment opens an inline form ' +
         'to add a draft PR comment at the issue\'s file location.',
     })
@@ -177,10 +189,21 @@ test.describe.serial('Feature: Review Panel Actions', () => {
 
     await commentInput.fill('This looks like a false positive — the validation happens upstream in the middleware.')
 
+    // Scroll the comment input into view and capture that area
+    await scrollToVisible(commentInput)
     const explorer = page.locator('[data-panel-id="explorer"]')
-    await screenshotElement(page, explorer, path.join(SCREENSHOTS, '03-comment-form.png'), {
-      maxHeight: 600,
-    })
+    const explorerBox = await explorer.boundingBox()
+    const inputBox = await commentInput.boundingBox()
+    if (explorerBox && inputBox) {
+      const captureTop = Math.max(explorerBox.y, inputBox.y - 150)
+      const captureBottom = Math.min(explorerBox.y + explorerBox.height, inputBox.y + inputBox.height + 30)
+      await screenshotClip(page, {
+        x: explorerBox.x,
+        y: captureTop,
+        width: explorerBox.width,
+        height: captureBottom - captureTop,
+      }, path.join(SCREENSHOTS, '03-comment-form.png'))
+    }
     steps.push({
       screenshotPath: 'screenshots/03-comment-form.png',
       caption: 'Inline comment form with typed response',
@@ -244,9 +267,10 @@ test.describe.serial('Feature: Review Panel Actions', () => {
       screenshotPath: 'screenshots/05-draft-response-plan.png',
       caption: 'Draft Response Plan button in the review header',
       description:
-        'The "Draft Response Plan" button appears below the Generate/Push buttons when a review ' +
-        'is loaded. Clicking it writes a structured prompt to .broomy/response-plan-prompt.md ' +
-        'that asks the agent to discuss which issues to address, then create a plan in .broomy/plan.md.',
+        'The "Draft Response Plan" button appears when viewing your own PR and there are new ' +
+        'reviewer comments since your last push. Clicking it writes a structured prompt to ' +
+        '.broomy/response-plan-prompt.md that asks the agent to discuss which issues to address, ' +
+        'then create a plan in .broomy/plan.md.',
     })
   })
 })

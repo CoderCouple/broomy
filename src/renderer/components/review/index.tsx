@@ -195,7 +195,7 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
 
   const {
     reviewData, comments, comparison, fetching, waitingForAgent, fetchingStatus,
-    pushing, pushResult, error, showGitignoreModal, unpushedCount,
+    pushing, pushResult, error, showGitignoreModal, unpushedCount, lastPushTime,
     prDescription, prGitHubComments, prCommentsLoading, prCommentsHasMore,
     loadOlderComments, refreshComments,
   } = state
@@ -211,7 +211,13 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
   const showPreReview = isIdle && hasPreReviewContent
   const showPromo = isIdle && !hasPreReviewContent
   const showPushButton = comments.length > 0 && !!session.prNumber
-  const showDraftPlan = !!reviewData && !!session.agentPtyId && prGitHubComments.length > 0
+  // Draft Response Plan: only for your own PR (not review sessions), only if there are
+  // PR comments newer than the last time we pushed comments
+  const hasNewCommentsSinceLastPush = lastPushTime
+    ? prGitHubComments.some(c => c.createdAt > lastPushTime)
+    : prGitHubComments.length > 0
+  const showDraftPlan = !!reviewData && !!session.agentPtyId
+    && session.sessionType !== 'review' && hasNewCommentsSinceLastPush
   const showEmptyState = !reviewData && (fetching || waitingForAgent)
 
   return (

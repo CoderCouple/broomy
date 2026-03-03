@@ -35,6 +35,7 @@ export interface ReviewDataState {
   showGitignoreModal: boolean
   pendingGenerate: boolean
   mergeBase: string
+  lastPushTime: string | null
   unpushedCount: number
   broomyDir: string
   reviewFilePath: string
@@ -59,6 +60,7 @@ export interface ReviewDataState {
   setShowGitignoreModal: React.Dispatch<React.SetStateAction<boolean>>
   setPendingGenerate: React.Dispatch<React.SetStateAction<boolean>>
   setMergeBase: React.Dispatch<React.SetStateAction<string>>
+  setLastPushTime: React.Dispatch<React.SetStateAction<string | null>>
 }
 
 export function useReviewData(sessionId: string, sessionDirectory: string, prBaseBranch?: string, prNumber?: number): ReviewDataState {
@@ -76,6 +78,7 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
   const [showGitignoreModal, setShowGitignoreModal] = useState(false)
   const [pendingGenerate, setPendingGenerate] = useState(false)
   const [mergeBase, setMergeBase] = useState<string>('')
+  const [lastPushTime, setLastPushTime] = useState<string | null>(null)
 
   // GitHub PR data (description + comments)
   const {
@@ -103,6 +106,7 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
       setError(null)
       setPushResult(null)
       setMergeBase('')
+      setLastPushTime(null)
       resetGitHubPrData()
     }
   }, [sessionId, resetGitHubPrData])
@@ -214,6 +218,7 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
     showGitignoreModal,
     pendingGenerate,
     mergeBase,
+    lastPushTime,
     unpushedCount,
     broomyDir,
     prDescription,
@@ -238,5 +243,6 @@ export function useReviewData(sessionId: string, sessionDirectory: string, prBas
     setShowGitignoreModal,
     setPendingGenerate,
     setMergeBase,
+    setLastPushTime,
   }
 }

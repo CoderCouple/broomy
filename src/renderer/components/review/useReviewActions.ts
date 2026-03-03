@@ -171,6 +171,7 @@ export function useReviewActions(
     comments, mergeBase, broomyDir, commentsFilePath, historyFilePath, promptFilePath,
     setFetching, setWaitingForAgent, setFetchingStatus,
     setPushing, setPushResult, setError, setShowGitignoreModal, setPendingGenerate, setComments,
+    setLastPushTime,
   } = state
 
   const proceedWithGeneration = async () => {
@@ -298,6 +299,7 @@ export function useReviewActions(
         setComments(updatedComments)
         await window.fs.writeFile(commentsFilePath, JSON.stringify(updatedComments, null, 2))
         setPushResult(`Pushed ${unpushedComments.length} comment${unpushedComments.length !== 1 ? 's' : ''} as draft review`)
+        setLastPushTime(new Date().toISOString())
       } else {
         setPushResult(`Failed: ${result.error}`)
       }
