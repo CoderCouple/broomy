@@ -30,7 +30,7 @@ describe('useErrorStore', () => {
   it('addError humanizes known error patterns', () => {
     useErrorStore.getState().addError('fatal: Authentication failed for repo')
     const state = useErrorStore.getState()
-    expect(state.errors[0].displayMessage).toBe('Git authentication failed. Check your SSH keys or HTTPS credentials.')
+    expect(state.errors[0].displayMessage).toBe('Git authentication failed. Run "gh auth login" in a terminal to set up credentials.')
     expect(state.errors[0].detail).toBe('fatal: Authentication failed for repo')
   })
 

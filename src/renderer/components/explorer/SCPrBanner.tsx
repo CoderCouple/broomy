@@ -6,6 +6,9 @@ import type { BranchStatus } from '../../store/sessions'
 import { prStateBadgeClass } from '../../utils/explorerHelpers'
 import { humanizeError } from '../../utils/knownErrors'
 import { useErrorStore } from '../../store/errors'
+import { useRepoStore } from '../../store/repos'
+import { AuthSetupSection, isAuthError } from '../AuthSetupSection'
+import { isGitConfigError } from '../GitIdentitySetup'
 
 interface SCPrBannerProps {
   prStatus: GitHubPrStatus
@@ -23,6 +26,7 @@ interface SCPrBannerProps {
   issueNumber?: number
   issueTitle?: string
   issueUrl?: string
+  onRetryGitOp?: () => void
 }
 
 export function SCPrBanner({
@@ -41,8 +45,10 @@ export function SCPrBanner({
   issueNumber,
   issueTitle,
   issueUrl,
+  onRetryGitOp,
 }: SCPrBannerProps) {
   const { showErrorDetail } = useErrorStore()
+  const { ghAvailable } = useRepoStore()
   return (
     <>
       {/* PR Status banner */}
@@ -144,6 +150,13 @@ export function SCPrBanner({
           >
             &times;
           </button>
+        </div>
+      )}
+
+      {/* Auth / identity setup for git operation errors */}
+      {gitOpError && (isAuthError(gitOpError.message) || isGitConfigError(gitOpError.message)) && onRetryGitOp && (
+        <div className="px-3 py-2 border-b border-border">
+          <AuthSetupSection error={gitOpError.message} ghAvailable={ghAvailable} onRetry={onRetryGitOp} retryLabel="Retry" />
         </div>
       )}
     </>

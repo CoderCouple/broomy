@@ -41,6 +41,7 @@ export type GitApi = {
   commitMerge: (repoPath: string) => Promise<{ success: boolean; error?: string }>
   getConfig: (repoPath: string, key: string) => Promise<string | null>
   setConfig: (repoPath: string, key: string, value: string) => Promise<{ success: boolean; error?: string }>
+  setGlobalConfig: (key: string, value: string) => Promise<{ success: boolean; error?: string }>
 }
 
 export const gitApi: GitApi = {
@@ -80,4 +81,5 @@ export const gitApi: GitApi = {
   commitMerge: (repoPath) => ipcRenderer.invoke('git:commitMerge', repoPath),
   getConfig: (repoPath, key) => ipcRenderer.invoke('git:getConfig', repoPath, key),
   setConfig: (repoPath, key, value) => ipcRenderer.invoke('git:setConfig', repoPath, key, value),
+  setGlobalConfig: (key, value) => ipcRenderer.invoke('git:setGlobalConfig', key, value),
 }

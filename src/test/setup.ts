@@ -70,6 +70,7 @@ const mockGit: Mocked<GitApi> = {
   isBehindMain: vi.fn().mockResolvedValue({ behind: 0, defaultBranch: 'main' }),
   getConfig: vi.fn().mockResolvedValue(null),
   setConfig: vi.fn().mockResolvedValue({ success: true }),
+  setGlobalConfig: vi.fn().mockResolvedValue({ success: true }),
 }
 
 // Mock window.app

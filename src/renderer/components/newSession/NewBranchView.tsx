@@ -3,9 +3,11 @@
  */
 import { useState } from 'react'
 import { useAgentStore } from '../../store/agents'
+import { useRepoStore } from '../../store/repos'
 import type { ManagedRepo, GitHubIssue } from '../../../preload/index'
 import { issueToBranchName } from '../../utils/slugify'
 import { DialogErrorBanner } from '../ErrorBanner'
+import { AuthSetupSection } from '../AuthSetupSection'
 
 export function NewBranchView({
   repo,
@@ -19,6 +21,7 @@ export function NewBranchView({
   onComplete: (directory: string, agentId: string | null, extra?: { repoId?: string; issueNumber?: number; issueTitle?: string; issueUrl?: string; name?: string }) => void
 }) {
   const { agents } = useAgentStore()
+  const { ghAvailable } = useRepoStore()
 
   const [branchName, setBranchName] = useState(issue ? issueToBranchName(issue) : '')
   // Use repo's default agent, or fall back to first agent
@@ -38,9 +41,10 @@ export function NewBranchView({
       // Pull latest on main first
       await window.git.pull(mainDir)
 
-      // Create worktree with new branch
+      // Create worktree with new branch — tolerate "already exists" on retry
+      // (e.g. if worktree was created but push failed on first attempt)
       const result = await window.git.worktreeAdd(mainDir, worktreePath, branchName, repo.defaultBranch)
-      if (!result.success) {
+      if (!result.success && !result.error?.includes('already exists')) {
         throw new Error(result.error || 'Failed to create worktree')
       }
 
@@ -137,6 +141,8 @@ export function NewBranchView({
         {error && (
           <DialogErrorBanner error={error} onDismiss={() => setError(null)} />
         )}
+
+        <AuthSetupSection error={error} ghAvailable={ghAvailable} onRetry={handleCreate} retryLabel="Retry Create Branch" />
       </div>
 
       <div className="px-4 py-3 border-t border-border flex justify-end gap-2">

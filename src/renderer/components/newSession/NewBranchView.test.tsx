@@ -3,8 +3,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import '../../../test/react-setup'
 import { useAgentStore } from '../../store/agents'
+import { useRepoStore } from '../../store/repos'
 import { NewBranchView } from './NewBranchView'
 import type { ManagedRepo } from '../../../preload/index'
+
+// Mock AuthTerminal to avoid xterm.js in jsdom
+vi.mock('../AuthTerminal', () => ({
+  AuthTerminal: ({ ptyId, onDone }: { ptyId: string; onDone: () => void }) => (
+    <div data-testid="auth-terminal" data-pty-id={ptyId}>
+      <button onClick={onDone}>Done</button>
+    </div>
+  ),
+}))
 
 const mockRepo: ManagedRepo = {
   id: 'repo-1',
@@ -130,7 +140,7 @@ describe('NewBranchView', () => {
 
   it('shows error when worktree creation fails', async () => {
     vi.mocked(window.git.pull).mockResolvedValue({ success: true })
-    vi.mocked(window.git.worktreeAdd).mockResolvedValue({ success: false, error: 'Branch already exists' })
+    vi.mocked(window.git.worktreeAdd).mockResolvedValue({ success: false, error: 'fatal: invalid reference: main' })
 
     render(
       <NewBranchView repo={mockRepo} onBack={vi.fn()} onComplete={vi.fn()} />
@@ -141,8 +151,7 @@ describe('NewBranchView', () => {
     fireEvent.click(screen.getByText('Create Branch'))
 
     await waitFor(() => {
-      // The error gets humanized by DialogErrorBanner: "already exists" -> "Worktree or branch already exists."
-      expect(screen.getByText(/Worktree or branch already exists/)).toBeTruthy()
+      expect(screen.getByText(/invalid reference/)).toBeTruthy()
     })
   })
 
@@ -190,5 +199,71 @@ describe('NewBranchView', () => {
       <NewBranchView repo={mockRepo} onBack={vi.fn()} onComplete={vi.fn()} />
     )
     expect(screen.getByText('Claude')).toBeTruthy()
+  })
+
+  describe('auth error flow', () => {
+    it('shows "Set up Git Authentication" button on push auth error', async () => {
+      vi.mocked(window.git.pull).mockResolvedValue({ success: true })
+      vi.mocked(window.git.worktreeAdd).mockResolvedValue({ success: true })
+      vi.mocked(window.git.pushNewBranch).mockResolvedValue({
+        success: false,
+        error: 'fatal: could not read Username for \'https://github.com\': terminal prompts disabled',
+      })
+      useRepoStore.setState({ ghAvailable: true })
+
+      render(
+        <NewBranchView repo={mockRepo} onBack={vi.fn()} onComplete={vi.fn()} />
+      )
+
+      const input = screen.getByPlaceholderText('feature/my-feature')
+      fireEvent.change(input, { target: { value: 'feature/auth' } })
+      fireEvent.click(screen.getByText('Create Branch'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Set up Git Authentication')).toBeTruthy()
+      })
+    })
+
+    it('shows "Install GitHub CLI" button on auth error when gh not available', async () => {
+      vi.mocked(window.git.pull).mockResolvedValue({ success: true })
+      vi.mocked(window.git.worktreeAdd).mockResolvedValue({ success: true })
+      vi.mocked(window.git.pushNewBranch).mockResolvedValue({
+        success: false,
+        error: 'Authentication failed for \'https://github.com/user/repo\'',
+      })
+      useRepoStore.setState({ ghAvailable: false })
+
+      render(
+        <NewBranchView repo={mockRepo} onBack={vi.fn()} onComplete={vi.fn()} />
+      )
+
+      const input = screen.getByPlaceholderText('feature/my-feature')
+      fireEvent.change(input, { target: { value: 'feature/auth' } })
+      fireEvent.click(screen.getByText('Create Branch'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Install GitHub CLI')).toBeTruthy()
+      })
+    })
+
+    it('tolerates "already exists" worktree error on retry', async () => {
+      vi.mocked(window.git.pull).mockResolvedValue({ success: true })
+      vi.mocked(window.git.worktreeAdd).mockResolvedValue({ success: false, error: "'feature/auth' already exists" })
+      vi.mocked(window.git.pushNewBranch).mockResolvedValue({ success: true })
+      vi.mocked(window.repos.getInitScript).mockResolvedValue('')
+
+      const onComplete = vi.fn()
+      render(
+        <NewBranchView repo={mockRepo} onBack={vi.fn()} onComplete={onComplete} />
+      )
+
+      const input = screen.getByPlaceholderText('feature/my-feature')
+      fireEvent.change(input, { target: { value: 'feature/auth' } })
+      fireEvent.click(screen.getByText('Create Branch'))
+
+      await waitFor(() => {
+        expect(onComplete).toHaveBeenCalled()
+      })
+    })
   })
 })

@@ -4,10 +4,15 @@
 import { IpcMain } from 'electron'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 import simpleGit from 'simple-git'
 import { statusFromChar } from '../gitStatusParser'
+import { getGitAuthHint } from '../cloneErrorHint'
 import { HandlerContext } from './types'
 import { getScenarioData } from './scenarios'
+
+const execFileAsync = promisify(execFile)
 /** Set env vars to prevent SSH/HTTPS prompts that would hang in Electron. */
 function withNonInteractive(git: ReturnType<typeof simpleGit>) {
   return git.env('GIT_TERMINAL_PROMPT', '0').env('GIT_SSH_COMMAND', 'ssh -o BatchMode=yes')
@@ -194,6 +199,22 @@ async function handleCommitMerge(ctx: HandlerContext, repoPath: string) {
   }
 }
 
+async function appendAuthHint(repoPath: string, errorStr: string): Promise<string> {
+  let url: string | undefined
+  try {
+    const remotes = await simpleGit(repoPath).getRemotes(true)
+    url = remotes.find(r => r.name === 'origin')?.refs.push
+  } catch { /* ignore */ }
+  let ghAvailable = true
+  try {
+    await execFileAsync('gh', ['--version'], { encoding: 'utf-8' })
+  } catch {
+    ghAvailable = false
+  }
+  const hint = getGitAuthHint(errorStr, { url, ghAvailable })
+  return hint ? errorStr + hint : errorStr
+}
+
 async function handlePush(ctx: HandlerContext, repoPath: string) {
   if (ctx.isE2ETest) {
     return { success: true }
@@ -204,7 +225,7 @@ async function handlePush(ctx: HandlerContext, repoPath: string) {
     await git.push()
     return { success: true }
   } catch (error) {
-    return { success: false, error: String(error) }
+    return { success: false, error: await appendAuthHint(repoPath, String(error)) }
   }
 }
 
@@ -218,7 +239,7 @@ async function handlePull(ctx: HandlerContext, repoPath: string) {
     await git.pull()
     return { success: true }
   } catch (error) {
-    return { success: false, error: String(error) }
+    return { success: false, error: await appendAuthHint(repoPath, String(error)) }
   }
 }
 

@@ -6,7 +6,9 @@
  */
 
 const rules: { pattern: RegExp; message: string }[] = [
-  { pattern: /Authentication failed|Permission denied \(publickey\)/i, message: 'Git authentication failed. Check your SSH keys or HTTPS credentials.' },
+  { pattern: /Please tell me who you are|Author identity unknown|empty ident name/i, message: 'Git identity not configured. Set your name and email to use git.' },
+  { pattern: /Need to specify how to reconcile divergent branches|pull\.rebase/i, message: 'Git default merge mode not configured.' },
+  { pattern: /Authentication failed|Permission denied \(publickey\)|could not read Username|terminal prompts disabled/i, message: 'Git authentication failed. Run "gh auth login" in a terminal to set up credentials.' },
   { pattern: /CONFLICT|merge conflict/i, message: 'Merge conflicts detected. Resolve them before continuing.' },
   { pattern: /not a git repository/i, message: 'This directory is not a git repository.' },
   { pattern: /already exists/i, message: 'Worktree or branch already exists.' },

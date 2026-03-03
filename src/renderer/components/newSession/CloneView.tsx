@@ -5,89 +5,9 @@ import { useState, useEffect } from 'react'
 import { useAgentStore } from '../../store/agents'
 import { useRepoStore } from '../../store/repos'
 import { DialogErrorBanner } from '../ErrorBanner'
-import { AuthTerminal } from '../AuthTerminal'
+import { AuthSetupSection } from '../AuthSetupSection'
 import { IsolationSettings } from '../IsolationSettings'
 import type { DockerStatus, DevcontainerStatus } from '../../../preload/index'
-
-const AUTH_ERROR_MARKERS = [
-  'could not authenticate',
-  'Authentication failed',
-  'Permission denied',
-  'could not read Username',
-  'terminal prompts disabled',
-  'Host key verification failed',
-]
-
-function isAuthError(error: string): boolean {
-  return AUTH_ERROR_MARKERS.some((marker) => error.includes(marker))
-}
-
-function AuthSetupSection({
-  error,
-  ghAvailable,
-  onRetryClone,
-}: {
-  error: string | null
-  ghAvailable: boolean | null
-  onRetryClone: () => void
-}) {
-  const [authPtyId, setAuthPtyId] = useState<string | null>(null)
-  const [authCompleted, setAuthCompleted] = useState(false)
-
-  const showAuthButton = error && isAuthError(error) && !authPtyId
-
-  const handleSetupAuth = async () => {
-    if (!ghAvailable) {
-      await window.shell.openExternal('https://cli.github.com')
-      return
-    }
-
-    const id = `auth-setup-${Date.now()}`
-    const homedir = await window.app.homedir()
-    await window.pty.create({ id, cwd: homedir })
-    void window.pty.write(id, 'gh auth login\r')
-    setAuthPtyId(id)
-  }
-
-  const handleAuthDone = () => {
-    setAuthPtyId(null)
-    setAuthCompleted(true)
-  }
-
-  return (
-    <>
-      {showAuthButton && (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSetupAuth}
-            className="px-3 py-1.5 text-xs rounded bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/30 border border-yellow-500/30 transition-colors"
-          >
-            {ghAvailable ? 'Set up Git Authentication' : 'Install GitHub CLI'}
-          </button>
-          {!ghAvailable && (
-            <span className="text-xs text-text-secondary">Install GitHub CLI, then try again</span>
-          )}
-        </div>
-      )}
-
-      {authPtyId && (
-        <AuthTerminal ptyId={authPtyId} onDone={handleAuthDone} />
-      )}
-
-      {authCompleted && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-green-400">Authentication setup complete.</span>
-          <button
-            onClick={onRetryClone}
-            className="px-3 py-1.5 text-xs rounded bg-accent text-white hover:bg-accent/80 transition-colors"
-          >
-            Retry Clone
-          </button>
-        </div>
-      )}
-    </>
-  )
-}
 
 export function CloneView({
   onBack,
@@ -292,7 +212,7 @@ export function CloneView({
           <DialogErrorBanner error={error} onDismiss={() => setError(null)} />
         )}
 
-        <AuthSetupSection error={error} ghAvailable={ghAvailable} onRetryClone={handleClone} />
+        <AuthSetupSection error={error} ghAvailable={ghAvailable} onRetry={handleClone} retryLabel="Retry Clone" />
       </div>
 
       <div className="px-4 py-3 border-t border-border flex justify-end gap-2">

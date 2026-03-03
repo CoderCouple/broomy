@@ -5,7 +5,7 @@ import { IpcMain } from 'electron'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import simpleGit from 'simple-git'
-import { getCloneErrorHint } from '../cloneErrorHint'
+import { getCloneErrorHint, getGitAuthHint } from '../cloneErrorHint'
 import { normalizePath } from '../platform'
 import { HandlerContext, expandHomePath } from './types'
 import { getDefaultBranch } from './gitUtils'
@@ -96,7 +96,20 @@ async function handlePushNewBranch(ctx: HandlerContext, repoPath: string, branch
     await git.push(['--set-upstream', 'origin', branchName])
     return { success: true }
   } catch (error) {
-    return { success: false, error: String(error) }
+    const errorStr = String(error)
+    let url: string | undefined
+    try {
+      const remotes = await simpleGit(expandHomePath(repoPath)).getRemotes(true)
+      url = remotes.find(r => r.name === 'origin')?.refs.push
+    } catch { /* ignore */ }
+    let ghAvailable = true
+    try {
+      await execFileAsync('gh', ['--version'], { encoding: 'utf-8' })
+    } catch {
+      ghAvailable = false
+    }
+    const hint = getGitAuthHint(errorStr, { url, ghAvailable })
+    return { success: false, error: hint ? errorStr + hint : errorStr }
   }
 }
 
