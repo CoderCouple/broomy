@@ -16,6 +16,10 @@ pnpm build           # Build without packaging
 pnpm dist            # Build and package for macOS
 ```
 
+## Shell Commands
+
+**Never use `${}` syntax (shell parameter expansion) in Bash tool calls.** This includes `$(...)` subshells and `${VAR}` variable expansions. These trigger manual approval prompts. Instead, use plain variable references like `$VAR`, pipe chains, or break commands into multiple sequential tool calls.
+
 **Don't run tests or checks manually** — use `/validate` instead. It runs all checks in the right order and fixes failures automatically.
 
 ## Troubleshooting
