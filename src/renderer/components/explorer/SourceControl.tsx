@@ -1,7 +1,7 @@
 /**
  * Top-level source control container that composes the PR banner, view toggle, and sub-views.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { GitFileStatus, GitStatusResult } from '../../../preload/index'
 import type { BranchStatus, PrState } from '../../store/sessions'
 import type { NavigationTarget } from '../../utils/fileNavigation'
@@ -12,6 +12,10 @@ import { SCPrBanner } from './SCPrBanner'
 import { SCCommitsView } from './SCCommitsView'
 import { SCBranchView } from './SCBranchView'
 import { SCWorkingView } from './SCWorkingView'
+import { SkillBanner } from './SkillBanner'
+import { SkillsDialog } from './SkillsDialog'
+import { isSkillBannerDismissed, dismissSkillBanner } from '../../utils/skillBannerState'
+import type { SkillAwarePromptResult } from '../../utils/skillAwarePrompt'
 
 interface SourceControlProps {
   directory?: string
@@ -22,6 +26,7 @@ interface SourceControlProps {
   branchStatus?: BranchStatus
   repoId?: string
   agentPtyId?: string
+  agentId?: string | null
   onUpdatePrState?: (prState: PrState, prNumber?: number, prUrl?: string) => void
   issueNumber?: number
   issueTitle?: string
@@ -42,6 +47,7 @@ export function SourceControl({
   branchStatus,
   repoId,
   agentPtyId,
+  agentId,
   onUpdatePrState,
   issueNumber,
   issueTitle,
@@ -53,10 +59,24 @@ export function SourceControl({
   onOpenReview,
 }: SourceControlProps) {
   const [scView, setScView] = useState<'working' | 'branch' | 'commits'>('working')
+  const [showSkillBanner, setShowSkillBanner] = useState(false)
+  const [showSkillsDialog, setShowSkillsDialog] = useState(false)
 
   // Reset view when directory (session) changes
   useEffect(() => {
     setScView('working')
+    setShowSkillBanner(false)
+  }, [directory])
+
+  const handleSkillCheck = useCallback((result: SkillAwarePromptResult) => {
+    if (result.isClaudeCode && !result.skillExists && directory && !isSkillBannerDismissed(directory)) {
+      setShowSkillBanner(true)
+    }
+  }, [directory])
+
+  const handleDismissBanner = useCallback(() => {
+    if (directory) dismissSkillBanner(directory)
+    setShowSkillBanner(false)
   }, [directory])
 
   const data = useSourceControlData({
@@ -66,7 +86,7 @@ export function SourceControl({
   })
 
   const actions = useSourceControlActions({
-    directory, onGitStatusRefresh, agentPtyId, onRecordPushToMain, data,
+    directory, onGitStatusRefresh, agentPtyId, agentId, onRecordPushToMain, onSkillCheck: handleSkillCheck, data,
   })
 
   if (!directory) return null
@@ -75,7 +95,22 @@ export function SourceControl({
     <SCViewToggle scView={scView} setScView={setScView} />
   )
 
+  const skillsDialog = showSkillsDialog && directory && (
+    <SkillsDialog
+      directory={directory}
+      onClose={() => setShowSkillsDialog(false)}
+      onInstalled={() => setShowSkillBanner(false)}
+    />
+  )
+
   const banners = (
+    <>
+    {showSkillBanner && (
+      <SkillBanner
+        onOpenDialog={() => setShowSkillsDialog(true)}
+        onDismiss={handleDismissBanner}
+      />
+    )}
     <SCPrBanner
       prStatus={data.prStatus}
       isPrLoading={data.isPrLoading}
@@ -93,6 +128,7 @@ export function SourceControl({
       issueTitle={issueTitle}
       issueUrl={issueUrl}
     />
+    </>
   )
 
   if (scView === 'commits') {
@@ -100,6 +136,7 @@ export function SourceControl({
       <div className="flex flex-col h-full">
         {viewToggle}
         {banners}
+        {skillsDialog}
         <SCCommitsView
           directory={directory}
           branchCommits={data.branchCommits}
@@ -120,6 +157,7 @@ export function SourceControl({
       <div className="flex flex-col h-full">
         {viewToggle}
         {banners}
+        {skillsDialog}
         <SCBranchView
           directory={directory}
           branchChanges={data.branchChanges}
@@ -137,6 +175,7 @@ export function SourceControl({
     <div className="flex flex-col h-full">
       {viewToggle}
       {banners}
+      {skillsDialog}
       <SCWorkingView
         directory={directory}
         gitStatus={gitStatus}
@@ -149,6 +188,7 @@ export function SourceControl({
         hasConflicts={syncStatus?.hasConflicts ?? false}
         isCommitting={data.isCommitting}
         isSyncing={data.isSyncing}
+        onCommit={actions.handleCommit}
         onCommitWithAI={actions.handleCommitWithAI}
         onCommitMerge={actions.handleCommitMerge}
         onResolveConflicts={actions.handleResolveConflicts}

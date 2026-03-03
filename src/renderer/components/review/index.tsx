@@ -144,6 +144,43 @@ function PreReviewContent({
   )
 }
 
+function ReviewPanelHeader({ session, fetching, waitingForAgent, reviewData, pushing, unpushedCount, showPushButton, showDraftPlan, error, pushResult, onGenerate, onPush, onOpenPr, onDraftPlan }: {
+  session: Session; fetching: boolean; waitingForAgent: boolean; reviewData: ReviewData | null
+  pushing: boolean; unpushedCount: number; showPushButton: boolean; showDraftPlan: boolean
+  error: string | null; pushResult: string | null
+  onGenerate: () => void; onPush: () => void; onOpenPr: () => void; onDraftPlan: () => void
+}) {
+  return (
+    <div className="px-3 py-2 border-b border-border flex-shrink-0">
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="text-sm font-medium text-text-primary truncate flex-1">
+          {session.prTitle || 'Review'}
+        </h3>
+        {session.prUrl && (
+          <button onClick={onOpenPr} className="text-xs text-accent hover:text-accent/80 flex-shrink-0 transition-colors" title="Open PR on GitHub">
+            #{session.prNumber}
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <GenerateButton fetching={fetching} waitingForAgent={waitingForAgent} reviewData={reviewData} disabled={fetching || waitingForAgent || !session.agentPtyId} onClick={onGenerate} />
+        {showPushButton && (
+          <button onClick={onPush} disabled={pushing || unpushedCount === 0} className="py-1.5 px-2 text-xs rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent disabled:opacity-50 transition-colors" title="Push comments to GitHub as draft review">
+            {pushing ? 'Pushing...' : `Push (${unpushedCount})`}
+          </button>
+        )}
+      </div>
+      {showDraftPlan && (
+        <button onClick={onDraftPlan} className="w-full mt-1.5 py-1 text-xs rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors" title="Ask agent to help draft a response plan for the review findings">
+          Draft Response Plan
+        </button>
+      )}
+      {error && <div className="text-xs text-red-400 mt-1">{error}</div>}
+      {pushResult && <div className="text-xs text-green-400 mt-1">{pushResult}</div>}
+    </div>
+  )
+}
+
 interface ReviewPanelProps {
   session: Session
   repo?: ManagedRepo
@@ -155,14 +192,15 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
 
   const {
     reviewData, comments, fetching, waitingForAgent, fetchingStatus,
-    pushing, pushResult, error, showGitignoreModal, unpushedCount,
+    pushing, pushResult, error, showGitignoreModal, unpushedCount, lastPushTime,
     prDescription, prGitHubComments, prCommentsLoading, prCommentsHasMore,
     loadOlderComments, refreshComments,
   } = state
 
   const {
     handleGenerateReview, handlePushComments, handleDeleteComment, handleOpenPrUrl,
-    handleClickLocation, handleGitignoreAdd, handleGitignoreContinue, handleGitignoreCancel,
+    handleClickLocation, handleExplainIssue, handleAddComment, handleDraftResponsePlan,
+    handleGitignoreAdd, handleGitignoreContinue, handleGitignoreCancel,
   } = useReviewActions(session, repo, onSelectFile, state)
 
   const hasPreReviewContent = !!(prDescription || prGitHubComments.length > 0)
@@ -170,6 +208,14 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
   const showPreReview = isIdle && hasPreReviewContent
   const showPromo = isIdle && !hasPreReviewContent
   const showPushButton = comments.length > 0 && !!session.prNumber
+  // Draft Response Plan: only for your own PR (not review sessions), only if there are
+  // PR comments newer than the last time we pushed comments
+  const hasNewCommentsSinceLastPush = lastPushTime
+    ? prGitHubComments.some(c => c.createdAt > lastPushTime)
+    : prGitHubComments.length > 0
+  const showDraftPlan = !!reviewData && !!session.agentPtyId
+    && session.sessionType !== 'review' && hasNewCommentsSinceLastPush
+  const showEmptyState = !reviewData && (fetching || waitingForAgent)
 
   return (
     <div className="h-full flex flex-col bg-bg-secondary overflow-hidden">
@@ -181,46 +227,17 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
         />
       )}
 
-      <div className="px-3 py-2 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="text-sm font-medium text-text-primary truncate flex-1">
-            {session.prTitle || 'Review'}
-          </h3>
-          {session.prUrl && (
-            <button
-              onClick={handleOpenPrUrl}
-              className="text-xs text-accent hover:text-accent/80 flex-shrink-0 transition-colors"
-              title="Open PR on GitHub"
-            >
-              #{session.prNumber}
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <GenerateButton
-            fetching={fetching}
-            waitingForAgent={waitingForAgent}
-            reviewData={reviewData}
-            disabled={fetching || waitingForAgent || !session.agentPtyId}
-            onClick={handleGenerateReview}
-          />
-          {showPushButton && (
-            <button
-              onClick={handlePushComments}
-              disabled={pushing || unpushedCount === 0}
-              className="py-1.5 px-2 text-xs rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent disabled:opacity-50 transition-colors"
-              title="Push comments to GitHub as draft review"
-            >
-              {pushing ? 'Pushing...' : `Push (${unpushedCount})`}
-            </button>
-          )}
-        </div>
-        {error && <div className="text-xs text-red-400 mt-1">{error}</div>}
-        {pushResult && <div className="text-xs text-green-400 mt-1">{pushResult}</div>}
-      </div>
+      <ReviewPanelHeader
+        session={session} fetching={fetching} waitingForAgent={waitingForAgent}
+        reviewData={reviewData} pushing={pushing} unpushedCount={unpushedCount}
+        showPushButton={showPushButton} showDraftPlan={showDraftPlan}
+        error={error} pushResult={pushResult}
+        onGenerate={handleGenerateReview} onPush={handlePushComments}
+        onOpenPr={handleOpenPrUrl} onDraftPlan={handleDraftResponsePlan}
+      />
 
       <div className="flex-1 overflow-y-auto">
-        {!reviewData && (fetching || waitingForAgent) && (
+        {showEmptyState && (
           <ReviewEmptyState fetching={fetching} waitingForAgent={waitingForAgent} fetchingStatus={fetchingStatus} prBaseBranch={session.prBaseBranch} />
         )}
 
@@ -258,6 +275,8 @@ export default function ReviewPanel({ session, repo, onSelectFile }: ReviewPanel
             prCommentsHasMore={prCommentsHasMore}
             onLoadOlderComments={loadOlderComments}
             onClickLocation={handleClickLocation}
+            onExplainIssue={handleExplainIssue}
+            onAddComment={handleAddComment}
             onDeleteComment={handleDeleteComment}
             repoDir={session.directory}
             prNumber={session.prNumber || 0}

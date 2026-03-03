@@ -149,6 +149,7 @@ export default function FileViewer({ filePath, position = 'top', onPositionChang
                 modifiedContent={viewer.diffModifiedContent !== null ? viewer.diffModifiedContent : (fileStatus === 'deleted' ? '' : viewer.content)}
                 sideBySide={viewer.diffSideBySide}
                 scrollToLine={scrollToLine}
+                reviewContext={reviewContext}
               />
             )
           ) : ViewerComponent ? (

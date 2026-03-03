@@ -2,7 +2,7 @@
  * Chip component that displays issue plan status and allows viewing or requesting a plan.
  */
 import type { NavigationTarget } from '../../utils/fileNavigation'
-import { sendAgentPrompt } from '../../utils/focusHelpers'
+import { sendSkillAwarePrompt } from '../../utils/skillAwarePrompt'
 
 const ClipboardIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -25,10 +25,11 @@ interface IssuePlanChipProps {
   issueNumber?: number
   issuePlanExists?: boolean
   agentPtyId?: string
+  agentId?: string | null
   onFileSelect?: (target: NavigationTarget) => void
 }
 
-export function IssuePlanChip({ directory, issueNumber, issuePlanExists, agentPtyId, onFileSelect }: IssuePlanChipProps) {
+export function IssuePlanChip({ directory, issueNumber, issuePlanExists, agentPtyId, agentId, onFileSelect }: IssuePlanChipProps) {
   if (issuePlanExists) {
     return (
       <div className="px-3 py-1.5 border-b border-border">
@@ -51,7 +52,14 @@ export function IssuePlanChip({ directory, issueNumber, issuePlanExists, agentPt
           onClick={() => {
             if (!agentPtyId) return
             const command = `Read issue #${issueNumber} using \`gh issue view ${issueNumber}\`. Before doing anything, ask me any questions about the issue to clarify requirements and resolve ambiguities. Then write a plan to .broomy/plan.md that includes: a detailed description of what you will do, and any open questions or assumptions.`
-            void sendAgentPrompt(agentPtyId, command)
+            void sendSkillAwarePrompt({
+              action: 'plan-issue',
+              agentPtyId,
+              directory,
+              agentId: agentId ?? null,
+              fallbackPrompt: command,
+              context: { issueNumber },
+            })
           }}
           disabled={!agentPtyId}
           className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded transition-colors ${
