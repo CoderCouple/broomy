@@ -1,6 +1,7 @@
 /**
  * Renders the structured review body including overview, change patterns, issues, and pending comments.
  */
+import { useState } from 'react'
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
@@ -84,6 +85,39 @@ function SinceLastReviewSection({
   )
 }
 
+function InlineCommentForm({ onSubmit, onCancel }: { onSubmit: (text: string) => void; onCancel: () => void }) {
+  const [text, setText] = useState('')
+  return (
+    <div className="mt-2 flex gap-2">
+      <input
+        type="text"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && text.trim()) onSubmit(text.trim())
+          else if (e.key === 'Escape') onCancel()
+        }}
+        placeholder="Type your comment..."
+        className="flex-1 px-2 py-1 text-xs rounded border border-border bg-bg-primary text-text-primary focus:outline-none focus:border-accent"
+        autoFocus
+      />
+      <button
+        onClick={() => text.trim() && onSubmit(text.trim())}
+        disabled={!text.trim()}
+        className="px-2 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 transition-colors"
+      >
+        Add
+      </button>
+      <button
+        onClick={onCancel}
+        className="px-2 py-1 text-xs rounded text-text-secondary hover:text-text-primary transition-colors"
+      >
+        Cancel
+      </button>
+    </div>
+  )
+}
+
 export interface ReviewContentProps {
   reviewData: ReviewData
   comments: PendingComment[]
@@ -95,6 +129,8 @@ export interface ReviewContentProps {
   prCommentsHasMore: boolean
   onLoadOlderComments: () => void
   onClickLocation: (location: CodeLocation) => void
+  onExplainIssue?: (issueId: string) => void
+  onAddComment?: (file: string, line: number, body: string) => Promise<void>
   onDeleteComment: (commentId: string) => void
   repoDir: string
   prNumber: number
@@ -112,11 +148,15 @@ export function ReviewContent({
   prCommentsHasMore,
   onLoadOlderComments,
   onClickLocation,
+  onExplainIssue,
+  onAddComment,
   onDeleteComment,
   repoDir,
   prNumber,
   onRefreshComments,
 }: ReviewContentProps) {
+  const [commentingItemId, setCommentingItemId] = useState<string | null>(null)
+
   return (
     <>
       {reviewData.changesSinceLastReview && (
@@ -165,10 +205,8 @@ export function ReviewContent({
           <div className="space-y-3">
             {reviewData.potentialIssues.map((issue) => (
               <div key={issue.id} className="text-sm">
-                <div className="flex items-center gap-2">
-                  <SeverityBadge severity={issue.severity} />
-                  <span className="font-medium text-text-primary">{issue.title}</span>
-                </div>
+                <SeverityBadge severity={issue.severity} />
+                <div className="font-medium text-text-primary mt-0.5">{issue.title}</div>
                 <div className="text-text-secondary mt-0.5 leading-relaxed">{issue.description}</div>
                 {issue.locations.length > 0 && (
                   <div className="mt-1 space-y-0.5">
@@ -176,6 +214,37 @@ export function ReviewContent({
                       <LocationLink key={i} location={loc} directory={directory} onClick={() => onClickLocation(loc)} />
                     ))}
                   </div>
+                )}
+                {(onExplainIssue || (onAddComment && issue.locations.length > 0)) && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {onExplainIssue && (
+                      <button
+                        onClick={() => onExplainIssue(issue.id)}
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
+                        title="Ask agent to explain this issue"
+                      >
+                        Explain
+                      </button>
+                    )}
+                    {onAddComment && issue.locations.length > 0 && (
+                      <button
+                        onClick={() => setCommentingItemId(commentingItemId === issue.id ? null : issue.id)}
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
+                        title="Add a comment on this issue"
+                      >
+                        Comment
+                      </button>
+                    )}
+                  </div>
+                )}
+                {commentingItemId === issue.id && issue.locations.length > 0 && (
+                  <InlineCommentForm
+                    onSubmit={(text) => {
+                      void onAddComment?.(issue.locations[0].file, issue.locations[0].startLine, text)
+                      setCommentingItemId(null)
+                    }}
+                    onCancel={() => setCommentingItemId(null)}
+                  />
                 )}
               </div>
             ))}

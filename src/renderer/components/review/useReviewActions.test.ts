@@ -2,6 +2,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import '../../../test/react-setup'
+
+vi.mock('../../utils/focusHelpers', () => ({
+  sendAgentPrompt: vi.fn().mockResolvedValue(undefined),
+  focusAgentTerminal: vi.fn(),
+}))
+
+import { sendAgentPrompt } from '../../utils/focusHelpers'
 import { useReviewActions } from './useReviewActions'
 import type { Session } from '../../store/sessions'
 import type { ReviewDataState } from './useReviewData'
@@ -43,6 +50,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     terminalTabs: { tabs: [{ id: 'tab-1', name: 'Terminal' }], activeTabId: 'tab-1' },
     branchStatus: 'in-progress',
     isArchived: false,
+    isRestored: false,
     prNumber: 42,
     prUrl: 'https://github.com/pr/42',
     prBaseBranch: 'main',
@@ -63,6 +71,7 @@ function makeState(overrides: Partial<ReviewDataState> = {}): ReviewDataState {
     showGitignoreModal: false,
     pendingGenerate: false,
     mergeBase: 'abc123',
+    lastPushTime: null,
     unpushedCount: 0,
     broomyDir: '/test/repo/.broomy',
     reviewFilePath: '/test/repo/.broomy/review.json',
@@ -86,6 +95,7 @@ function makeState(overrides: Partial<ReviewDataState> = {}): ReviewDataState {
     setShowGitignoreModal: vi.fn(),
     setPendingGenerate: vi.fn(),
     setMergeBase: vi.fn(),
+    setLastPushTime: vi.fn(),
     ...overrides,
   }
 }

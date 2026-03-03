@@ -26,6 +26,7 @@ export function useReviewFilePoller(options: PollerOptions): void {
   } = options
 
   const lastSeenGeneratedAtRef = useRef<string | null>(null)
+  const lastSeenContentRef = useRef<string | null>(null)
   const lastSeenCommentsRef = useRef<string | null>(null)
 
   // Keep the ref in sync with loaded review data
@@ -66,19 +67,29 @@ export function useReviewFilePoller(options: PollerOptions): void {
           const exists = await window.fs.exists(reviewFilePath)
           if (exists) {
             const content = await window.fs.readFile(reviewFilePath)
+
+            // Skip if raw content hasn't changed at all
+            if (content === lastSeenContentRef.current) {
+              return
+            }
+
             const data = JSON.parse(content) as ReviewData
+            lastSeenContentRef.current = content
 
-            if (data.generatedAt !== lastSeenGeneratedAtRef.current) {
-              if (!data.headCommit) {
-                const headCommit = await window.git.headCommit(sessionDirectory)
-                if (headCommit) {
-                  data.headCommit = headCommit
-                  await window.fs.writeFile(reviewFilePath, JSON.stringify(data, null, 2))
-                }
+            // Always update review data when content differs
+            if (!data.headCommit) {
+              const headCommit = await window.git.headCommit(sessionDirectory)
+              if (headCommit) {
+                data.headCommit = headCommit
+                await window.fs.writeFile(reviewFilePath, JSON.stringify(data, null, 2))
               }
+            }
 
+            setReviewData(data)
+
+            // Only update history and clear waiting state when generatedAt changes
+            if (data.generatedAt !== lastSeenGeneratedAtRef.current) {
               await updateReviewHistory(data)
-              setReviewData(data)
               setWaitingForAgent(false)
             }
           } else if (lastSeenGeneratedAtRef.current !== null) {
