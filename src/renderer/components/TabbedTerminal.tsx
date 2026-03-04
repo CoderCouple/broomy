@@ -7,7 +7,7 @@
  * is persisted in the session store. Context menu provides rename, close, close-others,
  * and close-to-right actions for user tabs.
  */
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import Terminal from './Terminal'
 import TerminalTabBar from './TerminalTabBar'
 import DockerInfoPanel from './DockerInfoPanel'
@@ -114,7 +114,10 @@ interface TabbedTerminalProps {
   agentEnv?: Record<string, string>
   agentResumeCommand?: string
   isRestored?: boolean
-  isolation?: { isolated: boolean; isolationMode?: 'docker' | 'devcontainer'; dockerImage?: string; repoRootDir?: string }
+  isolated: boolean
+  isolationMode?: 'docker' | 'devcontainer'
+  dockerImage?: string
+  repoRootDir?: string
 }
 
 /** Info received when a devcontainer with postAttachCommand is ready. */
@@ -164,11 +167,12 @@ function tabPanelClass(tabId: string, activeTabId: string): string {
 }
 
 /** Renders the terminal panels (Agent, Services, Docker, user tabs). */
-function TerminalPanels({ sessionId, cwd, isActive, activeTabId, agentCommand, agentEnv, agentInstalled, agentResumeCommand, isRestored, isolation, servicesInfo, userTabs }: {
+const TerminalPanels = React.memo(function TerminalPanels({ sessionId, cwd, isActive, activeTabId, agentCommand, agentEnv, agentInstalled, agentResumeCommand, isRestored, isolated, isolationMode, dockerImage, repoRootDir, servicesInfo, userTabs }: {
   sessionId: string; cwd: string; isActive: boolean; activeTabId: string
   agentCommand?: string; agentEnv?: Record<string, string>; agentInstalled: boolean
   agentResumeCommand?: string; isRestored?: boolean
-  isolation?: TabbedTerminalProps['isolation']; servicesInfo: ServicesInfo | null
+  isolated: boolean; isolationMode?: 'docker' | 'devcontainer'; dockerImage?: string; repoRootDir?: string
+  servicesInfo: ServicesInfo | null
   userTabs: TerminalTab[]
 }) {
   return (
@@ -179,8 +183,8 @@ function TerminalPanels({ sessionId, cwd, isActive, activeTabId, agentCommand, a
             sessionId={sessionId} cwd={cwd} command={agentCommand} env={agentEnv}
             isAgentTerminal={!!agentCommand} isActive={isActive && activeTabId === AGENT_TAB_ID}
             agentNotInstalled={!!agentCommand && !agentInstalled} agentResumeCommand={agentResumeCommand}
-            isRestored={isRestored} isolated={isolation?.isolated} isolationMode={isolation?.isolationMode}
-            dockerImage={isolation?.dockerImage} repoRootDir={isolation?.repoRootDir}
+            isRestored={isRestored} isolated={isolated} isolationMode={isolationMode}
+            dockerImage={dockerImage} repoRootDir={repoRootDir}
           />
         </PanelErrorBoundary>
       </div>
@@ -190,14 +194,14 @@ function TerminalPanels({ sessionId, cwd, isActive, activeTabId, agentCommand, a
             <Terminal
               sessionId={`services-${sessionId}`} cwd={cwd} command={servicesInfo.postAttachCommand}
               isServicesTerminal isActive={isActive && activeTabId === SERVICES_TAB_ID}
-              isolated isolationMode="devcontainer" repoRootDir={isolation?.repoRootDir}
+              isolated isolationMode="devcontainer" repoRootDir={repoRootDir}
             />
           </PanelErrorBoundary>
         </div>
       )}
-      {isolation?.isolated && (
+      {isolated && (
         <div className={tabPanelClass(DOCKER_TAB_ID, activeTabId)}>
-          <DockerInfoPanel repoDir={isolation.repoRootDir || cwd} isolationMode={isolation.isolationMode} />
+          <DockerInfoPanel repoDir={repoRootDir || cwd} isolationMode={isolationMode} />
         </div>
       )}
       {userTabs.map((tab) => (
@@ -206,18 +210,18 @@ function TerminalPanels({ sessionId, cwd, isActive, activeTabId, agentCommand, a
             <Terminal
               sessionId={`user-${sessionId}-${tab.id}`} cwd={cwd}
               isActive={isActive && tab.id === activeTabId} isolated={tab.isolated}
-              isolationMode={tab.isolated ? isolation?.isolationMode : undefined}
-              dockerImage={tab.isolated ? isolation?.dockerImage : undefined}
-              repoRootDir={tab.isolated ? isolation?.repoRootDir : undefined}
+              isolationMode={tab.isolated ? isolationMode : undefined}
+              dockerImage={tab.isolated ? dockerImage : undefined}
+              repoRootDir={tab.isolated ? repoRootDir : undefined}
             />
           </PanelErrorBoundary>
         </div>
       ))}
     </div>
   )
-}
+})
 
-export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand, agentEnv, agentResumeCommand, isRestored, isolation }: TabbedTerminalProps) {
+export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand, agentEnv, agentResumeCommand, isRestored, isolated, isolationMode, dockerImage, repoRootDir }: TabbedTerminalProps) {
   // Targeted selector: only re-render when this session's terminalTabs change
   const terminalTabs = useSessionStore((state) => {
     const session = state.sessions.find((s) => s.id === sessionId)
@@ -240,7 +244,7 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
   // Build the combined tab list: Agent tab first, then optional Services tab, then optional Docker tab, then user tabs
   const agentTab = { id: AGENT_TAB_ID, name: 'Agent' }
   const servicesTab = servicesInfo ? { id: SERVICES_TAB_ID, name: 'Services' } : null
-  const dockerTab = isolation?.isolated ? { id: DOCKER_TAB_ID, name: isolation.isolationMode === 'devcontainer' ? '(devcontainer)' : '(docker)' } : null
+  const dockerTab = isolated ? { id: DOCKER_TAB_ID, name: isolationMode === 'devcontainer' ? '(devcontainer)' : '(docker)' } : null
   const allTabs = [agentTab, ...(servicesTab ? [servicesTab] : []), ...(dockerTab ? [dockerTab] : []), ...userTabs]
   const activeTabId = storedActiveTabId ?? AGENT_TAB_ID
 
@@ -283,7 +287,7 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
   // Focus edit input when editing
   useEffect(() => { if (editingTabId && editInputRef.current) { editInputRef.current.focus(); editInputRef.current.select() } }, [editingTabId])
 
-  const handleAddTab = useCallback(() => { if (isolation?.isolated) { setShowAddMenu(prev => !prev) } else { addTerminalTab(sessionId) } }, [sessionId, addTerminalTab, isolation])
+  const handleAddTab = useCallback(() => { if (isolated) { setShowAddMenu(prev => !prev) } else { addTerminalTab(sessionId) } }, [sessionId, addTerminalTab, isolated])
   const handleAddLocalTab = useCallback(() => { addTerminalTab(sessionId); setShowAddMenu(false) }, [sessionId, addTerminalTab])
   const handleAddContainerTab = useCallback(() => { addTerminalTab(sessionId, undefined, true); setShowAddMenu(false) }, [sessionId, addTerminalTab])
   const handleTabClick = useCallback((tabId: string) => { setActiveTerminalTab(sessionId, tabId) }, [sessionId, setActiveTerminalTab])
@@ -376,7 +380,8 @@ export default function TabbedTerminal({ sessionId, cwd, isActive, agentCommand,
         sessionId={sessionId} cwd={cwd} isActive={isActive} activeTabId={activeTabId}
         agentCommand={agentCommand} agentEnv={agentEnv} agentInstalled={agentInstalled}
         agentResumeCommand={agentResumeCommand} isRestored={isRestored}
-        isolation={isolation} servicesInfo={servicesInfo} userTabs={userTabs}
+        isolated={isolated} isolationMode={isolationMode} dockerImage={dockerImage} repoRootDir={repoRootDir}
+        servicesInfo={servicesInfo} userTabs={userTabs}
       />
     </div>
   )

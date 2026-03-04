@@ -365,9 +365,6 @@ export function useTerminalSetup(
       const entry = entries[0] as ResizeObserverEntry | undefined
       if (!entry || entry.contentRect.width === 0 || entry.contentRect.height === 0) return
       try { fitAddon.fit() } catch { /* ignore */ }
-      if (s.isFollowingRef.current) {
-        terminal.scrollToBottom()
-      }
       if (ptyResizeTimeout) clearTimeout(ptyResizeTimeout)
       ptyResizeTimeout = setTimeout(() => {
         if (s.ptyIdRef.current && terminal.cols > 0 && terminal.rows > 0) {
