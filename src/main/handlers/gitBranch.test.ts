@@ -39,7 +39,7 @@ vi.mock('./types', async (importOriginal) => {
 })
 
 import { register } from './gitBranch'
-import { getCloneErrorHint, getGitAuthHint } from '../cloneErrorHint'
+import { getCloneErrorHint } from '../cloneErrorHint'
 import { E2EScenario, type HandlerContext } from './types'
 
 function createMockCtx(overrides: Partial<HandlerContext> = {}): HandlerContext {
