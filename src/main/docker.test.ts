@@ -495,6 +495,226 @@ describe('constants', () => {
   })
 })
 
+describe('isDockerAvailable', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns available: true when docker version succeeds', async () => {
+    const { isDockerAvailable } = await import('./docker')
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null, result: { stdout: string }) => void) => {
+      cb(null, { stdout: '24.0.7' })
+    })
+
+    const result = await isDockerAvailable()
+    expect(result).toEqual({ available: true })
+    expect(mockExecFile).toHaveBeenCalledWith(
+      'docker',
+      ['version', '--format', '{{.Server.Version}}'],
+      expect.any(Function),
+    )
+  })
+
+  it('returns not-installed error on ENOENT', async () => {
+    const { isDockerAvailable } = await import('./docker')
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null) => void) => {
+      cb(new Error('spawn docker ENOENT'))
+    })
+
+    const result = await isDockerAvailable()
+    expect(result.available).toBe(false)
+    expect(result.error).toBe('Docker is not installed')
+    expect(result.installUrl).toBeTruthy()
+  })
+
+  it('returns not-installed error when command not found', async () => {
+    const { isDockerAvailable } = await import('./docker')
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null) => void) => {
+      cb(new Error('not found'))
+    })
+
+    const result = await isDockerAvailable()
+    expect(result.available).toBe(false)
+    expect(result.error).toBe('Docker is not installed')
+  })
+
+  it('returns daemon-not-running for connection errors', async () => {
+    const { isDockerAvailable } = await import('./docker')
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null) => void) => {
+      cb(new Error('Cannot connect to Docker daemon'))
+    })
+
+    const result = await isDockerAvailable()
+    expect(result.available).toBe(false)
+    expect(result.error).toBe('Docker daemon is not running')
+  })
+})
+
+describe('isSetupLockHeld', () => {
+  it('returns false when no lock held', async () => {
+    const { isSetupLockHeld } = await import('./docker')
+    expect(isSetupLockHeld('/unique/path-' + Date.now())).toBe(false)
+  })
+
+  it('returns true while lock is held', async () => {
+    const { isSetupLockHeld, acquireSetupLock } = await import('./docker')
+    const path = '/test/held-' + Date.now()
+    const releasePromise = acquireSetupLock(path)
+    expect(isSetupLockHeld(path)).toBe(true)
+    const release = await releasePromise
+    release()
+  })
+})
+
+describe('stopContainer', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('removes repo from dockerContainers and stops the container', async () => {
+    const { stopContainer } = await import('./docker')
+    const ctx = createCtx()
+    ctx.dockerContainers.set('/my/repo', { containerId: 'abc', repoDir: '/my/repo', image: 'node:22' })
+
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null, result: { stdout: string }) => void) => {
+      cb(null, { stdout: '' })
+    })
+
+    await stopContainer(ctx, '/my/repo')
+    expect(ctx.dockerContainers.has('/my/repo')).toBe(false)
+    expect(mockExecFile).toHaveBeenCalledWith('docker', expect.arrayContaining(['stop']), expect.any(Function))
+  })
+
+  it('ignores errors when container is already gone', async () => {
+    const { stopContainer } = await import('./docker')
+    const ctx = createCtx()
+
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null) => void) => {
+      cb(new Error('No such container'))
+    })
+
+    await expect(stopContainer(ctx, '/my/repo')).resolves.toBeUndefined()
+  })
+})
+
+describe('resetContainer', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('removes repo from dockerContainers and force-removes the container', async () => {
+    const { resetContainer } = await import('./docker')
+    const ctx = createCtx()
+    ctx.dockerContainers.set('/my/repo', { containerId: 'abc', repoDir: '/my/repo', image: 'node:22' })
+
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null, result: { stdout: string }) => void) => {
+      cb(null, { stdout: '' })
+    })
+
+    await resetContainer(ctx, '/my/repo')
+    expect(ctx.dockerContainers.has('/my/repo')).toBe(false)
+    expect(mockExecFile).toHaveBeenCalledWith('docker', expect.arrayContaining(['rm', '-f']), expect.any(Function))
+  })
+
+  it('ignores errors when container is already gone', async () => {
+    const { resetContainer } = await import('./docker')
+    const ctx = createCtx()
+
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null) => void) => {
+      cb(new Error('No such container'))
+    })
+
+    await expect(resetContainer(ctx, '/my/repo')).resolves.toBeUndefined()
+  })
+})
+
+describe('getContainerInfo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns null when no container tracked for repo', async () => {
+    const { getContainerInfo } = await import('./docker')
+    const ctx = createCtx()
+
+    const result = await getContainerInfo(ctx, '/my/repo')
+    expect(result).toBeNull()
+  })
+
+  it('returns running container info with truncated id', async () => {
+    const { getContainerInfo } = await import('./docker')
+    const ctx = createCtx()
+    ctx.dockerContainers.set('/my/repo', {
+      containerId: 'abc123def456789extra',
+      repoDir: '/my/repo',
+      image: 'node:22-slim',
+    })
+
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null, result: { stdout: string }) => void) => {
+      cb(null, { stdout: 'running\n' })
+    })
+
+    const result = await getContainerInfo(ctx, '/my/repo')
+    expect(result).toEqual({
+      containerId: 'abc123def456',
+      status: 'running',
+      image: 'node:22-slim',
+      repoDir: '/my/repo',
+    })
+  })
+
+  it('returns starting status for created containers', async () => {
+    const { getContainerInfo } = await import('./docker')
+    const ctx = createCtx()
+    ctx.dockerContainers.set('/my/repo', {
+      containerId: 'abc123def456',
+      repoDir: '/my/repo',
+      image: 'node:22-slim',
+    })
+
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null, result: { stdout: string }) => void) => {
+      cb(null, { stdout: 'created\n' })
+    })
+
+    const result = await getContainerInfo(ctx, '/my/repo')
+    expect(result!.status).toBe('starting')
+  })
+
+  it('returns stopped status for exited containers', async () => {
+    const { getContainerInfo } = await import('./docker')
+    const ctx = createCtx()
+    ctx.dockerContainers.set('/my/repo', {
+      containerId: 'abc123def456',
+      repoDir: '/my/repo',
+      image: 'node:22-slim',
+    })
+
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null, result: { stdout: string }) => void) => {
+      cb(null, { stdout: 'exited\n' })
+    })
+
+    const result = await getContainerInfo(ctx, '/my/repo')
+    expect(result!.status).toBe('stopped')
+  })
+
+  it('returns null when docker inspect fails (container gone)', async () => {
+    const { getContainerInfo } = await import('./docker')
+    const ctx = createCtx()
+    ctx.dockerContainers.set('/my/repo', {
+      containerId: 'abc123def456',
+      repoDir: '/my/repo',
+      image: 'node:22-slim',
+    })
+
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], cb: (err: Error | null) => void) => {
+      cb(new Error('No such container'))
+    })
+
+    const result = await getContainerInfo(ctx, '/my/repo')
+    expect(result).toBeNull()
+  })
+})
+
 describe('stopAllContainers', () => {
   it('stops all broomy containers and clears the map', async () => {
     const ctx = createCtx()
