@@ -19,13 +19,15 @@ async function resolveIncludes(content: string, broomyDir: string): Promise<stri
   if (matches.length === 0) return content
 
   let result = content
+  const repoDir = broomyDir.replace(/\/\.broomy$/, '')
   for (const match of matches) {
     const relativePath = match[1]
-    // Resolve relative to the repo root (broomyDir is <repo>/.broomy)
-    const repoDir = broomyDir.replace(/\/\.broomy$/, '')
-    const fullPath = relativePath.startsWith('/')
-      ? relativePath
-      : `${repoDir}/${relativePath}`
+    // Only allow paths relative to the repo — reject absolute paths and traversal
+    if (relativePath.startsWith('/') || relativePath.includes('..')) {
+      result = result.replace(match[0], `*Blocked: ${relativePath} (must be relative to repo)*`)
+      continue
+    }
+    const fullPath = `${repoDir}/${relativePath}`
 
     try {
       const exists = await window.fs.exists(fullPath)
@@ -57,6 +59,11 @@ export function useReviewFilePoller(options: PollerOptions): void {
   const lastSeenResolvedRef = useRef<string | null>(null)
 
   useEffect(() => {
+    // Reset refs when session changes to avoid skipping updates for sessions
+    // that happen to have identical review content
+    lastSeenContentRef.current = null
+    lastSeenResolvedRef.current = null
+
     const broomyDir = `${sessionDirectory}/.broomy`
 
     const interval = setInterval(() => {

@@ -13,16 +13,22 @@ import { createMarkdownComponents } from '../../utils/markdownComponents'
 import { useReviewData } from './useReviewData'
 import { useReviewActions } from './useReviewActions'
 
-/** Split markdown into sections by `## ` headings */
+/** Split markdown into sections by `## ` headings (skipping headings inside fenced code blocks) */
 function splitMarkdownSections(markdown: string): { title: string; body: string }[] {
   const lines = markdown.split('\n')
   const sections: { title: string; body: string }[] = []
   let currentTitle: string | null = null
   let currentLines: string[] = []
   let preambleLines: string[] = []
+  let inCodeBlock = false
 
   for (const line of lines) {
-    if (line.startsWith('## ')) {
+    // Track fenced code blocks (``` or ~~~)
+    if (/^(`{3,}|~{3,})/.test(line.trimStart())) {
+      inCodeBlock = !inCodeBlock
+    }
+
+    if (!inCodeBlock && line.startsWith('## ')) {
       if (currentTitle !== null) {
         sections.push({ title: currentTitle, body: currentLines.join('\n').trim() })
       } else if (currentLines.length > 0) {

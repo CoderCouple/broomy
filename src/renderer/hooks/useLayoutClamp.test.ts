@@ -174,8 +174,11 @@ describe('useLayoutClamp', () => {
       tutorialPanelWidth: TUTORIAL_MIN,
     }
     // Total small enough that sidebar needs shrinking
+    // 3 visible panels = 3 dividers × 6px = 18px
+    const DIVIDER_WIDTH = 6
+    const dividers = 3 * DIVIDER_WIDTH
     const usedByPanels = EXPLORER_MIN + TUTORIAL_MIN
-    const totalWidth = usedByPanels + 300 + AGENT_MIN_WIDTH - 50 // 50px deficit
+    const totalWidth = usedByPanels + dividers + 300 + AGENT_MIN_WIDTH - 50 // 50px deficit
     const ref = makeRef(totalWidth)
     const onSidebarWidthChange = vi.fn()
 
@@ -240,8 +243,9 @@ describe('useLayoutClamp', () => {
   })
 
   it('handles only sidebar visible', () => {
-    // Total = 350, sidebar=200 → agent = 150, need to recover 50
-    const ref = makeRef(350)
+    // Total = 356, sidebar=200, 1 divider=6 → agent = 150, need to recover 50
+    const DIVIDER_WIDTH = 6
+    const ref = makeRef(350 + DIVIDER_WIDTH)
     const onSidebarWidthChange = vi.fn()
 
     renderHook(() =>
@@ -263,8 +267,9 @@ describe('useLayoutClamp', () => {
   })
 
   it('handles only explorer visible', () => {
-    // Total = 400, explorer=250 → agent = 150, deficit = 50
-    const ref = makeRef(400)
+    // Total = 406, explorer=250, 1 divider=6 → agent = 150, deficit = 50
+    const DIVIDER_WIDTH = 6
+    const ref = makeRef(400 + DIVIDER_WIDTH)
     const onLayoutSizeChange = vi.fn()
 
     renderHook(() =>

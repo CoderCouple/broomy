@@ -324,6 +324,7 @@ export function useTerminalSetup(
 
     const id = `${sessionId}-${Date.now()}`
     s.ptyIdRef.current = id
+    let isStale = false
 
     // Register onData/onExit listeners BEFORE pty.create() so we don't miss
     // early messages from container setup (which fires async immediately).
@@ -345,10 +346,13 @@ export function useTerminalSetup(
       }
     })
 
-    s.cleanupRef.current = () => { dataHandler.clearTimers(); removeDataListener(); removeExitListener() }
+    s.cleanupRef.current = () => { isStale = true; dataHandler.clearTimers(); removeDataListener(); removeExitListener() }
 
     window.pty.create({ id, cwd: effectCwd, command: cmd, sessionId, env: envVars, shell: defaultShell || undefined, isolated: s.isolatedRef.current, isolationMode: s.isolationModeRef.current, dockerImage: s.dockerImageRef.current, repoRootDir: s.repoRootDirRef.current })
       .then(() => {
+        // Guard against stale effect: terminal may have been disposed during async setup
+        if (isStale) return
+
         if (isAgentTerminal && sessionId) s.setAgentPtyId(sessionId, id)
 
         terminal.onData((data) => {
@@ -358,6 +362,7 @@ export function useTerminalSetup(
         })
       })
       .catch((err: unknown) => {
+        if (isStale) return
         const errorMsg = `Failed to start terminal: ${err instanceof Error ? err.message : String(err)}`
         s.addErrorRef.current(errorMsg)
         terminal.write(`\r\n\x1b[31mError: Failed to start terminal\x1b[0m\r\n`)

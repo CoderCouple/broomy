@@ -479,6 +479,7 @@ app.on('will-quit', () => {
 })
 
 function stopDockerContainers() {
+  // Stop broomy-managed containers (lightweight Docker isolation)
   try {
     const ids = execFileSync('docker', ['ps', '-q', '--filter', 'name=broomy-'], { encoding: 'utf-8' }).trim()
     if (ids) {
@@ -486,6 +487,14 @@ function stopDockerContainers() {
     }
   } catch {
     // Docker not available or already stopped — ignore
+  }
+  // Stop any tracked devcontainers that aren't caught by the name filter
+  for (const [, state] of context.dockerContainers) {
+    try {
+      execFileSync('docker', ['stop', state.containerId], { timeout: 10000 })
+    } catch {
+      // Already stopped or gone — ignore
+    }
   }
   context.dockerContainers.clear()
 }

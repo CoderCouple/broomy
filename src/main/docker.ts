@@ -43,9 +43,12 @@ const AGENT_INSTALL_COMMANDS: Record<string, string> = {
  */
 const setupLocks = new Map<string, Promise<void>>()
 
+/** Track which repos have an active (unresolved) lock. */
+const activeLocks = new Set<string>()
+
 /** Check if a setup lock is currently held for a repo. */
 export function isSetupLockHeld(repoDir: string): boolean {
-  return setupLocks.has(repoDir)
+  return activeLocks.has(repoDir)
 }
 
 /** Acquire a per-repo lock. Returns a release function. */
@@ -54,7 +57,18 @@ export function acquireSetupLock(repoDir: string): Promise<() => void> {
   let release: () => void
   const next = new Promise<void>((resolve) => { release = resolve })
   setupLocks.set(repoDir, next)
-  return prev.then(() => release!)
+  activeLocks.add(repoDir)
+  return prev.then(() => {
+    // Return a release function that resolves the lock and cleans up
+    return () => {
+      activeLocks.delete(repoDir)
+      // Clean up the map entry if no new waiter has queued behind us
+      if (setupLocks.get(repoDir) === next) {
+        setupLocks.delete(repoDir)
+      }
+      release!()
+    }
+  })
 }
 
 /** Deterministic container name based on repo path. Uses the directory basename
@@ -203,12 +217,18 @@ export async function ensureAgentInstalled(
   // For agents with known install paths (e.g. claude → ~/.local/bin/claude),
   // check the path directly since it may not be in the container's default PATH.
   // For others, use a login shell so PATH extensions from .bashrc/.profile are loaded.
+  // Validate agentCommand to prevent shell injection (it's passed to bash -c)
+  if (!/^[a-zA-Z0-9._\-/]+$/.test(agentCommand)) {
+    return { success: false, error: `Invalid agent command name: ${agentCommand}` }
+  }
+
   const knownPath = AGENT_KNOWN_PATHS[agentCommand]
   try {
     if (knownPath) {
       await execFileAsync('docker', ['exec', ...userArgs, containerId, 'test', '-x', knownPath])
     } else {
-      await execFileAsync('docker', ['exec', ...userArgs, containerId, 'bash', '-l', '-c', `which ${agentCommand}`])
+      // Use 'which' as a direct command instead of via bash -c to avoid injection
+      await execFileAsync('docker', ['exec', ...userArgs, containerId, 'which', agentCommand])
     }
     return { success: true }
   } catch {

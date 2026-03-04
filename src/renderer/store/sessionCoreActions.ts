@@ -310,11 +310,21 @@ export function createCoreActions(get: StoreGet, set: StoreSet) {
 
     removeSession: (id: string) => {
       const { sessions, activeSessionId } = get()
+      const removedIndex = sessions.findIndex((s) => s.id === id)
       const updatedSessions = sessions.filter((s) => s.id !== id)
 
       let newActiveId = activeSessionId
-      if (activeSessionId === id) {
-        newActiveId = updatedSessions.length > 0 ? updatedSessions[0].id : null
+      if (activeSessionId === id && updatedSessions.length > 0) {
+        // Prefer the next non-archived session, then previous, then any
+        const nextIndex = Math.min(removedIndex, updatedSessions.length - 1)
+        const candidates = [
+          ...updatedSessions.slice(nextIndex),
+          ...updatedSessions.slice(0, nextIndex),
+        ]
+        const nonArchived = candidates.find((s) => !s.isArchived)
+        newActiveId = nonArchived?.id ?? candidates[0].id
+      } else if (updatedSessions.length === 0) {
+        newActiveId = null
       }
 
       set({

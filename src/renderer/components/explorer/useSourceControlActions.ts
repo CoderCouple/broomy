@@ -30,6 +30,8 @@ interface GitActionsConfig {
 }
 
 function createGitActions(config: GitActionsConfig) {
+  // onRecordPushToMain is intentionally unused — push-to-main is delegated to
+  // the agent via sendSkillAwarePrompt and the commit hash is tracked elsewhere.
   const { directory, onGitStatusRefresh, agentPtyId, agentId, onSkillCheck, data, sessionId } = config
   const {
     setIsSyncing, setIsSyncingWithMain, setGitOpError,
@@ -40,6 +42,12 @@ function createGitActions(config: GitActionsConfig) {
 
   const handleSync = async () => {
     if (!directory) return
+
+    if (gitStatus.length > 0) {
+      setGitOpError({ operation: 'Sync', message: 'Commit or stash changes before syncing' })
+      return
+    }
+
     setIsSyncing(true)
     setGitOpError(null)
     try {
@@ -107,34 +115,40 @@ function createGitActions(config: GitActionsConfig) {
     onSkillCheck?.(result)
   }
 
+  let isCreatingPr = false
   const handleCreatePr = async () => {
-    if (!directory || !agentPtyId) return
+    if (!directory || !agentPtyId || isCreatingPr) return
+    isCreatingPr = true
 
-    const broomyDir = `${directory}/.broomy`
-    const promptPath = `${broomyDir}/create-pr-prompt.md`
-    const prResultPath = `${broomyDir}/pr-result.json`
-    const baseBranch = branchBaseName || 'main'
+    try {
+      const broomyDir = `${directory}/.broomy`
+      const promptPath = `${broomyDir}/create-pr-prompt.md`
+      const prResultPath = `${broomyDir}/pr-result.json`
+      const baseBranch = branchBaseName || 'main'
 
-    // Ensure .broomy directory exists
-    await window.fs.mkdir(broomyDir)
+      // Ensure .broomy directory exists
+      await window.fs.mkdir(broomyDir)
 
-    // Remove stale pr-result.json so the watcher doesn't trigger on old data
-    await window.fs.rm(prResultPath)
+      // Remove stale pr-result.json so the watcher doesn't trigger on old data
+      await window.fs.rm(prResultPath)
 
-    // Write the prompt file
-    const prompt = buildCreatePrPrompt(baseBranch)
-    await window.fs.writeFile(promptPath, prompt)
+      // Write the prompt file
+      const prompt = buildCreatePrPrompt(baseBranch)
+      await window.fs.writeFile(promptPath, prompt)
 
-    // Send instruction to agent (skill-aware)
-    const fallback = 'Please read and follow the instructions in .broomy/create-pr-prompt.md'
-    const result = await sendSkillAwarePrompt({
-      action: 'create-pr',
-      agentPtyId,
-      directory,
-      agentId: agentId ?? null,
-      fallbackPrompt: fallback,
-    })
-    onSkillCheck?.(result)
+      // Send instruction to agent (skill-aware)
+      const fallback = 'Please read and follow the instructions in .broomy/create-pr-prompt.md'
+      const result = await sendSkillAwarePrompt({
+        action: 'create-pr',
+        agentPtyId,
+        directory,
+        agentId: agentId ?? null,
+        fallbackPrompt: fallback,
+      })
+      onSkillCheck?.(result)
+    } finally {
+      isCreatingPr = false
+    }
   }
 
   const handlePushNewBranch = async (branchName: string) => {

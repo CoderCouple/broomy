@@ -108,6 +108,7 @@ async function handleExists(ctx: HandlerContext, filePath: string) {
     if (/\.broomy[/\\]review\.md$/.exec(filePath)) {
       return true
     }
+    // Fall through to real fs for other paths (e.g. .git directory checks)
   }
   try {
     await access(filePath)
@@ -259,6 +260,7 @@ function handleUnwatch(ctx: HandlerContext, id: string) {
   if (watcher) {
     watcher.close()
     ctx.fileWatchers.delete(id)
+    ctx.watcherOwnerWindows.delete(id)
   }
   return { success: true }
 }

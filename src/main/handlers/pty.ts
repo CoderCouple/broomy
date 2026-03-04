@@ -12,7 +12,7 @@ import type { IPty } from 'node-pty'
 import { isWindows, getDefaultShell, resolveWindowsCommand } from '../platform'
 import { HandlerContext } from './types'
 import { getScenarioData } from './scenarios'
-import { isDockerAvailable, ensureContainer, buildDockerExecArgs, dockerSetupMessage, imageExists, ensureAgentInstalled, setupContainer, acquireSetupLock, isSetupLockHeld, DEFAULT_DOCKER_IMAGE } from '../docker'
+import { isDockerAvailable, ensureContainer, buildDockerExecArgs, dockerSetupMessage, imageExists, ensureAgentInstalled, setupContainer, acquireSetupLock, isSetupLockHeld, resetContainer, DEFAULT_DOCKER_IMAGE } from '../docker'
 import { isDevcontainerCliAvailable, hasDevcontainerConfig, devcontainerUp, buildDevcontainerExecArgs, devcontainerSetupMessage } from '../devcontainer'
 
 /**
@@ -107,6 +107,7 @@ function createIsolatedPty(
   // Phase 2 (async): Container setup, agent install, PTY start
   // Uses a per-repo lock so concurrent sessions wait for the first to finish
   // setup rather than racing on container creation and agent install.
+  pendingSetups.add(id)
   const asyncSetup = async () => {
     sendToTerminal('\x1b[2m── Starting container for agent ──\x1b[22m\r\n')
 
@@ -155,6 +156,8 @@ function createIsolatedPty(
       if (result.isNew) {
         const setupResult = await setupContainer(containerId, sendToTerminal)
         if (!setupResult.success) {
+          // Remove the half-initialized container so the next attempt starts fresh
+          await resetContainer(ctx, containerKey)
           displayTerminalError(id,
             `Container setup failed: ${setupResult.error || 'Unknown error'}`,
             senderWindow)
@@ -176,6 +179,9 @@ function createIsolatedPty(
     } finally {
       releaseLock()
     }
+
+    // Check if session was killed during async setup
+    if (!pendingSetups.has(id)) return
 
     sendToTerminal('\x1b[2m── Container ready ──\x1b[22m\r\n\r\n')
 
@@ -205,11 +211,19 @@ function createIsolatedPty(
       cwd: process.cwd(),
       env: process.env as Record<string, string>,
     })
+
+    // Final check: session may have been killed between spawn and wire
+    if (!pendingSetups.has(id)) {
+      ptyProcess.kill()
+      return
+    }
+    pendingSetups.delete(id)
     wirePtyEvents(ctx, ptyProcess, id, senderWindow)
   }
 
   // Fire and forget — errors are sent to the terminal
   asyncSetup().catch((err: unknown) => {
+    pendingSetups.delete(id)
     displayTerminalError(id, `Unexpected error: ${err instanceof Error ? err.message : String(err)}`, senderWindow)
   })
 
@@ -238,6 +252,7 @@ function createDevcontainerPty(
     }
   }
 
+  pendingSetups.add(id)
   const asyncSetup = async () => {
     sendToTerminal('\x1b[2m── Starting dev container ──\x1b[22m\r\n')
 
@@ -304,6 +319,9 @@ function createDevcontainerPty(
       releaseLock()
     }
 
+    // Check if session was killed during async setup
+    if (!pendingSetups.has(id)) return
+
     sendToTerminal('\x1b[2m── Dev container ready ──\x1b[22m\r\n\r\n')
 
     // Notify renderer about devcontainer readiness (for Services tab)
@@ -339,10 +357,18 @@ function createDevcontainerPty(
       cwd: process.cwd(),
       env: process.env as Record<string, string>,
     })
+
+    // Final check: session may have been killed between spawn and wire
+    if (!pendingSetups.has(id)) {
+      ptyProcess.kill()
+      return
+    }
+    pendingSetups.delete(id)
     wirePtyEvents(ctx, ptyProcess, id, senderWindow)
   }
 
   asyncSetup().catch((err: unknown) => {
+    pendingSetups.delete(id)
     displayTerminalError(id, `Unexpected error: ${err instanceof Error ? err.message : String(err)}`, senderWindow)
   })
 
@@ -395,8 +421,19 @@ function resolveShellConfig(
   return { shell, shellArgs, initialCommand }
 }
 
+/** Track in-flight async PTY setups so pty:kill can cancel them. */
+const pendingSetups = new Set<string>()
+
 export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
   ipcMain.handle('pty:create', (_event, options: { id: string; cwd: string; command?: string; sessionId?: string; env?: Record<string, string>; shell?: string; isolated?: boolean; isolationMode?: 'docker' | 'devcontainer'; dockerImage?: string; repoRootDir?: string }) => {
+    // Kill any existing PTY with the same ID (e.g. React strict mode double-mount)
+    const existing = ctx.ptyProcesses.get(options.id)
+    if (existing) {
+      existing.kill()
+      ctx.ptyProcesses.delete(options.id)
+      ctx.ptyOwnerWindows.delete(options.id)
+    }
+
     const senderWindow = BrowserWindow.fromWebContents(_event.sender)
 
     // Container isolation path (allowed in E2E when E2E_REAL_DOCKER is set)
@@ -433,20 +470,28 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
 
     const env = { ...baseEnv, ...agentEnv } as Record<string, string>
 
-    const ptyProcess = pty.spawn(shell, shellArgs, {
-      name: 'xterm-256color',
-      cols: 80,
-      rows: 30,
-      cwd: options.cwd,
-      env,
-    })
+    let ptyProcess: IPty
+    try {
+      ptyProcess = pty.spawn(shell, shellArgs, {
+        name: 'xterm-256color',
+        cols: 80,
+        rows: 30,
+        cwd: options.cwd,
+        env,
+      })
+    } catch (err) {
+      displayTerminalError(options.id, `Failed to start shell: ${err instanceof Error ? err.message : String(err)}`, senderWindow)
+      return { id: options.id }
+    }
 
     wirePtyEvents(ctx, ptyProcess, options.id, senderWindow)
 
     if (initialCommand) {
       initialCommand = resolveInitialCommand(initialCommand, ctx.isE2ETest)
       setTimeout(() => {
-        ptyProcess.write(`${initialCommand}\r`)
+        if (ctx.ptyProcesses.has(options.id)) {
+          ptyProcess.write(`${initialCommand}\r`)
+        }
       }, 100)
     }
 
@@ -468,10 +513,13 @@ export function register(ipcMain: IpcMain, ctx: HandlerContext): void {
   })
 
   ipcMain.handle('pty:kill', (_event, id: string) => {
+    // Cancel any in-flight async container setup for this ID
+    pendingSetups.delete(id)
     const ptyProcess = ctx.ptyProcesses.get(id)
     if (ptyProcess) {
       ptyProcess.kill()
       ctx.ptyProcesses.delete(id)
+      ctx.ptyOwnerWindows.delete(id)
     }
   })
 }

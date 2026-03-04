@@ -205,10 +205,10 @@ function TerminalPanels({ sessionId, cwd, isActive, activeTabId, agentCommand, a
           <PanelErrorBoundary name={`Terminal ${tab.name}`}>
             <Terminal
               sessionId={`user-${sessionId}-${tab.id}`} cwd={cwd}
-              isActive={isActive && tab.id === activeTabId} isolated={tab.isolated}
-              isolationMode={tab.isolated ? isolation?.isolationMode : undefined}
-              dockerImage={tab.isolated ? isolation?.dockerImage : undefined}
-              repoRootDir={tab.isolated ? isolation?.repoRootDir : undefined}
+              isActive={isActive && tab.id === activeTabId} isolated={tab.isolated && isolation?.isolated}
+              isolationMode={tab.isolated && isolation?.isolated ? isolation.isolationMode : undefined}
+              dockerImage={tab.isolated && isolation?.isolated ? isolation.dockerImage : undefined}
+              repoRootDir={tab.isolated && isolation?.isolated ? isolation.repoRootDir : undefined}
             />
           </PanelErrorBoundary>
         </div>

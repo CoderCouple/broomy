@@ -67,17 +67,24 @@ export function writeDefaultDevcontainerConfig(workspaceFolder: string): void {
  * Normalize devcontainer postAttachCommand to a single shell string.
  * The spec allows: string, string[], or { [name]: string | string[] }.
  */
+/** Shell-escape a string for embedding in a bash command. */
+function shellQuote(s: string): string {
+  if (/^[a-zA-Z0-9_./:=@%^+,-]+$/.test(s)) return s
+  return `'${s.replace(/'/g, "'\\''")}'`
+}
+
 export function normalizePostAttachCommand(
   cmd: unknown,
 ): string | undefined {
   if (!cmd) return undefined
   if (typeof cmd === 'string') return cmd
-  if (Array.isArray(cmd)) return cmd.join(' ')
+  // Array form represents exec-style args — shell-quote each element to preserve spaces
+  if (Array.isArray(cmd)) return cmd.map((a: unknown) => shellQuote(String(a))).join(' ')
   if (typeof cmd === 'object') {
     const parts: string[] = []
     for (const value of Object.values(cmd as Record<string, unknown>)) {
       if (typeof value === 'string') parts.push(value)
-      else if (Array.isArray(value)) parts.push(value.join(' '))
+      else if (Array.isArray(value)) parts.push(value.map((a: unknown) => shellQuote(String(a))).join(' '))
     }
     return parts.length > 0 ? parts.join(' && ') : undefined
   }
