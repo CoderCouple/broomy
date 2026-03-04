@@ -63,11 +63,33 @@ export function writeDefaultDevcontainerConfig(workspaceFolder: string): void {
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`)
 }
 
+/**
+ * Normalize devcontainer postAttachCommand to a single shell string.
+ * The spec allows: string, string[], or { [name]: string | string[] }.
+ */
+export function normalizePostAttachCommand(
+  cmd: unknown,
+): string | undefined {
+  if (!cmd) return undefined
+  if (typeof cmd === 'string') return cmd
+  if (Array.isArray(cmd)) return cmd.join(' ')
+  if (typeof cmd === 'object') {
+    const parts: string[] = []
+    for (const value of Object.values(cmd as Record<string, unknown>)) {
+      if (typeof value === 'string') parts.push(value)
+      else if (Array.isArray(value)) parts.push(value.join(' '))
+    }
+    return parts.length > 0 ? parts.join(' && ') : undefined
+  }
+  return undefined
+}
+
 /** Result from devcontainer up. */
 export type DevcontainerUpResult = {
   containerId: string
   remoteUser: string
   remoteWorkspaceFolder: string
+  postAttachCommand?: string
 }
 
 /**
@@ -84,6 +106,8 @@ export async function devcontainerUp(
     const child = spawn('devcontainer', [
       'up',
       '--workspace-folder', workspaceFolder,
+      '--skip-post-attach',
+      '--include-merged-configuration',
     ], {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -117,13 +141,18 @@ export async function devcontainerUp(
           containerId: string
           remoteUser: string
           remoteWorkspaceFolder: string
+          mergedConfiguration?: { postAttachCommand?: unknown }
         }
+        const postAttachCommand = normalizePostAttachCommand(
+          parsed.mergedConfiguration?.postAttachCommand,
+        )
         resolve({
           success: true,
           result: {
             containerId: parsed.containerId,
             remoteUser: parsed.remoteUser,
             remoteWorkspaceFolder: parsed.remoteWorkspaceFolder,
+            postAttachCommand,
           },
         })
       } catch (parseErr) {

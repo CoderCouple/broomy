@@ -20,6 +20,7 @@ export interface TerminalConfig {
   command: string | undefined
   env: Record<string, string> | undefined
   isAgentTerminal: boolean
+  isServicesTerminal?: boolean
   isActive: boolean
   restartKey: number
   isolated?: boolean
