@@ -268,6 +268,7 @@ function createDevcontainerPty(
     const releaseLock = await acquireSetupLock(workspaceFolder)
     let containerId: string
     let remoteUser: string
+    let postAttachCommand: string | undefined
     try {
       // Run devcontainer up
       const result = await devcontainerUp(workspaceFolder, sendToTerminal)
@@ -279,6 +280,7 @@ function createDevcontainerPty(
       }
       containerId = result.result.containerId
       remoteUser = result.result.remoteUser
+      postAttachCommand = result.result.postAttachCommand
 
       // Store container info for DockerInfoPanel
       ctx.dockerContainers.set(workspaceFolder, {
@@ -303,6 +305,16 @@ function createDevcontainerPty(
     }
 
     sendToTerminal('\x1b[2m── Dev container ready ──\x1b[22m\r\n\r\n')
+
+    // Notify renderer about devcontainer readiness (for Services tab)
+    if (postAttachCommand && senderWindow && !senderWindow.isDestroyed()) {
+      senderWindow.webContents.send('pty:devcontainer-ready', {
+        sessionId: options.sessionId,
+        postAttachCommand,
+        containerId,
+        remoteUser,
+      })
+    }
 
     // Start docker exec PTY using devcontainer's remote user
     const containerHome = remoteUser === 'root' ? '/root' : `/home/${remoteUser}`

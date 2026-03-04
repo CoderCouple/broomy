@@ -187,6 +187,7 @@ const mockPty: Mocked<PtyApi> = {
   kill: vi.fn().mockResolvedValue(undefined),
   onData: vi.fn().mockReturnValue(() => {}),
   onExit: vi.fn().mockReturnValue(() => {}),
+  onDevcontainerReady: vi.fn().mockReturnValue(() => {}),
 }
 
 // Mock window.windowControls
