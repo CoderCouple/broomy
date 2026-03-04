@@ -28,11 +28,18 @@ export interface TerminalConfig {
   repoRootDir?: string
 }
 
+export interface ExitInfo {
+  code: number
+  message: string
+  detail?: string
+}
+
 export interface TerminalSetupResult {
   terminalRef: React.MutableRefObject<XTerm | null>
   ptyIdRef: React.MutableRefObject<string | null>
   showScrollButton: boolean
   handleScrollToBottom: () => void
+  exitInfo: ExitInfo | null
 }
 
 // ── Xterm theme (module-level constant) ──────────────────────────────
@@ -160,6 +167,7 @@ function useTerminalState(config: TerminalConfig) {
 
   const isActiveRef = useRef(true)
   const dataHandlerRef = useRef<{ flush: () => void } | null>(null)
+  const [exitInfo, setExitInfo] = useState<ExitInfo | null>(null)
 
   const commandRef = useRef(command)
   commandRef.current = command
@@ -224,6 +232,7 @@ function useTerminalState(config: TerminalConfig) {
     lastUserInputRef, lastInteractionRef, ptyIdRef, isFollowingRef,
     isActiveRef, dataHandlerRef,
     showScrollButton, setShowScrollButton,
+    exitInfo, setExitInfo,
     commandRef, envRef, isAgentTerminalRef, cwdRef, isolatedRef, isolationModeRef, dockerImageRef, repoRootDirRef,
     updateAgentMonitorRef, markSessionReadRef,
     sessionIdRef, setAgentPtyId,
@@ -335,6 +344,20 @@ export function useTerminalSetup(
 
     const removeExitListener = window.pty.onExit(id, (exitCode: number) => {
       terminal.write(`\r\n[Process exited with code ${exitCode}]\r\n`)
+      if (exitCode === 137) {
+        if (s.isolatedRef.current) {
+          terminal.write(`The process was killed (SIGKILL) \u2014 likely by Docker\u2019s out-of-memory killer.\r\n`)
+          terminal.write(`Try increasing Docker Desktop\u2019s memory in Settings \u2192 Resources \u2192 Memory.\r\n`)
+          s.setExitInfo({
+            code: 137,
+            message: 'Agent killed by Docker out-of-memory killer (SIGKILL)',
+            detail: 'Docker Desktop runs all containers in a shared Linux VM with a fixed memory ceiling. When total memory across all containers exceeds this limit, the Linux OOM killer picks a process to terminate.\n\nTo fix this, either:\n\u2022 Increase Docker Desktop\u2019s memory limit in Settings \u2192 Resources \u2192 Memory\n\u2022 Reduce the number or size of other running containers, since they compete for the same memory budget',
+          })
+        } else {
+          terminal.write(`The process was killed (SIGKILL).\r\n`)
+          s.setExitInfo({ code: 137, message: 'Process killed (SIGKILL)' })
+        }
+      }
       if (isAgent && s.sessionIdRef.current) {
         s.lastStatusRef.current = 'idle'
         s.scheduleUpdate({ status: 'idle' })
@@ -423,5 +446,5 @@ export function useTerminalSetup(
     }
   }, [])
 
-  return { terminalRef: s.terminalRef, ptyIdRef: s.ptyIdRef, showScrollButton: s.showScrollButton, handleScrollToBottom: s.handleScrollToBottom }
+  return { terminalRef: s.terminalRef, ptyIdRef: s.ptyIdRef, showScrollButton: s.showScrollButton, handleScrollToBottom: s.handleScrollToBottom, exitInfo: s.exitInfo }
 }

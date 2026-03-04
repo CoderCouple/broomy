@@ -11,7 +11,8 @@
  */
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { useTerminalSetup } from '../hooks/useTerminalSetup'
-import type { TerminalConfig } from '../hooks/useTerminalSetup'
+import type { TerminalConfig, ExitInfo } from '../hooks/useTerminalSetup'
+import { useErrorStore } from '../store/errors'
 import { getAgentInstallUrl } from '../utils/agentInstallUrls'
 import { sendAgentPrompt } from '../utils/focusHelpers'
 import '@xterm/xterm/css/xterm.css'
@@ -31,6 +32,39 @@ interface TerminalProps {
   isolationMode?: 'docker' | 'devcontainer'
   dockerImage?: string
   repoRootDir?: string
+}
+
+function ExitErrorBanner({ exitInfo, onDismiss }: { exitInfo: ExitInfo; onDismiss: () => void }) {
+  const { showErrorDetail } = useErrorStore()
+
+  const handleClick = () => {
+    if (exitInfo.detail) {
+      showErrorDetail({
+        id: 'exit-error',
+        message: exitInfo.message,
+        displayMessage: exitInfo.message,
+        detail: exitInfo.detail,
+        scope: 'app',
+        dismissed: false,
+        timestamp: Date.now(),
+      })
+    }
+  }
+
+  return (
+    <div className="mx-2 mt-2 px-3 py-2 rounded bg-red-500/10 border border-red-500/30 text-xs text-red-400 shrink-0 flex items-center justify-between">
+      <button
+        onClick={handleClick}
+        className={`flex-1 text-left ${exitInfo.detail ? 'cursor-pointer hover:text-red-300' : 'cursor-default'}`}
+        title={exitInfo.detail ? 'Click for details' : undefined}
+      >
+        {exitInfo.message}
+      </button>
+      <button className="ml-2 hover:text-red-300" onClick={onDismiss} aria-label="Dismiss">
+        &times;
+      </button>
+    </div>
+  )
 }
 
 export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal = false, isServicesTerminal = false, isActive = false, agentNotInstalled = false, agentResumeCommand, isRestored, isolated, isolationMode, dockerImage, repoRootDir }: TerminalProps) {
@@ -62,7 +96,8 @@ export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal
     repoRootDir,
   }
 
-  const { terminalRef, ptyIdRef, showScrollButton, handleScrollToBottom } = useTerminalSetup(config, containerRef)
+  const { terminalRef, ptyIdRef, showScrollButton, handleScrollToBottom, exitInfo } = useTerminalSetup(config, containerRef)
+  const [exitDismissed, setExitDismissed] = useState(false)
 
   // Select all terminal content when this terminal is the active one
   useEffect(() => {
@@ -149,6 +184,9 @@ export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal
             &times;
           </button>
         </div>
+      )}
+      {exitInfo && !exitDismissed && (
+        <ExitErrorBanner exitInfo={exitInfo} onDismiss={() => setExitDismissed(true)} />
       )}
       <div className="flex-1 min-h-0 p-2 relative">
         <div ref={containerRef} className="h-full w-full" />
