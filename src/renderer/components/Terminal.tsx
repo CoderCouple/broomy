@@ -22,6 +22,7 @@ interface TerminalProps {
   command?: string
   env?: Record<string, string>
   isAgentTerminal?: boolean
+  isServicesTerminal?: boolean
   isActive?: boolean
   agentNotInstalled?: boolean
   agentResumeCommand?: string
@@ -32,7 +33,7 @@ interface TerminalProps {
   repoRootDir?: string
 }
 
-export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal = false, isActive = false, agentNotInstalled = false, agentResumeCommand, isRestored, isolated, isolationMode, dockerImage, repoRootDir }: TerminalProps) {
+export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal = false, isServicesTerminal = false, isActive = false, agentNotInstalled = false, agentResumeCommand, isRestored, isolated, isolationMode, dockerImage, repoRootDir }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [restartKey, setRestartKey] = useState(0)
   const [resumeDismissed, setResumeDismissed] = useState(false)
@@ -52,6 +53,7 @@ export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal
     command,
     env,
     isAgentTerminal,
+    isServicesTerminal,
     isActive,
     restartKey,
     isolated,

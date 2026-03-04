@@ -54,43 +54,26 @@ function makeSession(overrides: Partial<Session> = {}): Session {
 
 function makeState(overrides: Partial<ReviewDataState> = {}): ReviewDataState {
   return {
-    reviewData: null,
-    comments: [],
+    reviewMarkdown: null,
     fetching: false,
     waitingForAgent: false,
     fetchingStatus: null,
-    pushing: false,
-    pushResult: null,
     error: null,
     showGitignoreModal: false,
     pendingGenerate: false,
     mergeBase: 'abc123',
-    lastPushTime: null,
-    unpushedCount: 0,
     broomyDir: '/test/repo/.broomy',
     outputDir: '/test/repo/.broomy/output',
-    reviewFilePath: '/test/repo/.broomy/output/review.json',
-    commentsFilePath: '/test/repo/.broomy/output/comments.json',
-    historyFilePath: '/test/repo/.broomy/output/review-history.json',
+    reviewFilePath: '/test/repo/.broomy/output/review.md',
     promptFilePath: '/test/repo/.broomy/output/review-prompt.md',
-    prDescription: null,
-    prGitHubComments: [],
-    prCommentsLoading: false,
-    prCommentsHasMore: false,
-    loadOlderComments: vi.fn(),
-    refreshComments: vi.fn(),
-    setReviewData: vi.fn(),
-    setComments: vi.fn(),
+    setReviewMarkdown: vi.fn(),
     setFetching: vi.fn(),
     setWaitingForAgent: vi.fn(),
     setFetchingStatus: vi.fn(),
-    setPushing: vi.fn(),
-    setPushResult: vi.fn(),
     setError: vi.fn(),
     setShowGitignoreModal: vi.fn(),
     setPendingGenerate: vi.fn(),
     setMergeBase: vi.fn(),
-    setLastPushTime: vi.fn(),
     ...overrides,
   }
 }
@@ -129,48 +112,6 @@ describe('useReviewActions', () => {
     vi.unstubAllGlobals()
   })
 
-  it('handleClickLocation calls onSelectFile with full path', () => {
-    const session = makeSession()
-    const onSelectFile = vi.fn()
-    const state = makeState()
-
-    const { result } = renderHook(() =>
-      useReviewActions(session, undefined, onSelectFile, state)
-    )
-
-    act(() => {
-      result.current.handleClickLocation({ file: 'src/app.ts', startLine: 42 })
-    })
-
-    expect(onSelectFile).toHaveBeenCalledWith(
-      '/test/repo/src/app.ts',
-      true,
-      42,
-      'abc123'
-    )
-  })
-
-  it('handleClickLocation uses absolute path if file starts with /', () => {
-    const session = makeSession()
-    const onSelectFile = vi.fn()
-    const state = makeState()
-
-    const { result } = renderHook(() =>
-      useReviewActions(session, undefined, onSelectFile, state)
-    )
-
-    act(() => {
-      result.current.handleClickLocation({ file: '/absolute/path.ts', startLine: 10 })
-    })
-
-    expect(onSelectFile).toHaveBeenCalledWith(
-      '/absolute/path.ts',
-      true,
-      10,
-      'abc123'
-    )
-  })
-
   it('handleGitignoreCancel closes modal and resets pending', () => {
     const state = makeState()
     const { result } = renderHook(() =>
@@ -183,28 +124,6 @@ describe('useReviewActions', () => {
 
     expect(state.setShowGitignoreModal).toHaveBeenCalledWith(false)
     expect(state.setPendingGenerate).toHaveBeenCalledWith(false)
-  })
-
-  it('handleDeleteComment removes comment and writes file', async () => {
-    const state = makeState({
-      comments: [
-        { id: 'c-1', file: '/test/src/app.ts', line: 5, body: 'Comment 1', createdAt: '2024-01-01' },
-        { id: 'c-2', file: '/test/src/app.ts', line: 10, body: 'Comment 2', createdAt: '2024-01-01' },
-      ],
-    })
-
-    const { result } = renderHook(() =>
-      useReviewActions(makeSession(), undefined, vi.fn(), state)
-    )
-
-    await act(async () => {
-      await result.current.handleDeleteComment('c-1')
-    })
-
-    expect(state.setComments).toHaveBeenCalledWith([
-      { id: 'c-2', file: '/test/src/app.ts', line: 10, body: 'Comment 2', createdAt: '2024-01-01' },
-    ])
-    expect(window.fs.writeFile).toHaveBeenCalled()
   })
 
   it('handleGenerateReview sets error when no agentPtyId', async () => {
@@ -238,120 +157,6 @@ describe('useReviewActions', () => {
 
     expect(state.setPendingGenerate).toHaveBeenCalledWith(true)
     expect(state.setShowGitignoreModal).toHaveBeenCalledWith(true)
-  })
-
-  it('handlePushComments reports all pushed when no unpushed comments', async () => {
-    const state = makeState({
-      comments: [
-        { id: 'c-1', file: '/test/src/app.ts', line: 5, body: 'Comment', createdAt: '2024-01-01', pushed: true },
-      ],
-    })
-
-    const { result } = renderHook(() =>
-      useReviewActions(makeSession(), undefined, vi.fn(), state)
-    )
-
-    await act(async () => {
-      await result.current.handlePushComments()
-    })
-
-    expect(state.setPushResult).toHaveBeenCalledWith('All comments already pushed')
-  })
-
-  it('handlePushComments does nothing when no comments', async () => {
-    const state = makeState({ comments: [] })
-
-    const { result } = renderHook(() =>
-      useReviewActions(makeSession({ prNumber: 42 }), undefined, vi.fn(), state)
-    )
-
-    await act(async () => {
-      await result.current.handlePushComments()
-    })
-
-    expect(window.gh.submitDraftReview).not.toHaveBeenCalled()
-  })
-
-  it('handlePushComments does nothing when no prNumber', async () => {
-    const state = makeState({
-      comments: [
-        { id: 'c-1', file: '/test/src/app.ts', line: 5, body: 'Comment', createdAt: '2024-01-01' },
-      ],
-    })
-
-    const { result } = renderHook(() =>
-      useReviewActions(makeSession({ prNumber: undefined }), undefined, vi.fn(), state)
-    )
-
-    await act(async () => {
-      await result.current.handlePushComments()
-    })
-
-    expect(window.gh.submitDraftReview).not.toHaveBeenCalled()
-  })
-
-  it('handlePushComments submits draft review and marks pushed', async () => {
-    vi.mocked(window.gh.submitDraftReview).mockResolvedValue({ success: true })
-    const state = makeState({
-      comments: [
-        { id: 'c-1', file: '/test/repo/src/app.ts', line: 5, body: 'Comment 1', createdAt: '2024-01-01' },
-        { id: 'c-2', file: '/test/repo/src/utils.ts', line: 10, body: 'Comment 2', createdAt: '2024-01-01', pushed: true },
-      ],
-    })
-
-    const { result } = renderHook(() =>
-      useReviewActions(makeSession(), undefined, vi.fn(), state)
-    )
-
-    await act(async () => {
-      await result.current.handlePushComments()
-    })
-
-    expect(window.gh.submitDraftReview).toHaveBeenCalledWith(
-      '/test/repo',
-      42,
-      [{ path: 'src/app.ts', line: 5, body: 'Comment 1' }]
-    )
-    expect(state.setComments).toHaveBeenCalled()
-    expect(state.setPushResult).toHaveBeenCalledWith('Pushed 1 comment as draft review')
-  })
-
-  it('handlePushComments handles failed result', async () => {
-    vi.mocked(window.gh.submitDraftReview).mockResolvedValue({ success: false, error: 'forbidden' })
-    const state = makeState({
-      comments: [
-        { id: 'c-1', file: '/test/repo/src/app.ts', line: 5, body: 'Comment', createdAt: '2024-01-01' },
-      ],
-    })
-
-    const { result } = renderHook(() =>
-      useReviewActions(makeSession(), undefined, vi.fn(), state)
-    )
-
-    await act(async () => {
-      await result.current.handlePushComments()
-    })
-
-    expect(state.setPushResult).toHaveBeenCalledWith('Failed: forbidden')
-  })
-
-  it('handlePushComments handles thrown error', async () => {
-    vi.mocked(window.gh.submitDraftReview).mockRejectedValue(new Error('network error'))
-    const state = makeState({
-      comments: [
-        { id: 'c-1', file: '/test/repo/src/app.ts', line: 5, body: 'Comment', createdAt: '2024-01-01' },
-      ],
-    })
-
-    const { result } = renderHook(() =>
-      useReviewActions(makeSession(), undefined, vi.fn(), state)
-    )
-
-    await act(async () => {
-      await result.current.handlePushComments()
-    })
-
-    expect(state.setPushResult).toHaveBeenCalledWith('Error: network error')
   })
 
   it('handleGenerateReview proceeds when .broomy/.gitignore has output/', async () => {
@@ -494,27 +299,6 @@ describe('useReviewActions', () => {
     expect(state.setWaitingForAgent).toHaveBeenCalledWith(true)
   })
 
-  it('handleClickLocation uses fallback diffRef when mergeBase is empty', () => {
-    const onSelectFile = vi.fn()
-    const state = makeState({ mergeBase: '' })
-    const session = makeSession({ prBaseBranch: 'develop' })
-
-    const { result } = renderHook(() =>
-      useReviewActions(session, undefined, onSelectFile, state)
-    )
-
-    act(() => {
-      result.current.handleClickLocation({ file: 'src/app.ts', startLine: 10 })
-    })
-
-    expect(onSelectFile).toHaveBeenCalledWith(
-      '/test/repo/src/app.ts',
-      true,
-      10,
-      'origin/develop'
-    )
-  })
-
   it('handleOpenPrUrl does nothing when no prUrl', () => {
     const openSpy = vi.fn()
     vi.stubGlobal('open', openSpy)
@@ -532,74 +316,6 @@ describe('useReviewActions', () => {
 
     expect(openSpy).not.toHaveBeenCalled()
     vi.unstubAllGlobals()
-  })
-
-  it('handleGenerateReview loads previous review history for re-review', async () => {
-    const history = {
-      reviews: [
-        { generatedAt: '2024-01-01', headCommit: 'prev-commit', requestedChanges: [{ id: 'rc-1' }] },
-      ],
-    }
-
-    vi.mocked(window.fs.exists).mockImplementation(async (path: string) => {
-      if (path.includes('.broomy/.gitignore')) return true
-      if (path.includes('review-history.json')) return true
-      return true  // mkdir needs to succeed
-    })
-    vi.mocked(window.fs.readFile).mockImplementation(async (path: string) => {
-      if (path.includes('.broomy/.gitignore')) return '/output/\n'
-      if (path.includes('review-history.json')) return JSON.stringify(history)
-      return ''
-    })
-    vi.mocked(window.fs.mkdir).mockResolvedValue({ success: true })
-    vi.mocked(window.gh.prComments).mockResolvedValue([
-      { id: 1, body: 'fix this', path: 'src/app.ts', line: 5, author: 'reviewer', side: 'RIGHT' as const, createdAt: '2024-01-01', url: 'https://github.com/pr/42/comments/1' },
-    ])
-    vi.mocked(window.git.getBranch).mockResolvedValue('feature/review')
-
-    const state = makeState()
-    const session = makeSession({ prNumber: 42 })
-
-    const { result } = renderHook(() =>
-      useReviewActions(session, undefined, vi.fn(), state)
-    )
-
-    await act(async () => {
-      await result.current.handleGenerateReview()
-    })
-
-    expect(window.gh.prComments).toHaveBeenCalledWith('/test/repo', 42)
-    expect(window.gh.currentUser).toHaveBeenCalled()
-    expect(window.fs.writeFile).toHaveBeenCalledWith(
-      '/test/repo/.broomy/output/review-prompt.md',
-      expect.any(String)
-    )
-  })
-
-  it('handleGenerateReview does not call currentUser when no previous review', async () => {
-    vi.mocked(window.fs.exists).mockImplementation(async (path: string) => {
-      if (path.includes('.broomy/.gitignore')) return true
-      return false
-    })
-    vi.mocked(window.fs.readFile).mockImplementation(async (path: string) => {
-      if (path.includes('.broomy/.gitignore')) return '/output/\n'
-      return ''
-    })
-    vi.mocked(window.fs.mkdir).mockResolvedValue({ success: true })
-
-    const state = makeState()
-    const session = makeSession({ prNumber: 42 })
-    vi.mocked(window.git.getBranch).mockResolvedValue('feature/review')
-
-    const { result } = renderHook(() =>
-      useReviewActions(session, undefined, vi.fn(), state)
-    )
-
-    await act(async () => {
-      await result.current.handleGenerateReview()
-    })
-
-    expect(window.gh.currentUser).not.toHaveBeenCalled()
   })
 
   it('addToGitignore creates new .broomy/.gitignore when none exists', async () => {
@@ -625,23 +341,59 @@ describe('useReviewActions', () => {
     )
   })
 
-  it('handlePushComments plural message for multiple comments', async () => {
-    vi.mocked(window.gh.submitDraftReview).mockResolvedValue({ success: true })
-    const state = makeState({
-      comments: [
-        { id: 'c-1', file: '/test/repo/src/app.ts', line: 5, body: 'Comment 1', createdAt: '2024-01-01' },
-        { id: 'c-2', file: '/test/repo/src/utils.ts', line: 10, body: 'Comment 2', createdAt: '2024-01-01' },
-      ],
+  it('handleGenerateReview writes context.json with PR info', async () => {
+    vi.mocked(window.fs.exists).mockImplementation(async (path: string) => {
+      if (path.includes('.broomy/.gitignore')) return true
+      return true
     })
+    vi.mocked(window.fs.readFile).mockImplementation(async (path: string) => {
+      if (path.includes('.broomy/.gitignore')) return '/output/\n'
+      return ''
+    })
+    vi.mocked(window.fs.mkdir).mockResolvedValue({ success: true })
+
+    const state = makeState()
+    const session = makeSession({ prNumber: 42, prBaseBranch: 'main', prUrl: 'https://github.com/pr/42' })
 
     const { result } = renderHook(() =>
-      useReviewActions(makeSession(), undefined, vi.fn(), state)
+      useReviewActions(session, undefined, vi.fn(), state)
     )
 
     await act(async () => {
-      await result.current.handlePushComments()
+      await result.current.handleGenerateReview()
     })
 
-    expect(state.setPushResult).toHaveBeenCalledWith('Pushed 2 comments as draft review')
+    expect(window.fs.writeFile).toHaveBeenCalledWith(
+      '/test/repo/.broomy/output/context.json',
+      expect.stringContaining('"prNumber": 42')
+    )
+  })
+
+  it('handleGenerateReview writes review prompt', async () => {
+    vi.mocked(window.fs.exists).mockImplementation(async (path: string) => {
+      if (path.includes('.broomy/.gitignore')) return true
+      return true
+    })
+    vi.mocked(window.fs.readFile).mockImplementation(async (path: string) => {
+      if (path.includes('.broomy/.gitignore')) return '/output/\n'
+      return ''
+    })
+    vi.mocked(window.fs.mkdir).mockResolvedValue({ success: true })
+
+    const state = makeState()
+    const session = makeSession()
+
+    const { result } = renderHook(() =>
+      useReviewActions(session, undefined, vi.fn(), state)
+    )
+
+    await act(async () => {
+      await result.current.handleGenerateReview()
+    })
+
+    expect(window.fs.writeFile).toHaveBeenCalledWith(
+      '/test/repo/.broomy/output/review-prompt.md',
+      expect.stringContaining('PR Review')
+    )
   })
 })

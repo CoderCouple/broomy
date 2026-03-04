@@ -107,7 +107,7 @@ function evaluateToken(token: string, state: ConditionState): boolean {
     return token.split('|').some(part => evaluateToken(part.trim(), state))
   }
 
-  return state[token as keyof ConditionState] ?? false
+  return state[token as keyof ConditionState]
 }
 
 /**

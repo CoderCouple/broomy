@@ -99,7 +99,7 @@ function resolveAgentPrompt(action: ActionDefinition, ctx: ActionExecutionContex
     const agent = useAgentStore.getState().agents.find((a: AgentConfig) => a.id === ctx.agentId)
     if (agent) {
       const agentType = detectAgentType(agent.command)
-      if (agentType && action.agents[agentType]) {
+      if (agentType && agentType in action.agents) {
         const override = action.agents[agentType]
         if (override.skill) {
           return `/${override.skill}`

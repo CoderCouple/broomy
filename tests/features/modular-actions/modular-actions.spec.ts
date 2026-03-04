@@ -73,7 +73,7 @@ test.describe.serial('Feature: Modular Actions', () => {
   test('Step 1: Source control with default action buttons', async () => {
     await openSourceControl()
     // Wait for content to render
-    await page.waitForTimeout(500)
+    await page.locator('[data-panel-id="explorer"]').waitFor({ state: 'attached' })
 
     const explorer = page.locator('[data-panel-id="explorer"]')
     await expect(explorer).toBeVisible()
@@ -132,7 +132,7 @@ test.describe.serial('Feature: Modular Actions', () => {
     if (setupVisible) {
       await setupButton.click()
       // Wait for dialog to appear
-      await page.waitForTimeout(300)
+      await page.locator('text=Set up Broomy Actions').waitFor({ state: 'visible', timeout: 3000 }).catch(() => {})
 
       const dialog = page.locator('text=Set up Broomy Actions').locator('xpath=ancestor::div[contains(@class, "bg-bg-secondary")]').first()
       const dialogVisible = await dialog.isVisible().catch(() => false)
@@ -153,7 +153,7 @@ test.describe.serial('Feature: Modular Actions', () => {
         // Close the dialog
         const cancelButton = page.locator('button:has-text("Cancel")').first()
         await cancelButton.click()
-        await page.waitForTimeout(200)
+        await page.locator('text=Set up Broomy Actions').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {})
       }
     }
 
@@ -178,7 +178,7 @@ test.describe.serial('Feature: Modular Actions', () => {
     // Switch to session 2 (backend-api on feature/auth branch) to see different actions
     await page.evaluate(() => {
       const store = (window as Record<string, unknown>).__sessionStore as {
-        getState: () => { sessions: Array<{ id: string }>; setActiveSession: (id: string) => void }
+        getState: () => { sessions: { id: string }[]; setActiveSession: (id: string) => void }
       }
       if (!store) return
       const state = store.getState()
@@ -186,9 +186,9 @@ test.describe.serial('Feature: Modular Actions', () => {
       if (session2) state.setActiveSession(session2.id)
     })
 
-    await page.waitForTimeout(500)
+    await page.locator('[data-panel-id="explorer"]').waitFor({ state: 'attached' })
     await openSourceControl()
-    await page.waitForTimeout(500)
+    await page.locator('[data-panel-id="explorer"]').waitFor({ state: 'attached' })
 
     const explorer = page.locator('[data-panel-id="explorer"]')
     await screenshotElement(page, explorer, path.join(SCREENSHOTS, '04-feature-branch.png'), {
@@ -209,7 +209,7 @@ test.describe.serial('Feature: Modular Actions', () => {
     // Switch back to session 1 to show the file list
     await page.evaluate(() => {
       const store = (window as Record<string, unknown>).__sessionStore as {
-        getState: () => { sessions: Array<{ id: string }>; setActiveSession: (id: string) => void }
+        getState: () => { sessions: { id: string }[]; setActiveSession: (id: string) => void }
       }
       if (!store) return
       const state = store.getState()
@@ -217,9 +217,9 @@ test.describe.serial('Feature: Modular Actions', () => {
       if (session1) state.setActiveSession(session1.id)
     })
 
-    await page.waitForTimeout(500)
+    await page.locator('[data-panel-id="explorer"]').waitFor({ state: 'attached' })
     await openSourceControl()
-    await page.waitForTimeout(500)
+    await page.locator('[data-panel-id="explorer"]').waitFor({ state: 'attached' })
 
     const explorer = page.locator('[data-panel-id="explorer"]')
     await screenshotElement(page, explorer, path.join(SCREENSHOTS, '05-file-list.png'), {

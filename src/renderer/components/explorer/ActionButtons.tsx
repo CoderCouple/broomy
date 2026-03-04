@@ -55,8 +55,7 @@ export function ActionButtons({
 
     setLoadingActions(prev => new Set(prev).add(action.id))
     setActionErrors(prev => {
-      const next = { ...prev }
-      delete next[action.id]
+      const { [action.id]: _, ...next } = prev
       return next
     })
 
@@ -108,8 +107,7 @@ export function ActionButtons({
                 <span className="flex-1 truncate">{error}</span>
                 <button
                   onClick={() => setActionErrors(prev => {
-                    const next = { ...prev }
-                    delete next[action.id]
+                    const { [action.id]: _, ...next } = prev
                     return next
                   })}
                   className="text-red-400 hover:text-red-300 shrink-0"

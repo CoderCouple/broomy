@@ -42,15 +42,17 @@ export interface SCWorkingViewProps {
   onWritePrompt?: (builder: string, outputPath: string) => Promise<void>
 }
 
-function StatusInfo({ syncStatus, branchStatus }: { syncStatus?: GitStatusResult | null; branchStatus?: BranchStatus }) {
+function StatusInfoContent({ syncStatus, branchStatus }: { syncStatus?: GitStatusResult | null; branchStatus?: BranchStatus }) {
   const ahead = syncStatus?.ahead ?? 0
   const behind = syncStatus?.behind ?? 0
   const currentBranch = syncStatus?.current ?? ''
   const isOnMain = currentBranch === 'main' || currentBranch === 'master'
   const hasNoTracking = !syncStatus?.tracking && !isOnMain && !!currentBranch
+  const isUpToDate = ahead === 0 && behind === 0
+  const showBranchCard = branchStatus && branchStatus !== 'in-progress' && isUpToDate
 
   return (
-    <div className="px-3 py-2 border-b border-border flex flex-col items-center gap-2">
+    <>
       {syncStatus?.tracking && (
         <div className="text-xs text-text-secondary text-center">
           {syncStatus.current} &rarr; {syncStatus.tracking}
@@ -74,13 +76,21 @@ function StatusInfo({ syncStatus, branchStatus }: { syncStatus?: GitStatusResult
         <div className="text-xs text-yellow-400">No remote tracking branch</div>
       )}
 
-      {branchStatus && branchStatus !== 'in-progress' && ahead === 0 && behind === 0 && (
+      {showBranchCard && (
         <BranchStatusCard status={branchStatus} />
       )}
 
-      {ahead === 0 && behind === 0 && !hasNoTracking && (!branchStatus || branchStatus === 'in-progress') && (
+      {isUpToDate && !hasNoTracking && !showBranchCard && (
         <div className="text-xs text-text-secondary">Up to date</div>
       )}
+    </>
+  )
+}
+
+function StatusInfo({ syncStatus, branchStatus }: { syncStatus?: GitStatusResult | null; branchStatus?: BranchStatus }) {
+  return (
+    <div className="px-3 py-2 border-b border-border flex flex-col items-center gap-2">
+      <StatusInfoContent syncStatus={syncStatus} branchStatus={branchStatus} />
     </div>
   )
 }

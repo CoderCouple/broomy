@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import type { CommandsConfig } from '../utils/commandsConfig'
-import { loadCommandsConfig, commandsConfigPath } from '../utils/commandsConfig'
+import { loadCommandsConfig } from '../utils/commandsConfig'
 
 export function useCommandsConfig(directory: string | undefined): {
   config: CommandsConfig | null
