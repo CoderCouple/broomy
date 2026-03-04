@@ -55,9 +55,9 @@ function makeChildMock() {
 
 describe('AGENT_INSTALL_COMMANDS', () => {
   it('exports install commands for known agents', () => {
-    expect(AGENT_INSTALL_COMMANDS['claude']).toContain('install.sh')
-    expect(AGENT_INSTALL_COMMANDS['codex']).toContain('@openai/codex')
-    expect(AGENT_INSTALL_COMMANDS['gemini']).toContain('@google/gemini-cli')
+    expect(AGENT_INSTALL_COMMANDS.claude).toContain('install.sh')
+    expect(AGENT_INSTALL_COMMANDS.codex).toContain('@openai/codex')
+    expect(AGENT_INSTALL_COMMANDS.gemini).toContain('@google/gemini-cli')
   })
 })
 
@@ -67,7 +67,7 @@ describe('AGENT_INSTALL_COMMANDS', () => {
 
 describe('AGENT_KNOWN_PATHS', () => {
   it('exports known install path for claude', () => {
-    expect(AGENT_KNOWN_PATHS['claude']).toBe('/home/node/.local/bin/claude')
+    expect(AGENT_KNOWN_PATHS.claude).toBe('/home/node/.local/bin/claude')
   })
 })
 
