@@ -40,6 +40,7 @@ export interface SCWorkingViewProps {
   agentPtyId?: string
   agentId?: string | null
   onWritePrompt?: (builder: string, outputPath: string) => Promise<void>
+  onOpenCommandsEditor?: () => void
 }
 
 function StatusInfoContent({ syncStatus, branchStatus }: { syncStatus?: GitStatusResult | null; branchStatus?: BranchStatus }) {
@@ -237,6 +238,7 @@ export function SCWorkingView({
   agentPtyId,
   agentId,
   onWritePrompt,
+  onOpenCommandsEditor,
 }: SCWorkingViewProps) {
   const hasChanges = gitStatus.length > 0
 
@@ -267,6 +269,7 @@ export function SCWorkingView({
         onGitStatusRefresh={onGitStatusRefresh}
         onWritePrompt={onWritePrompt}
         onSwitchTab={onSwitchTab}
+        onOpenCommandsEditor={onOpenCommandsEditor}
       />
 
       {/* File list (staged + unstaged) */}

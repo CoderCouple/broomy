@@ -18,6 +18,8 @@ interface ActionButtonsProps {
   onWritePrompt?: (builder: string, outputPath: string) => Promise<void>
   /** Called when an action specifies switchTab (e.g. "review") */
   onSwitchTab?: (tab: string) => void
+  /** Opens the commands.json editor */
+  onOpenCommandsEditor?: () => void
 }
 
 const STYLE_CLASSES: Record<string, string> = {
@@ -37,6 +39,7 @@ export function ActionButtons({
   onGitStatusRefresh,
   onWritePrompt,
   onSwitchTab,
+  onOpenCommandsEditor,
 }: ActionButtonsProps) {
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set())
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({})
@@ -81,7 +84,7 @@ export function ActionButtons({
     }
   }, [directory, agentPtyId, agentId, templateVars, onWritePrompt, onGitStatusRefresh, onSwitchTab])
 
-  if (visibleActions.length === 0) return null
+  if (visibleActions.length === 0 && !onOpenCommandsEditor) return null
 
   return (
     <div className="px-3 py-2 border-b border-border flex flex-col gap-1.5">
@@ -119,6 +122,15 @@ export function ActionButtons({
           </div>
         )
       })}
+      {onOpenCommandsEditor && (
+        <button
+          onClick={onOpenCommandsEditor}
+          className="mt-1 text-xs text-text-tertiary hover:text-text-primary transition-colors"
+          data-testid="edit-commands-link"
+        >
+          edit commands
+        </button>
+      )}
     </div>
   )
 }

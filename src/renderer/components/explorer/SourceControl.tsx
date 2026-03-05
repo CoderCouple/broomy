@@ -38,6 +38,8 @@ interface SourceControlProps {
   onRecordPushToMain?: (commitHash: string) => void
   onClearPushToMain?: () => void
   onSwitchTab?: (tab: string) => void
+  onOpenCommandsEditor?: () => void
+  isReview?: boolean
 }
 
 export function SourceControl({
@@ -59,6 +61,8 @@ export function SourceControl({
   onRecordPushToMain,
   onClearPushToMain,
   onSwitchTab,
+  onOpenCommandsEditor,
+  isReview,
 }: SourceControlProps) {
   const [scView, setScView] = useState<'working' | 'branch' | 'commits'>('working')
   const [showSetupDialog, setShowSetupDialog] = useState(false)
@@ -107,8 +111,9 @@ export function SourceControl({
       behindMainCount: data.behindMainCount,
       issueNumber,
       noDevcontainer,
+      isReview,
     }),
-    [gitStatus, syncStatus, branchStatus, data.prStatus, data.hasWriteAccess, data.currentRepo, data.behindMainCount, issueNumber, noDevcontainer]
+    [gitStatus, syncStatus, branchStatus, data.prStatus, data.hasWriteAccess, data.currentRepo, data.behindMainCount, issueNumber, noDevcontainer, isReview]
   )
 
   // Template variables for action labels and prompts
@@ -254,7 +259,9 @@ export function SourceControl({
         agentPtyId={agentPtyId}
         agentId={agentId}
         onWritePrompt={handleWritePrompt}
+        onOpenCommandsEditor={commandsExists ? onOpenCommandsEditor : undefined}
       />
     </div>
   )
 }
+

@@ -91,6 +91,7 @@ export interface ConditionState {
   'allow-push-to-main': boolean
   'has-issue': boolean
   'no-devcontainer': boolean
+  'review': boolean
 }
 
 /**
