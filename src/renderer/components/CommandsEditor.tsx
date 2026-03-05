@@ -5,11 +5,13 @@
  * When no commands.json exists, shows a setup prompt with a "Create" button.
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useMemo } from 'react'
 import {
   loadCommandsConfig,
   commandsConfigPath,
   getDefaultCommandsConfig,
   ensureOutputGitignore,
+  getAgentTypes,
   type ActionDefinition,
 } from '../utils/commandsConfig'
 import { SKILL_ACTIONS, skillCommandPath } from '../utils/skillActions'
@@ -18,6 +20,8 @@ import {
   removeLegacyBroomyGitignore,
 } from './review/useReviewActions'
 import { ShowWhenPicker } from './ShowWhenPicker'
+import { PromptVariants } from './PromptVariants'
+import { useAgentStore } from '../store/agents'
 
 const STYLE_OPTIONS = ['primary', 'secondary', 'accent', 'danger'] as const
 
@@ -45,6 +49,19 @@ export function CommandsEditor({ directory, onClose }: CommandsEditorProps) {
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const agents = useAgentStore((s) => s.agents)
+
+  // Agent types from configured agents + any types already referenced in actions
+  const knownAgentTypes = useMemo(() => {
+    const fromStore = getAgentTypes(agents)
+    const fromActions = new Set<string>()
+    for (const action of actions ?? []) {
+      for (const key of Object.keys(action.agents ?? {})) {
+        fromActions.add(key)
+      }
+    }
+    return [...new Set([...fromStore, ...fromActions])].sort()
+  }, [agents, actions])
 
   const load = useCallback(async () => {
     const config = await loadCommandsConfig(directory)
@@ -177,6 +194,7 @@ export function CommandsEditor({ directory, onClose }: CommandsEditorProps) {
             isExpanded={expandedId === action.id}
             onToggle={() => setExpandedId(expandedId === action.id ? null : action.id)}
             onUpdate={(updates) => updateAction(action.id, updates)}
+            agentTypes={knownAgentTypes}
             onDelete={() => {
               if (deleteConfirmId === action.id) {
                 deleteAction(action.id)
@@ -244,6 +262,7 @@ function ActionCard({
   isExpanded,
   onToggle,
   onUpdate,
+  agentTypes,
   onDelete,
   deleteConfirm,
   onCancelDelete,
@@ -252,6 +271,7 @@ function ActionCard({
   isExpanded: boolean
   onToggle: () => void
   onUpdate: (updates: Partial<ActionDefinition>) => void
+  agentTypes: string[]
   onDelete: () => void
   deleteConfirm: boolean
   onCancelDelete: () => void
@@ -328,16 +348,7 @@ function ActionCard({
           )}
 
           {action.type === 'agent' && (
-            <Field label="Prompt">
-              <textarea
-                value={action.prompt ?? ''}
-                onChange={(e) => onUpdate({ prompt: e.target.value })}
-                className="w-full px-2 py-1.5 text-sm rounded border border-border bg-bg-secondary text-text-primary font-mono focus:outline-none focus:border-accent resize-y min-h-[60px]"
-                placeholder="Enter a prompt for the agent..."
-                rows={3}
-                data-testid={`action-prompt-${action.id}`}
-              />
-            </Field>
+            <PromptVariants action={action} onUpdate={onUpdate} fieldSlot={Field} agentTypes={agentTypes} />
           )}
 
           <Field label="Show When">

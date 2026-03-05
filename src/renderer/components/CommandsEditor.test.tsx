@@ -9,6 +9,17 @@ vi.mock('./review/useReviewActions', () => ({
   removeLegacyBroomyGitignore: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock('../store/agents', () => ({
+  useAgentStore: vi.fn((selector: (s: unknown) => unknown) =>
+    selector({
+      agents: [
+        { id: 'agent-1', name: 'Claude', command: 'claude' },
+        { id: 'agent-2', name: 'Aider', command: 'aider --model gpt-4' },
+      ],
+    }),
+  ),
+}))
+
 afterEach(() => {
   cleanup()
 })
@@ -156,15 +167,104 @@ describe('CommandsEditor', () => {
     })
   })
 
-  describe('prompt field', () => {
-    it('shows prompt textarea for agent actions', async () => {
+  describe('prompt variants', () => {
+    it('shows generic variant toggle for agent actions', async () => {
       mockExistingConfig()
       render(<CommandsEditor directory="/test/repo" onClose={vi.fn()} />)
       await waitFor(() => {
         expect(screen.getByTestId('action-header-action-1')).toBeTruthy()
       })
       fireEvent.click(screen.getByTestId('action-header-action-1'))
+      expect(screen.getByTestId('variant-generic-action-1')).toBeTruthy()
+    })
+
+    it('shows prompt textarea when generic variant is expanded', async () => {
+      mockExistingConfig()
+      render(<CommandsEditor directory="/test/repo" onClose={vi.fn()} />)
+      await waitFor(() => {
+        expect(screen.getByTestId('action-header-action-1')).toBeTruthy()
+      })
+      fireEvent.click(screen.getByTestId('action-header-action-1'))
+      fireEvent.click(screen.getByTestId('variant-generic-action-1'))
       expect(screen.getByTestId('action-prompt-action-1')).toBeTruthy()
+    })
+
+    it('shows add variant button', async () => {
+      mockExistingConfig()
+      render(<CommandsEditor directory="/test/repo" onClose={vi.fn()} />)
+      await waitFor(() => {
+        expect(screen.getByTestId('action-header-action-1')).toBeTruthy()
+      })
+      fireEvent.click(screen.getByTestId('action-header-action-1'))
+      expect(screen.getByTestId('add-variant-action-1')).toBeTruthy()
+    })
+
+    it('adds an agent variant via picker', async () => {
+      mockExistingConfig()
+      render(<CommandsEditor directory="/test/repo" onClose={vi.fn()} />)
+      await waitFor(() => {
+        expect(screen.getByTestId('action-header-action-1')).toBeTruthy()
+      })
+      fireEvent.click(screen.getByTestId('action-header-action-1'))
+      fireEvent.click(screen.getByTestId('add-variant-action-1'))
+      expect(screen.getByTestId('variant-picker-action-1')).toBeTruthy()
+      fireEvent.click(screen.getByTestId('pick-variant-claude-action-1'))
+      // Variant should now be visible and expanded
+      expect(screen.getByTestId('variant-claude-action-1')).toBeTruthy()
+      expect(screen.getByTestId('variant-prompt-claude-action-1')).toBeTruthy()
+      // Save should be enabled
+      expect(screen.getByTestId('save-commands')).not.toBeDisabled()
+    })
+
+    it('removes an agent variant', async () => {
+      // Use config with an existing agent override
+      const configWithOverride = {
+        version: 1,
+        actions: [
+          {
+            id: 'action-1', label: 'Commit', type: 'agent',
+            prompt: 'commit things', showWhen: ['has-changes'], style: 'primary',
+            agents: { claude: { prompt: 'claude-specific' } },
+          },
+        ],
+      }
+      vi.mocked(window.fs.exists).mockResolvedValue(true)
+      vi.mocked(window.fs.readFile).mockResolvedValue(JSON.stringify(configWithOverride))
+
+      render(<CommandsEditor directory="/test/repo" onClose={vi.fn()} />)
+      await waitFor(() => {
+        expect(screen.getByTestId('action-header-action-1')).toBeTruthy()
+      })
+      fireEvent.click(screen.getByTestId('action-header-action-1'))
+      expect(screen.getByTestId('variant-claude-action-1')).toBeTruthy()
+      fireEvent.click(screen.getByTestId('remove-variant-claude-action-1'))
+      expect(screen.queryByTestId('variant-claude-action-1')).toBeNull()
+      expect(screen.getByTestId('save-commands')).not.toBeDisabled()
+    })
+
+    it('edits an agent variant prompt', async () => {
+      const configWithOverride = {
+        version: 1,
+        actions: [
+          {
+            id: 'action-1', label: 'Commit', type: 'agent',
+            prompt: 'commit things', showWhen: ['has-changes'], style: 'primary',
+            agents: { claude: { prompt: 'old prompt' } },
+          },
+        ],
+      }
+      vi.mocked(window.fs.exists).mockResolvedValue(true)
+      vi.mocked(window.fs.readFile).mockResolvedValue(JSON.stringify(configWithOverride))
+
+      render(<CommandsEditor directory="/test/repo" onClose={vi.fn()} />)
+      await waitFor(() => {
+        expect(screen.getByTestId('action-header-action-1')).toBeTruthy()
+      })
+      fireEvent.click(screen.getByTestId('action-header-action-1'))
+      fireEvent.click(screen.getByTestId('variant-claude-action-1'))
+      const textarea = screen.getByTestId('variant-prompt-claude-action-1')
+      fireEvent.change(textarea, { target: { value: 'new prompt' } })
+      expect(screen.getByTestId('save-commands')).not.toBeDisabled()
     })
   })
 
