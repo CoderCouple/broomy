@@ -183,6 +183,13 @@ describe('SessionList', () => {
     expect(screen.getByText('Review')).toBeTruthy()
   })
 
+  it('shows Reviewed chip for reviewed review sessions', () => {
+    const sessions = [makeSession({ id: 's1', branch: 'b1', sessionType: 'review', reviewStatus: 'reviewed' })]
+    render(<SessionList {...makeProps({ sessions })} />)
+    expect(screen.getByText('Reviewed')).toBeTruthy()
+    expect(screen.queryByText('Review')).toBeNull()
+  })
+
   describe('keyboard navigation', () => {
     it('selects session on Enter key', () => {
       const props = makeProps({ sessions: [makeSession({ id: 's1', branch: 'b1' })] })

@@ -64,6 +64,7 @@ export interface Session {
   issueUrl?: string
   // Review session fields
   sessionType?: 'default' | 'review'
+  reviewStatus?: 'pending' | 'reviewed'
   prNumber?: number
   prTitle?: string
   prUrl?: string
@@ -173,6 +174,7 @@ interface SessionStore {
   markHasHadCommits: (sessionId: string) => void
   updateBranchStatus: (sessionId: string, status: BranchStatus) => void
   updatePrState: (sessionId: string, prState: PrState, prNumber?: number, prUrl?: string) => void
+  updateReviewStatus: (sessionId: string, reviewStatus: 'pending' | 'reviewed') => void
   // Archive actions
   archiveSession: (sessionId: string) => void
   unarchiveSession: (sessionId: string) => void

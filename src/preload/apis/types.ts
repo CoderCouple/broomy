@@ -174,6 +174,7 @@ export type SessionData = {
   issueUrl?: string
   // Review session fields
   sessionType?: 'default' | 'review'
+  reviewStatus?: 'pending' | 'reviewed'
   prNumber?: number
   prTitle?: string
   prUrl?: string

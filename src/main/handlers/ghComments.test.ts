@@ -318,4 +318,44 @@ describe('ghComments handlers', () => {
       expect(result).toEqual({ success: false, error: expect.stringContaining('api error') })
     })
   })
+
+  describe('gh:myReviewStatus', () => {
+    it('returns pending in E2E mode', async () => {
+      const handlers = setupHandlers(createMockCtx({ isE2ETest: true }))
+      const result = await handlers['gh:myReviewStatus'](null, '/repo', 42)
+      expect(result).toBe('pending')
+    })
+
+    it('returns reviewed when user is not in requested reviewers', async () => {
+      vi.mocked(execFile)
+        .mockReturnValueOnce({ stdout: 'user/repo\n', stderr: '' } as never)
+        .mockReturnValueOnce({ stdout: 'octocat\n', stderr: '' } as never)
+        .mockReturnValueOnce({ stdout: '\n', stderr: '' } as never)
+
+      const handlers = setupHandlers()
+      const result = await handlers['gh:myReviewStatus'](null, '/repo', 42)
+      expect(result).toBe('reviewed')
+    })
+
+    it('returns pending when user is in requested reviewers', async () => {
+      vi.mocked(execFile)
+        .mockReturnValueOnce({ stdout: 'user/repo\n', stderr: '' } as never)
+        .mockReturnValueOnce({ stdout: 'octocat\n', stderr: '' } as never)
+        .mockReturnValueOnce({ stdout: 'octocat\n', stderr: '' } as never)
+
+      const handlers = setupHandlers()
+      const result = await handlers['gh:myReviewStatus'](null, '/repo', 42)
+      expect(result).toBe('pending')
+    })
+
+    it('returns null on error', async () => {
+      vi.mocked(execFile).mockImplementation(() => {
+        throw new Error('network error')
+      })
+
+      const handlers = setupHandlers()
+      const result = await handlers['gh:myReviewStatus'](null, '/repo', 42)
+      expect(result).toBeNull()
+    })
+  })
 })

@@ -72,6 +72,17 @@ export function createBranchActions(get: StoreGet, set: StoreSet) {
       debouncedSave()
     },
 
+    updateReviewStatus: (sessionId: string, reviewStatus: 'pending' | 'reviewed') => {
+      const { sessions } = get()
+      const session = sessions.find((s) => s.id === sessionId)
+      if (!session || session.reviewStatus === reviewStatus) return
+      const updatedSessions = sessions.map((s) =>
+        s.id === sessionId ? { ...s, reviewStatus } : s
+      )
+      set({ sessions: updatedSessions })
+      debouncedSave()
+    },
+
     archiveSession: (sessionId: string) => {
       const { sessions, activeSessionId } = get()
       const updatedSessions = sessions.map((s) =>

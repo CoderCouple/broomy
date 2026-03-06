@@ -103,6 +103,7 @@ async function doSave(): Promise<void> {
       panelVisibility: s.panelVisibility,
       // Review session fields
       sessionType: s.sessionType,
+      reviewStatus: s.reviewStatus,
       prNumber: s.prNumber,
       prTitle: s.prTitle,
       prUrl: s.prUrl,

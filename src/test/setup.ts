@@ -119,6 +119,7 @@ const mockGh: Mocked<GhApi> = {
   addReaction: vi.fn().mockResolvedValue({ success: true }),
   prsToReview: vi.fn().mockResolvedValue([]),
   submitDraftReview: vi.fn().mockResolvedValue({ success: true }),
+  myReviewStatus: vi.fn().mockResolvedValue('pending'),
   currentUser: vi.fn().mockResolvedValue('test-user'),
 }
 

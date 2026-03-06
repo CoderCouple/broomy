@@ -20,6 +20,7 @@ export type GhApi = {
   addReaction: (repoDir: string, commentId: number, reaction: string, commentType: 'review' | 'issue') => Promise<{ success: boolean; error?: string }>
   prsToReview: (repoDir: string) => Promise<GitHubPrForReview[]>
   submitDraftReview: (repoDir: string, prNumber: number, comments: { path: string; line: number; body: string }[]) => Promise<{ success: boolean; reviewId?: number; error?: string }>
+  myReviewStatus: (repoDir: string, prNumber: number) => Promise<'pending' | 'reviewed' | null>
   currentUser: () => Promise<string | null>
 }
 
@@ -39,5 +40,6 @@ export const ghApi: GhApi = {
   addReaction: (repoDir, commentId, reaction, commentType) => ipcRenderer.invoke('gh:addReaction', repoDir, commentId, reaction, commentType),
   prsToReview: (repoDir) => ipcRenderer.invoke('gh:prsToReview', repoDir),
   submitDraftReview: (repoDir, prNumber, comments) => ipcRenderer.invoke('gh:submitDraftReview', repoDir, prNumber, comments),
+  myReviewStatus: (repoDir, prNumber) => ipcRenderer.invoke('gh:myReviewStatus', repoDir, prNumber),
   currentUser: () => ipcRenderer.invoke('gh:currentUser'),
 }

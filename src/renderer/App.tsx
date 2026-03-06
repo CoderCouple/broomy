@@ -144,7 +144,7 @@ function AppContent() {
     togglePanel, toggleGlobalPanel, setSidebarWidth, setToolbarPanels,
     selectFile, setExplorerFilter, setFileViewerPosition, updateLayoutSize,
     markSessionRead, recordPushToMain, clearPushToMain, markHasHadCommits,
-    updateBranchStatus, updatePrState, archiveSession, unarchiveSession, setPanelVisibility, updateSessionBranch,
+    updateBranchStatus, updatePrState, updateReviewStatus, archiveSession, unarchiveSession, setPanelVisibility, updateSessionBranch,
     closeCommandsEditor,
   } = useSessionStore()
 
@@ -195,6 +195,7 @@ function AppContent() {
     checkGhAvailability, checkGitAvailability,
     switchProfile,
     markSessionRead,
+    updateReviewStatus,
   })
 
   // App callbacks hook

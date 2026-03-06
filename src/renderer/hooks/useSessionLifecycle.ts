@@ -23,6 +23,7 @@ export function useSessionLifecycle({
   checkGitAvailability,
   switchProfile,
   markSessionRead,
+  updateReviewStatus,
 }: {
   sessions: Session[]
   activeSession: Session | undefined
@@ -38,6 +39,7 @@ export function useSessionLifecycle({
   checkGitAvailability: () => Promise<void>
   switchProfile: (profileId: string) => Promise<void>
   markSessionRead: (sessionId: string) => void
+  updateReviewStatus: (sessionId: string, status: 'pending' | 'reviewed') => void
 }) {
   const [directoryExists, setDirectoryExists] = useState<Record<string, boolean>>({})
 
@@ -105,6 +107,20 @@ export function useSessionLifecycle({
       return () => clearTimeout(timeout)
     }
   }, [activeSessionId, markSessionRead])
+
+  // Check review status when switching to a review session
+  useEffect(() => {
+    if (activeSession?.sessionType !== 'review' || !activeSession.prNumber) return
+
+    let cancelled = false
+    void window.gh.myReviewStatus(activeSession.directory, activeSession.prNumber).then((status) => {
+      if (cancelled || !status) return
+      updateReviewStatus(activeSession.id, status)
+    }).catch(() => {
+      // Ignore errors
+    })
+    return () => { cancelled = true }
+  }, [activeSessionId])
 
   // Branch changes are detected via .git/HEAD file watchers (useGitBranchWatcher)
   // refreshAllBranches is called explicitly after push operations
