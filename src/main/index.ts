@@ -17,7 +17,7 @@ import { join, dirname } from 'path'
 import { existsSync, readFileSync, FSWatcher } from 'fs'
 import { execFileSync } from 'child_process'
 import * as pty from 'node-pty'
-import { isWindows, isMac, isLinux, resolveWindowsCommand, enhancedPath } from './platform'
+import { isWindows, isMac, isLinux, resolveCommand, enhancedPath } from './platform'
 import { registerAllHandlers, HandlerContext, PROFILES_FILE } from './handlers'
 import { resolveShellEnv } from './shellEnv'
 import { writeCrashLog } from './crashLog'
@@ -42,13 +42,13 @@ process.env.PATH = enhancedPath(process.env.PATH)
 if (isWindows) {
   const dirsToAdd = new Set<string>()
   for (const cmd of ['git', 'gh'] as const) {
-    const resolved = resolveWindowsCommand(cmd)
+    const resolved = resolveCommand(cmd)
     if (resolved) {
       dirsToAdd.add(dirname(resolved))
     }
   }
   if (dirsToAdd.size > 0) {
-    const current = process.env.PATH ?? ''
+    const current = process.env.PATH || ''
     process.env.PATH = `${[...dirsToAdd].join(';')};${current}`
   }
 }

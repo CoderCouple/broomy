@@ -151,6 +151,7 @@ describe('platform', () => {
     })
 
     it('resolveWindowsCommand is an alias for resolveCommand', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       const { resolveCommand, resolveWindowsCommand } = await import('./platform')
       expect(resolveWindowsCommand).toBe(resolveCommand)
     })
