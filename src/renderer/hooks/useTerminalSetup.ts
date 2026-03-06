@@ -330,6 +330,7 @@ export function useTerminalSetup(
     const dataHandler = createPtyDataHandler({
       terminal,
       isAgent,
+      command: cmd,
       state: s,
       effectStartTime,
       isActiveRef: s.isActiveRef,
@@ -386,9 +387,13 @@ export function useTerminalSetup(
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0] as ResizeObserverEntry | undefined
       if (!entry || entry.contentRect.width === 0 || entry.contentRect.height === 0) return
-      try { fitAddon.fit() } catch { /* ignore */ }
+      // Debounce fit() and pty.resize() together so xterm and the child process
+      // learn about the new size atomically. Without this, TUI agents like Codex
+      // render frames for the old size into a terminal that already changed,
+      // leaving orphaned lines and blank gaps in the scrollback.
       if (ptyResizeTimeout) clearTimeout(ptyResizeTimeout)
       ptyResizeTimeout = setTimeout(() => {
+        try { fitAddon.fit() } catch { /* ignore */ }
         if (s.ptyIdRef.current && terminal.cols > 0 && terminal.rows > 0) {
           void window.pty.resize(s.ptyIdRef.current, terminal.cols, terminal.rows)
         }
@@ -422,10 +427,12 @@ export function useTerminalSetup(
     s.isActiveRef.current = isActive
     s.lastInteractionRef.current = Date.now()
     if (isActive) {
-      // Replay any data that arrived while the terminal was in the background
+      // Fit first so the terminal has correct dimensions before flushing.
+      // Without this, buffered TUI frames render at stale dimensions and
+      // leave orphaned lines / blank gaps in the scrollback.
+      try { s.fitAddonRef.current?.fit() } catch { /* ignore */ }
       s.dataHandlerRef.current?.flush()
       requestAnimationFrame(() => {
-        try { s.fitAddonRef.current?.fit() } catch { /* ignore */ }
         s.terminalRef.current?.focus()
       })
     }
