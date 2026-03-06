@@ -37,11 +37,12 @@ interface FileViewerProps {
   diffCurrentRef?: string // Git ref for the "modified" side (e.g. commit hash for commit diffs)
   diffLabel?: string // Label to display in the header (e.g. "abc1234: commit message")
   reviewContext?: { sessionDirectory: string; commentsFilePath: string }
+  prFilesUrl?: string // PR files URL for "Show on GitHub" button in diff view
   onOpenFile?: (filePath: string, line?: number) => void // Navigate to a different file (e.g. go-to-definition)
   isActive?: boolean // Whether this session is the active one (controls file watcher)
 }
 
-export default function FileViewer({ filePath, position = 'top', onPositionChange, onClose, fileStatus, directory, onSaveComplete, initialViewMode = 'latest', scrollToLine, searchHighlight, onDirtyStateChange, onSaveFunctionChange, diffBaseRef, diffCurrentRef, diffLabel, reviewContext, onOpenFile, isActive }: FileViewerProps) {
+export default function FileViewer({ filePath, position = 'top', onPositionChange, onClose, fileStatus, directory, onSaveComplete, initialViewMode = 'latest', scrollToLine, searchHighlight, onDirtyStateChange, onSaveFunctionChange, diffBaseRef, diffCurrentRef, diffLabel, reviewContext, prFilesUrl, onOpenFile, isActive }: FileViewerProps) {
   const viewer = useFileViewer({
     filePath,
     fileStatus,
@@ -129,6 +130,7 @@ export default function FileViewer({ filePath, position = 'top', onPositionChang
         diffLabel={diffLabel}
         fileStatus={fileStatus}
         position={position}
+        prFilesUrl={prFilesUrl}
         onPositionChange={onPositionChange}
         onClose={onClose}
         onSaveButton={viewer.handleSaveButton}
