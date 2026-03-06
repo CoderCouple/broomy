@@ -67,11 +67,10 @@ test.describe.serial('Feature: Remember Terminal Tab', () => {
     // Click the add tab button
     const addButton = page.locator('button[title="New terminal tab"]:visible')
     await addButton.click()
-    await page.waitForTimeout(1000)
 
-    // A new "Terminal" tab should appear
+    // Wait for the new tab to appear
     const userTab = page.locator('div.cursor-pointer:has-text("Terminal"):visible').first()
-    await expect(userTab).toBeVisible()
+    await expect(userTab).toBeVisible({ timeout: 5000 })
 
     // The user tab should be selected (aria-selected="true") and Agent tab should not
     // Use the existing E2E pattern: check visible tab text with active indicator
@@ -108,7 +107,6 @@ test.describe.serial('Feature: Remember Terminal Tab', () => {
     // Click on a different session in the sidebar
     const backendSession = page.locator('.cursor-pointer:has-text("backend-api")')
     await backendSession.click()
-    await page.waitForTimeout(500)
     await expect(backendSession).toHaveClass(/bg-accent\/15/)
 
     // This session should show the Agent tab as active
@@ -143,7 +141,6 @@ test.describe.serial('Feature: Remember Terminal Tab', () => {
     // Switch back to the first session
     const broomySession = page.locator('.cursor-pointer:has-text("broomy")')
     await broomySession.click()
-    await page.waitForTimeout(500)
     await expect(broomySession).toHaveClass(/bg-accent\/15/)
 
     // The user Terminal tab should still be active, NOT the Agent tab
