@@ -226,6 +226,19 @@ describe('config handlers', () => {
       expect(ids).toContain('gemini')
     })
 
+    it('backfills resumeCommand from defaults for existing agents', async () => {
+      const mockConfig = {
+        agents: [{ id: 'claude', name: 'Claude Code', command: 'claude', color: '#D97757' }],
+        sessions: [],
+      }
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify(mockConfig))
+
+      const handlers = setupHandlers()
+      const result = await handlers['config:load'](null, 'default')
+      const claude = result.agents.find((a: { id: string }) => a.id === 'claude')
+      expect(claude.resumeCommand).toBe('/resume')
+    })
+
     it('falls back to backup on corrupt primary config', async () => {
       allowConsoleWarn()
       const backupConfig = { agents: DEFAULT_AGENTS, sessions: [{ id: 'backup' }] }

@@ -101,6 +101,9 @@ async function loadConfigFile(configFile: string): Promise<Record<string, unknow
         if (def && 'skipApprovalFlag' in def && agent.skipApprovalFlag === undefined) {
           agent.skipApprovalFlag = def.skipApprovalFlag
         }
+        if (def && 'resumeCommand' in def && agent.resumeCommand === undefined) {
+          agent.resumeCommand = def.resumeCommand
+        }
       }
     }
     return config
