@@ -7,12 +7,12 @@ import type { EditorActions } from './fileViewers/types'
 import type { FileStatus, FileViewerPosition, ViewMode } from './FileViewer'
 import type { FileViewerPlugin } from './fileViewers'
 
-/** Build a GitHub PR files URL with a file-specific anchor (diff-<sha256hex of relative path>) */
+/** Build a GitHub PR files URL that filters to a specific file and anchors to its diff */
 async function buildPrFileUrl(prUrl: string, relativePath: string): Promise<string> {
   const encoded = new TextEncoder().encode(relativePath)
   const hashBuffer = await crypto.subtle.digest('SHA-256', encoded)
   const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('')
-  return `${prUrl}/files#diff-${hashHex}`
+  return `${prUrl}/files?file-filters[]=${encodeURIComponent(relativePath)}#diff-${hashHex}`
 }
 
 interface FileViewerToolbarProps {
