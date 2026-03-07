@@ -89,7 +89,6 @@ function makeConfig(overrides: Partial<PanelsMapConfig> = {}): PanelsMapConfig {
     fetchGitStatus: vi.fn(),
     getAgentCommand: vi.fn().mockReturnValue(undefined),
     getAgentEnv: vi.fn().mockReturnValue(undefined),
-    getAgentResumeCommand: vi.fn().mockReturnValue(undefined),
     getRepoIsolation: vi.fn().mockReturnValue(undefined),
     globalPanelVisibility: {
       [PANEL_IDS.SIDEBAR]: true,

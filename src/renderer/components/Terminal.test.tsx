@@ -228,7 +228,7 @@ describe('Terminal', () => {
         handleScrollToBottom: vi.fn(),
         exitInfo: null,
       })
-      render(<Terminal sessionId="session-1" cwd="/tmp/test" isAgentTerminal isRestored agentResumeCommand="claude --continue" />)
+      render(<Terminal sessionId="session-1" cwd="/tmp/test" isAgentTerminal isRestored />)
       expect(screen.getByText(/Resume your previous conversation/)).toBeTruthy()
     })
 
@@ -242,7 +242,7 @@ describe('Terminal', () => {
         handleScrollToBottom: vi.fn(),
         exitInfo: null,
       })
-      render(<Terminal sessionId="session-1" cwd="/tmp/test" isAgentTerminal isRestored agentResumeCommand="claude --continue" />)
+      render(<Terminal sessionId="session-1" cwd="/tmp/test" isAgentTerminal isRestored />)
       fireEvent.click(screen.getByLabelText('Dismiss'))
       expect(screen.queryByText(/Resume your previous conversation/)).toBeNull()
     })

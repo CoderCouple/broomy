@@ -21,11 +21,11 @@ import type { NavigationTarget } from '../utils/fileNavigation'
 
 /** Wrapper that subscribes each session terminal to its own visibility from the store. */
 const SessionTerminal = memo(function SessionTerminal({
-  sessionId, cwd, branch, agentCommand, agentEnv, agentResumeCommand, isRestored, isolated, repoRootDir,
+  sessionId, cwd, branch, agentCommand, agentEnv, isRestored, isolated, repoRootDir,
 }: {
   sessionId: string; cwd: string; branch: string
   agentCommand?: string; agentEnv?: Record<string, string>
-  agentResumeCommand?: string; isRestored?: boolean
+  isRestored?: boolean
   isolated: boolean; repoRootDir?: string
 }) {
   const isVisible = useSessionStore((s) => s.activeSessionId === sessionId)
@@ -37,7 +37,6 @@ const SessionTerminal = memo(function SessionTerminal({
           cwd={cwd}
           agentCommand={agentCommand}
           agentEnv={agentEnv}
-          agentResumeCommand={agentResumeCommand}
           isRestored={isRestored}
           isolated={isolated}
           repoRootDir={repoRootDir}
@@ -75,7 +74,6 @@ export interface PanelsMapConfig {
   fetchGitStatus: () => void | Promise<void>
   getAgentCommand: (session: Session) => string | undefined
   getAgentEnv: (session: Session) => Record<string, string> | undefined
-  getAgentResumeCommand: (session: Session) => string | undefined
   getRepoIsolation: (session: Session) => { isolated: boolean; repoRootDir?: string } | undefined
   globalPanelVisibility: Record<string, boolean>
   toggleGlobalPanel: (panelId: string) => void
@@ -214,7 +212,7 @@ function useFileViewerPanel(config: PanelsMapConfig) {
                   sessionDirectory: session.directory,
                   commentsFilePath: `${session.directory}/.broomy/comments.json`,
                 } : undefined}
-                prFilesUrl={session.sessionType === 'review' && session.prUrl ? `${session.prUrl}/files` : undefined}
+                prFilesUrl={session.sessionType === 'review' && session.prUrl ? session.prUrl : undefined}
                 onOpenFile={isActive ? (targetPath, line) => navigateToFile({ filePath: targetPath, openInDiffMode: false, scrollToLine: line }) : undefined}
               />
             </div>
@@ -230,7 +228,7 @@ export function usePanelsMap(config: PanelsMapConfig) {
     sessions,
     handleSelectSession, handleNewSession, removeSession, refreshPrStatus,
     archiveSession, unarchiveSession,
-    getAgentCommand, getAgentEnv, getAgentResumeCommand,
+    getAgentCommand, getAgentEnv,
     globalPanelVisibility, toggleGlobalPanel,
     repos,
   } = config
@@ -256,7 +254,6 @@ export function usePanelsMap(config: PanelsMapConfig) {
             branch={session.branch}
             agentCommand={getAgentCommand(session)}
             agentEnv={getAgentEnv(session)}
-            agentResumeCommand={getAgentResumeCommand(session)}
             isRestored={session.isRestored}
             isolated={repo?.isolated ?? false}
             repoRootDir={repo?.rootDir}
@@ -267,7 +264,7 @@ export function usePanelsMap(config: PanelsMapConfig) {
         <WelcomeScreen onNewSession={handleNewSession} />
       )}
     </div>
-  ), [terminalSessionKey, getAgentCommand, getAgentEnv, getAgentResumeCommand, handleNewSession, repos])
+  ), [terminalSessionKey, getAgentCommand, getAgentEnv, handleNewSession, repos])
 
   const explorerPanel = useExplorerPanel(config)
   const fileViewerPanel = useFileViewerPanel(config)
