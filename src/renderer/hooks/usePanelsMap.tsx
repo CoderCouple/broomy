@@ -212,7 +212,7 @@ function useFileViewerPanel(config: PanelsMapConfig) {
                   sessionDirectory: session.directory,
                   commentsFilePath: `${session.directory}/.broomy/comments.json`,
                 } : undefined}
-                prFilesUrl={session.sessionType === 'review' && session.prUrl ? `${session.prUrl}/files` : undefined}
+                prFilesUrl={session.sessionType === 'review' && session.prUrl ? session.prUrl : undefined}
                 onOpenFile={isActive ? (targetPath, line) => navigateToFile({ filePath: targetPath, openInDiffMode: false, scrollToLine: line }) : undefined}
               />
             </div>

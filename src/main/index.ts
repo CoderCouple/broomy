@@ -371,6 +371,18 @@ function buildAppMenu() {
       ],
     },
     {
+      label: 'Agent',
+      submenu: [
+        {
+          label: 'Restart Agent',
+          accelerator: 'CmdOrCtrl+Shift+R',
+          click: (_, browserWindow) => {
+            browserWindow?.webContents.send('agent:restart')
+          },
+        },
+      ],
+    },
+    {
       label: 'Window',
       submenu: [
         { role: 'minimize' },

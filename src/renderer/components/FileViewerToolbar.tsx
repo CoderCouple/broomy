@@ -1,10 +1,19 @@
 /**
  * Toolbar for the file viewer with save, diff toggle, view mode, and navigation controls.
  */
+import { useMemo } from 'react'
 import { relative } from 'path-browserify'
 import type { EditorActions } from './fileViewers/types'
 import type { FileStatus, FileViewerPosition, ViewMode } from './FileViewer'
 import type { FileViewerPlugin } from './fileViewers'
+
+/** Build a GitHub PR files URL with a file-specific anchor (diff-<sha256hex of relative path>) */
+async function buildPrFileUrl(prUrl: string, relativePath: string): Promise<string> {
+  const encoded = new TextEncoder().encode(relativePath)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded)
+  const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('')
+  return `${prUrl}/files#diff-${hashHex}`
+}
 
 interface FileViewerToolbarProps {
   fileName: string
@@ -53,6 +62,19 @@ export default function FileViewerToolbar({
   onSelectViewer,
   onSetViewMode,
 }: FileViewerToolbarProps) {
+  const relativePath = useMemo(
+    () => directory && !/^https?:\/\//.test(filePath) ? relative(directory, filePath) : filePath,
+    [directory, filePath],
+  )
+
+  const handleOpenOnGithub = useMemo(() => {
+    if (!prFilesUrl) return undefined
+    return async () => {
+      const url = await buildPrFileUrl(prFilesUrl, relativePath)
+      void window.shell.openExternal(url)
+    }
+  }, [prFilesUrl, relativePath])
+
   return (
     <div className="flex-shrink-0 p-3 border-b border-border flex items-center justify-between">
       <div className="flex items-center gap-2 min-w-0">
@@ -85,7 +107,7 @@ export default function FileViewerToolbar({
             </svg>
           </button>
         )}
-        <span className="text-xs text-text-secondary truncate">{directory && !/^https?:\/\//.test(filePath) ? relative(directory, filePath) : filePath}</span>
+        <span className="text-xs text-text-secondary truncate">{relativePath}</span>
         {fileStatus === 'deleted' && (
           <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 shrink-0">
             Deleted
@@ -99,9 +121,9 @@ export default function FileViewerToolbar({
       </div>
       <div className="flex items-center gap-2">
         {/* Show on GitHub button - prominent in diff mode for review sessions */}
-        {prFilesUrl && viewMode === 'diff' && (
+        {handleOpenOnGithub && viewMode === 'diff' && (
           <button
-            onClick={() => void window.shell.openExternal(prFilesUrl)}
+            onClick={() => void handleOpenOnGithub()}
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded bg-bg-tertiary border border-border text-text-primary hover:bg-bg-tertiary/80 hover:border-accent/50 transition-colors"
             title="Open PR diff on GitHub to add comments"
           >

@@ -67,6 +67,20 @@ function ExitErrorBanner({ exitInfo, onDismiss }: { exitInfo: ExitInfo; onDismis
   )
 }
 
+function AgentExitBanner({ exitInfo, onRestart }: { exitInfo: ExitInfo; onRestart: () => void }) {
+  return (
+    <div className="mx-2 mt-2 px-3 py-2 rounded bg-yellow-500/10 border border-yellow-500/30 text-xs text-yellow-300 shrink-0 flex items-center justify-between">
+      <span>{exitInfo.message}</span>
+      <button
+        className="ml-3 px-2 py-0.5 rounded bg-yellow-500/20 hover:bg-yellow-500/30 font-medium transition-colors"
+        onClick={onRestart}
+      >
+        Restart Agent
+      </button>
+    </div>
+  )
+}
+
 export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal = false, isServicesTerminal = false, agentNotInstalled = false, isRestored, isolated, repoRootDir, storeSessionId, tabId }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [restartKey, setRestartKey] = useState(0)
@@ -97,6 +111,21 @@ export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal
 
   const { terminalRef, ptyIdRef, isActiveRef, showScrollButton, handleScrollToBottom, exitInfo } = useTerminalSetup(config, containerRef)
   const [exitDismissed, setExitDismissed] = useState(false)
+
+  const handleRestart = useCallback(() => {
+    setRestartKey((k) => k + 1)
+    setExitDismissed(false)
+  }, [])
+
+  // Listen for Agent > Restart Agent menu action
+  useEffect(() => {
+    if (!isAgentTerminal) return
+    const handler = () => {
+      if (isActiveRef.current) handleRestart()
+    }
+    window.addEventListener('agent:restart', handler)
+    return () => window.removeEventListener('agent:restart', handler)
+  }, [isAgentTerminal, isActiveRef, handleRestart])
 
   // Select all terminal content when this terminal is the active one
   useEffect(() => {
@@ -133,7 +162,7 @@ export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal
           console.warn('[Terminal] Clipboard read failed:', err)
         }
       } else if (result === 'restart-agent') {
-        setRestartKey((k) => k + 1)
+        handleRestart()
       }
     } catch (err) {
       console.warn('[Terminal] Context menu failed:', err)
@@ -184,8 +213,11 @@ export default function Terminal({ sessionId, cwd, command, env, isAgentTerminal
           </button>
         </div>
       )}
-      {exitInfo && !exitDismissed && (
+      {exitInfo && !exitDismissed && exitInfo.detail && (
         <ExitErrorBanner exitInfo={exitInfo} onDismiss={() => setExitDismissed(true)} />
+      )}
+      {exitInfo && isAgentTerminal && !exitInfo.detail && (
+        <AgentExitBanner exitInfo={exitInfo} onRestart={handleRestart} />
       )}
       <div className="flex-1 min-h-0 p-2 relative">
         <div ref={containerRef} className="h-full w-full" />

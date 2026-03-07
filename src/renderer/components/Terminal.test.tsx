@@ -285,7 +285,7 @@ describe('Terminal', () => {
         isActiveRef: { current: false },
         showScrollButton: false,
         handleScrollToBottom: vi.fn(),
-        exitInfo: { code: 137, message: 'Process killed (SIGKILL)' },
+        exitInfo: { code: 137, message: 'Process killed (SIGKILL)', detail: 'Some detail' },
       })
       render(<Terminal sessionId="session-1" cwd="/tmp/test" />)
       expect(screen.getByText(/SIGKILL/)).toBeTruthy()
@@ -293,7 +293,7 @@ describe('Terminal', () => {
       expect(screen.queryByText(/SIGKILL/)).toBeNull()
     })
 
-    it('does not open error detail modal when banner without detail is clicked', async () => {
+    it('does not open error detail modal when exitInfo has no detail', async () => {
       const { useTerminalSetup } = await import('../hooks/useTerminalSetup')
       const { useErrorStore } = await import('../store/errors')
       useErrorStore.setState({ detailError: null })
@@ -306,7 +306,8 @@ describe('Terminal', () => {
         exitInfo: { code: 137, message: 'Process killed (SIGKILL)' },
       })
       render(<Terminal sessionId="session-1" cwd="/tmp/test" />)
-      fireEvent.click(screen.getByText(/SIGKILL/))
+      // Without detail, ExitErrorBanner is not shown — AgentExitBanner shows instead (no detail button)
+      expect(screen.queryByLabelText('Dismiss')).toBeNull()
       const state = useErrorStore.getState()
       expect(state.detailError).toBeNull()
     })

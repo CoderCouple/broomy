@@ -135,7 +135,7 @@ test.describe.serial('Feature: Review Links — Internal Diff View', () => {
     await fileLink.click()
 
     // Wait for the file viewer to show the file name in the toolbar
-    await expect(page.locator('text=ThemeContext.tsx')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('ThemeContext.tsx', { exact: true })).toBeVisible({ timeout: 5000 })
 
     // Screenshot the full window to show both review panel and file viewer
     await page.screenshot({
@@ -185,9 +185,9 @@ test.describe.serial('Feature: Review Links — Internal Diff View', () => {
       caption: '"Show on GitHub" button in the diff viewer toolbar',
       description:
         'When viewing a diff in a review session, a prominent "Show on GitHub" button appears ' +
-        'in the toolbar. Clicking it opens the PR files page on GitHub, where users can add ' +
-        'inline comments. This provides the best of both worlds: fast local diffs for reading, ' +
-        'with easy access to GitHub for commenting.',
+        'in the toolbar. Clicking it opens the specific file\'s diff on the PR page on GitHub, ' +
+        'where users can add inline comments. This provides the best of both worlds: fast local ' +
+        'diffs for reading, with easy access to GitHub for commenting.',
     })
   })
 })
