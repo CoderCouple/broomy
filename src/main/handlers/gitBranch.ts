@@ -45,7 +45,16 @@ async function handleWorktreeAdd(ctx: HandlerContext, repoPath: string, worktree
 
   try {
     const git = simpleGit(expandHomePath(repoPath))
-    await git.raw(['worktree', 'add', '-b', branchName, expandHomePath(worktreePath), baseBranch])
+    const expandedPath = expandHomePath(worktreePath)
+
+    // Try checking out the branch directly first (works for existing local
+    // branches and remote-only branches via git's DWIM). Fall back to -b for
+    // truly new branches.
+    try {
+      await git.raw(['worktree', 'add', expandedPath, branchName])
+    } catch {
+      await git.raw(['worktree', 'add', '-b', branchName, expandedPath, baseBranch])
+    }
     return { success: true }
   } catch (error) {
     return { success: false, error: String(error) }

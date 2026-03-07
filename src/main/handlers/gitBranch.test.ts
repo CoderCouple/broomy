@@ -142,16 +142,28 @@ describe('gitBranch handlers', () => {
       expect(result).toEqual({ success: true })
     })
 
-    it('adds worktree in normal mode', async () => {
+    it('checks out existing branch without -b first', async () => {
       mockGitInstance.raw.mockResolvedValue('')
+      const handlers = setupHandlers()
+      const result = await handlers['git:worktreeAdd'](null, '/repo', '/wt', 'branch', 'main')
+      expect(result).toEqual({ success: true })
+      expect(mockGitInstance.raw).toHaveBeenCalledWith(['worktree', 'add', '/wt', 'branch'])
+    })
+
+    it('falls back to -b when branch does not exist', async () => {
+      mockGitInstance.raw
+        .mockRejectedValueOnce(new Error('not a valid branch'))
+        .mockResolvedValueOnce('')
       const handlers = setupHandlers()
       const result = await handlers['git:worktreeAdd'](null, '/repo', '/wt', 'branch', 'main')
       expect(result).toEqual({ success: true })
       expect(mockGitInstance.raw).toHaveBeenCalledWith(['worktree', 'add', '-b', 'branch', '/wt', 'main'])
     })
 
-    it('returns error on failure', async () => {
-      mockGitInstance.raw.mockRejectedValue(new Error('worktree error'))
+    it('returns error when both attempts fail', async () => {
+      mockGitInstance.raw
+        .mockRejectedValueOnce(new Error('not a valid branch'))
+        .mockRejectedValueOnce(new Error('worktree error'))
       const handlers = setupHandlers()
       const result = await handlers['git:worktreeAdd'](null, '/repo', '/wt', 'branch', 'main')
       expect(result).toEqual({ success: false, error: expect.stringContaining('worktree error') })
