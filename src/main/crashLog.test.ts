@@ -19,7 +19,7 @@ vi.mock('./handlers/types', () => ({
   CONFIG_DIR: '/mock/.broomy',
 }))
 
-import { writeCrashLog, readLatestCrashLog, deleteCrashLog, buildCrashReportUrl, type CrashReport } from './crashLog'
+import { writeCrashLog, readLatestCrashLog, deleteCrashLog, buildCrashReportUrl, appendErrorLog, getRecentErrors, type CrashReport } from './crashLog'
 
 const CRASH_DIR = '/mock/.broomy/crash-reports'
 
@@ -133,6 +133,55 @@ describe('crashLog', () => {
       expect(url).toContain('title=')
       expect(url).toContain('Something+broke')
       expect(url).toContain('labels=bug')
+    })
+
+    it('includes recent errors section when present', () => {
+      const report: CrashReport = {
+        timestamp: '2023-11-14T00:00:00.000Z',
+        message: 'crash',
+        stack: null,
+        electronVersion: '28.0.0',
+        appVersion: '1.0.0',
+        platform: 'darwin',
+        processType: 'renderer',
+        recentErrors: [
+          { timestamp: '2023-11-14T00:00:00.000Z', source: 'renderer', message: 'TypeError: x is not a function' },
+        ],
+      }
+
+      const url = buildCrashReportUrl(report)
+
+      expect(url).toContain('Recent+Errors')
+      expect(url).toContain('TypeError')
+    })
+  })
+
+  describe('appendErrorLog / getRecentErrors', () => {
+    it('stores error entries', () => {
+      appendErrorLog('renderer', 'test error')
+      const errors = getRecentErrors()
+      expect(errors.length).toBeGreaterThanOrEqual(1)
+      const last = errors[errors.length - 1]
+      expect(last.source).toBe('renderer')
+      expect(last.message).toBe('test error')
+    })
+
+    it('truncates long messages', () => {
+      const longMsg = 'x'.repeat(600)
+      appendErrorLog('renderer', longMsg)
+      const errors = getRecentErrors()
+      const last = errors[errors.length - 1]
+      expect(last.message.length).toBeLessThanOrEqual(501)
+    })
+
+    it('includes recent errors in crash report', () => {
+      appendErrorLog('did-fail-load', 'page load failed')
+      writeCrashLog(new Error('boom'), 'renderer')
+
+      const written = vi.mocked(writeFileSync).mock.calls[0][1] as string
+      const report = JSON.parse(written) as CrashReport
+      expect(report.recentErrors).toBeDefined()
+      expect(report.recentErrors!.some(e => e.message === 'page load failed')).toBe(true)
     })
   })
 })
