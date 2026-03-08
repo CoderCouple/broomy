@@ -53,7 +53,7 @@ import { E2EScenario, type HandlerContext } from './types'
 function createMockCtx(overrides: Partial<HandlerContext> = {}): HandlerContext {
   return {
     isE2ETest: false,
-    e2eScenario: E2EScenario.Default,
+    e2eScenario: E2EScenario.Default, e2eRealRepos: false,
     isDev: false,
     isWindows: false,
     ptyProcesses: new Map(),
@@ -281,10 +281,10 @@ describe('ghCore handlers', () => {
       expect(result.state).toBe('OPEN')
     })
 
-    it('returns error object on unexpected error', async () => {
+    it('returns null on unexpected error', async () => {
       vi.mocked(execFile).mockRejectedValue(new Error('no PR'))
       const handlers = setupHandlers()
-      expect(await handlers['gh:prStatus'](null, '/repo')).toEqual({ error: 'no PR' })
+      expect(await handlers['gh:prStatus'](null, '/repo')).toBeNull()
     })
   })
 
