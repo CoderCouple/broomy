@@ -240,6 +240,12 @@ export type TsProjectContext = {
   files: { path: string; content: string }[]
 }
 
+export type ErrorLogEntry = {
+  timestamp: string
+  source: string
+  message: string
+}
+
 export type CrashReport = {
   timestamp: string
   message: string
@@ -248,4 +254,5 @@ export type CrashReport = {
   appVersion: string
   platform: string
   processType: 'main' | 'renderer'
+  recentErrors?: ErrorLogEntry[]
 }

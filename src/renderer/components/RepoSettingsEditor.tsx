@@ -61,7 +61,7 @@ export function RepoSettingsEditor({
   onClose: () => void
 }) {
   const [defaultAgentId, setDefaultAgentId] = useState(repo.defaultAgentId || '')
-  const [allowApproveAndMerge, setAllowPushToMain] = useState(repo.allowApproveAndMerge ?? false)
+  const [allowApproveAndMerge, setAllowApproveAndMerge] = useState(repo.allowApproveAndMerge ?? false)
   const [isolated, setIsolated] = useState(repo.isolated ?? false)
   const [skipApproval, setSkipApproval] = useState(repo.skipApproval ?? false)
   const [devcontainerStatus, setDevcontainerStatus] = useState<DevcontainerStatus | null>(null)
@@ -69,7 +69,7 @@ export function RepoSettingsEditor({
   const [initScript, setInitScript] = useState('')
   const [loadingScript, setLoadingScript] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [writeAccessError, setPushToMainError] = useState<{ summary: string; details: string } | null>(null)
+  const [writeAccessError, setWriteAccessError] = useState<{ summary: string; details: string } | null>(null)
   const [showErrorDetails, setShowErrorDetails] = useState(false)
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export function RepoSettingsEditor({
   return (
     <div className="space-y-3">
       {writeAccessError && (
-        <ErrorBanner error={writeAccessError} onDismiss={() => setPushToMainError(null)} onShowDetails={() => setShowErrorDetails(true)} />
+        <ErrorBanner error={writeAccessError} onDismiss={() => setWriteAccessError(null)} onShowDetails={() => setShowErrorDetails(true)} />
       )}
       {showErrorDetails && writeAccessError && (
         <ErrorDetailsPopup error={writeAccessError} onClose={() => setShowErrorDetails(false)} />
@@ -154,26 +154,26 @@ export function RepoSettingsEditor({
             onChange={async (e) => {
               const checked = e.target.checked
               if (checked) {
-                setPushToMainError(null)
+                setWriteAccessError(null)
                 try {
                   const hasAccess = await window.gh.hasWriteAccess(repo.rootDir)
                   if (!hasAccess) {
-                    setPushToMainError({
+                    setWriteAccessError({
                       summary: 'Write access check failed',
                       details: `The GitHub CLI reported that you do not have write access to this repository.\n\nRepository: ${repo.rootDir}\n\nTo debug, run this command in your terminal:\n  cd "${repo.rootDir}" && gh repo view --json viewerPermission\n\nExpected viewerPermission: ADMIN, MAINTAIN, or WRITE`,
                     })
                     return
                   }
                 } catch (err) {
-                  setPushToMainError({
+                  setWriteAccessError({
                     summary: 'Failed to check write access',
                     details: `An error occurred while checking write access.\n\nRepository: ${repo.rootDir}\n\nError: ${String(err)}\n\nPossible causes:\n- gh CLI is not installed\n- gh CLI is not authenticated (run: gh auth login)\n- Network connectivity issues\n- Repository is not a GitHub repository`,
                   })
                   return
                 }
               }
-              setAllowPushToMain(checked)
-              setPushToMainError(null)
+              setAllowApproveAndMerge(checked)
+              setWriteAccessError(null)
             }}
             className="rounded border-border"
           />

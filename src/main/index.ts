@@ -20,7 +20,7 @@ import * as pty from 'node-pty'
 import { isWindows, isMac, isLinux, resolveCommand, enhancedPath } from './platform'
 import { registerAllHandlers, HandlerContext, PROFILES_FILE } from './handlers'
 import { resolveShellEnv } from './shellEnv'
-import { writeCrashLog } from './crashLog'
+import { writeCrashLog, appendErrorLog } from './crashLog'
 
 // Ensure app name is correct (in dev mode Electron defaults to "Electron")
 app.name = 'Broomy'
@@ -58,6 +58,7 @@ if (!isE2ETest) {
   process.on('uncaughtException', (error) => {
     console.error('Uncaught exception:', error)
     try {
+      appendErrorLog('main', error instanceof Error ? (error.stack ?? error.message) : String(error))
       writeCrashLog(error, 'main')
       dialog.showErrorBox('Broomy crashed', error.message || String(error))
     } catch {
@@ -69,6 +70,7 @@ if (!isE2ETest) {
   process.on('unhandledRejection', (reason) => {
     console.error('Unhandled rejection:', reason)
     try {
+      appendErrorLog('main', reason instanceof Error ? (reason.stack ?? reason.message) : String(reason))
       writeCrashLog(reason, 'main')
       dialog.showErrorBox('Broomy crashed', reason instanceof Error ? reason.message : String(reason))
     } catch {
@@ -170,6 +172,14 @@ function createWindow(profileId?: string): BrowserWindow {
   // Log renderer errors
   window.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('Failed to load:', errorCode, errorDescription)
+    appendErrorLog('did-fail-load', `${errorCode}: ${errorDescription}`)
+  })
+
+  window.webContents.on('console-message', (_event, level, message, _line, _sourceId) => {
+    // level 3 = error (0=verbose, 1=info, 2=warning, 3=error)
+    if (level >= 3) {
+      appendErrorLog('renderer', message)
+    }
   })
 
   window.webContents.on('render-process-gone', (_event, details) => {
