@@ -41,6 +41,7 @@ coverage/
 !build/icon.png
 !website/public/**/*.png
 !website/public/*.png
+!.storybook-refs/**/*.png
 
 # Feature documentation generated artifacts
 tests/features/*/index.html
@@ -54,6 +55,11 @@ build/node-pty-prebuilds/
 
 # Docker E2E output
 docker-output/
+
+# Storybook
+storybook-static/
+.storybook-screenshots/
+.storybook-report/
 
 # Broomy review data
 .broomy/
