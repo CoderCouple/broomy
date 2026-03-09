@@ -80,7 +80,7 @@ This creates `release-notes.md` with categorized changes (new features, improvem
 | `pnpm dist:signed` | macOS (signed + notarized) | Requires Apple credentials |
 | `pnpm dist:mac` | macOS (unsigned) | For local testing |
 | `pnpm dist:win` | Windows x64 (NSIS installer + portable) | Cross-compiles from macOS |
-| `pnpm dist:linux` | Linux x64 (AppImage + .deb) | Requires prebuilds (see below) |
+| `pnpm dist:linux` | Linux x64 + arm64 (AppImage + .deb) | Requires prebuilds (see below) |
 | `pnpm dist:all` | All platforms | macOS signed, Windows + Linux unsigned |
 
 ### Build Artifacts
@@ -89,7 +89,7 @@ This creates `release-notes.md` with categorized changes (new features, improvem
 |---|---|---|
 | macOS | arm64 (Apple Silicon) | `.dmg`, `.zip` |
 | Windows | x64 | `.exe` (NSIS installer), `.exe` (portable) |
-| Linux | x64 | `.AppImage`, `.deb` |
+| Linux | x64, arm64 | `.AppImage`, `.deb` |
 
 ## Full Release Pipeline
 
