@@ -105,41 +105,23 @@ function getSshAuthHint(url: string, options?: AuthDiagnostics): string {
   return hint
 }
 
-/**
- * Detects common git authentication errors (push, pull, fetch) and returns actionable hints.
- * When a URL is provided, delegates to getCloneErrorHint for protocol-specific advice.
- * When no URL is available, gives generic advice.
- */
-export function getGitAuthHint(errorStr: string, options?: { url?: string } & AuthDiagnostics): string | null {
-  if (options?.url) {
-    return getCloneErrorHint(errorStr, options.url, options)
-  }
-
-  // Identity error detection
+function getIdentityHint(errorStr: string): string | null {
   const isIdentityError = errorStr.includes('Please tell me who you are')
     || errorStr.includes('Author identity unknown')
     || errorStr.includes('empty ident name')
     || errorStr.includes('user.useConfigOnly')
-  if (isIdentityError) {
-    return '\n\nGit identity not configured.\n\nRun:\n  git config --global user.name "Your Name"\n  git config --global user.email "you@example.com"'
-  }
+  if (!isIdentityError) return null
+  return '\n\nGit identity not configured.\n\nRun:\n  git config --global user.name "Your Name"\n  git config --global user.email "you@example.com"'
+}
 
-  // Merge mode error detection
+function getMergeModeHint(errorStr: string): string | null {
   const isMergeModeError = errorStr.includes('Need to specify how to reconcile divergent branches')
     || (errorStr.includes('pull.rebase') && errorStr.includes('pull.ff'))
-  if (isMergeModeError) {
-    return '\n\nGit default merge mode not configured.\n\nRun:\n  git config --global pull.rebase false'
-  }
+  if (!isMergeModeError) return null
+  return '\n\nGit default merge mode not configured.\n\nRun:\n  git config --global pull.rebase false'
+}
 
-  // Generic auth error detection (no URL available)
-  const isAuthError = errorStr.includes('could not read Username')
-    || errorStr.includes('Authentication failed')
-    || errorStr.includes('terminal prompts disabled')
-    || errorStr.includes('Permission denied (publickey)')
-    || errorStr.includes('Host key verification failed')
-
-  if (!isAuthError) return null
-
+function getGenericAuthHint(options?: AuthDiagnostics): string {
   const hasGhCredHelper = options?.credentialHelper?.includes('gh auth')
 
   let hint = '\n\nGit authentication failed.'
@@ -165,6 +147,34 @@ export function getGitAuthHint(errorStr: string, options?: { url?: string } & Au
   }
   hint += '\n• Check your SSH keys or HTTPS credentials'
   return hint
+}
+
+/**
+ * Detects common git authentication errors (push, pull, fetch) and returns actionable hints.
+ * When a URL is provided, delegates to getCloneErrorHint for protocol-specific advice.
+ * When no URL is available, gives generic advice.
+ */
+export function getGitAuthHint(errorStr: string, options?: { url?: string } & AuthDiagnostics): string | null {
+  if (options?.url) {
+    return getCloneErrorHint(errorStr, options.url, options)
+  }
+
+  const identityHint = getIdentityHint(errorStr)
+  if (identityHint) return identityHint
+
+  const mergeModeHint = getMergeModeHint(errorStr)
+  if (mergeModeHint) return mergeModeHint
+
+  // Generic auth error detection (no URL available)
+  const isAuthError = errorStr.includes('could not read Username')
+    || errorStr.includes('Authentication failed')
+    || errorStr.includes('terminal prompts disabled')
+    || errorStr.includes('Permission denied (publickey)')
+    || errorStr.includes('Host key verification failed')
+
+  if (!isAuthError) return null
+
+  return getGenericAuthHint(options)
 }
 
 /**
