@@ -185,7 +185,7 @@ export default function FileViewer({ filePath, position = 'top', onPositionChang
 
       {viewer.pendingViewMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-bg-secondary border border-border rounded-lg shadow-xl p-4 max-w-sm mx-4">
+          <div role="dialog" className="bg-bg-secondary border border-border rounded-lg shadow-xl p-4 max-w-sm mx-4">
             <h3 className="text-sm font-medium text-text-primary mb-2">Unsaved Changes</h3>
             <p className="text-xs text-text-secondary mb-4">
               You have unsaved changes. What would you like to do?

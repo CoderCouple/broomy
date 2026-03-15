@@ -246,6 +246,8 @@ test.describe('File Viewer', () => {
 
   test('should close file viewer via keyboard shortcut', async () => {
     // File viewer is open from previous test, close it with Cmd+3
+    // Focus-or-toggle: first press focuses, second press hides
+    await page.keyboard.press('Meta+3')
     await page.keyboard.press('Meta+3')
     const fileViewer = page.locator('[data-panel-id="fileViewer"]')
     await expect(fileViewer).not.toBeVisible()

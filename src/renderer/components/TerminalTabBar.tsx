@@ -172,10 +172,11 @@ export default function TerminalTabBar({
 
           {/* Dropdown menu */}
           {showDropdown && (
-            <div className="absolute right-0 top-full mt-1 bg-bg-secondary border border-border rounded shadow-lg z-50 min-w-48 max-h-64 overflow-y-auto">
+            <div role="menu" className="absolute right-0 top-full mt-1 bg-bg-secondary border border-border rounded shadow-lg z-50 min-w-48 max-h-64 overflow-y-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
+                  role="menuitem"
                   className={`
                     w-full px-3 py-2 text-left text-xs flex items-center gap-2
                     ${tab.id === activeTabId ? 'bg-bg-tertiary text-text-primary' : 'text-text-secondary hover:bg-bg-tertiary'}

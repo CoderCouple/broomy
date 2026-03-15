@@ -85,7 +85,7 @@ function ConditionPickerModal({ availableTokens, onSelect, onClose }: {
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       data-testid="condition-modal"
     >
-      <div className="bg-bg-primary border border-border rounded-lg shadow-xl w-[400px] max-h-[70vh] flex flex-col">
+      <div role="dialog" className="bg-bg-primary border border-border rounded-lg shadow-xl w-[400px] max-h-[70vh] flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h3 className="text-sm font-medium text-text-primary">Add Condition</h3>
           <button

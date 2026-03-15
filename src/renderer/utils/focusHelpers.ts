@@ -117,6 +117,38 @@ export function restoreSessionFocus(sessionId: string): void {
 }
 
 /**
+ * Focus the next visible panel in the given spatial direction.
+ * Panel order: sidebar → explorer → fileViewer/terminal → tutorial
+ * Stops at edges (no wrap-around). Returns the panel focused, or null.
+ */
+export function focusAdjacentPanel(
+  direction: 'left' | 'right',
+  visiblePanels: string[],
+  getCurrentPanel: () => string | null,
+): string | null {
+  if (visiblePanels.length === 0) return null
+
+  const current = getCurrentPanel()
+  const currentIndex = current ? visiblePanels.indexOf(current) : -1
+
+  let nextIndex: number
+  if (currentIndex === -1) {
+    // No current panel — focus first or last depending on direction
+    nextIndex = direction === 'right' ? 0 : visiblePanels.length - 1
+  } else if (direction === 'left') {
+    if (currentIndex === 0) return null // at left edge
+    nextIndex = currentIndex - 1
+  } else {
+    if (currentIndex === visiblePanels.length - 1) return null // at right edge
+    nextIndex = currentIndex + 1
+  }
+
+  const targetPanel = visiblePanels[nextIndex]
+  focusPanel(targetPanel)
+  return targetPanel
+}
+
+/**
  * Focus the explorer search input.
  * Uses requestAnimationFrame to ensure the DOM has updated after any state changes.
  */

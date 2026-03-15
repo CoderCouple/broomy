@@ -58,7 +58,7 @@ export default function HelpModal({ onClose }: HelpModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-bg-secondary border border-border rounded-lg shadow-xl w-[600px] max-h-[80vh] flex flex-col">
+      <div role="dialog" className="bg-bg-secondary border border-border rounded-lg shadow-xl w-[600px] max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-medium text-text-primary">Help</h2>

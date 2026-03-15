@@ -416,7 +416,8 @@ test.describe('File Viewer', () => {
 
     await diagnosticScreenshot(electronApp, page, 'test-results/real-file-viewer.png')
 
-    // Close file viewer
+    // Close file viewer (focus-or-toggle: first press focuses, second hides)
+    await page.keyboard.press('Meta+3')
     await page.keyboard.press('Meta+3')
     await expect(fileViewer).not.toBeVisible()
 

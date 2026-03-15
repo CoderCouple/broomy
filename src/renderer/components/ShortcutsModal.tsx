@@ -29,16 +29,19 @@ const shortcutGroups: ShortcutGroup[] = [
   {
     title: 'Panel Shortcuts',
     shortcuts: [
-      { label: 'Toggle Sessions', keys: `${modKey}+1` },
-      { label: 'Toggle Explorer', keys: `${modKey}+2` },
-      { label: 'Toggle File Viewer', keys: `${modKey}+3` },
-      { label: 'Toggle Guide', keys: `${modKey}+4` },
-      { label: 'Toggle Settings', keys: `${modKey}+5` },
+      { label: 'Focus/Toggle Sessions', keys: `${modKey}+1` },
+      { label: 'Focus/Toggle Explorer', keys: `${modKey}+2` },
+      { label: 'Focus/Toggle File Viewer', keys: `${modKey}+3` },
+      { label: 'Focus/Toggle Guide', keys: `${modKey}+4` },
+      { label: 'Focus/Toggle Settings', keys: `${modKey}+5` },
     ],
   },
   {
     title: 'Navigation',
     shortcuts: [
+      { label: 'Focus Panel Left', keys: `${modKey}+Shift+Left` },
+      { label: 'Focus Panel Right', keys: `${modKey}+Shift+Right` },
+      { label: 'Navigate Within Panel', keys: 'Arrow Up/Down' },
       { label: 'Cycle Panels Forward', keys: 'Ctrl+Tab' },
       { label: 'Cycle Panels Backward', keys: 'Ctrl+Shift+Tab' },
       { label: 'Toggle Settings', keys: `${modKey}+,` },
@@ -98,7 +101,7 @@ const shortcutGroups: ShortcutGroup[] = [
 export default function ShortcutsModal({ onClose }: ShortcutsModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-bg-secondary border border-border rounded-lg shadow-xl w-[500px] max-h-[80vh] flex flex-col">
+      <div role="dialog" className="bg-bg-secondary border border-border rounded-lg shadow-xl w-[500px] max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-medium text-text-primary">Keyboard Shortcuts</h2>

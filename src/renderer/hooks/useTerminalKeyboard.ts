@@ -92,6 +92,31 @@ function handleAltNavigation(e: KeyboardEvent): boolean | null {
   return null
 }
 
+/** Handle Cmd+arrow shortcuts: Shift variants for panel focus, plain for line nav. */
+function handleMetaArrow(e: KeyboardEvent, ptyId: string | null): boolean | null {
+  if (!e.metaKey) return null
+
+  if (e.key === 'ArrowLeft') {
+    if (e.shiftKey) {
+      if (e.type === 'keydown') dispatchAppEvent('app:focus-panel-left')
+    } else if (e.type === 'keydown' && ptyId) {
+      void window.pty.write(ptyId, '\x01')
+    }
+    return false
+  }
+
+  if (e.key === 'ArrowRight') {
+    if (e.shiftKey) {
+      if (e.type === 'keydown') dispatchAppEvent('app:focus-panel-right')
+    } else if (e.type === 'keydown' && ptyId) {
+      void window.pty.write(ptyId, '\x05')
+    }
+    return false
+  }
+
+  return null
+}
+
 export function useTerminalKeyboard(ptyIdRef: React.MutableRefObject<string | null>) {
   return useCallback(
     (e: KeyboardEvent) => {
@@ -104,15 +129,8 @@ export function useTerminalKeyboard(ptyIdRef: React.MutableRefObject<string | nu
         return false
       }
 
-      if (e.metaKey && e.key === 'ArrowLeft') {
-        if (e.type === 'keydown' && ptyIdRef.current) void window.pty.write(ptyIdRef.current, '\x01')
-        return false
-      }
-
-      if (e.metaKey && e.key === 'ArrowRight') {
-        if (e.type === 'keydown' && ptyIdRef.current) void window.pty.write(ptyIdRef.current, '\x05')
-        return false
-      }
+      const arrowResult = handleMetaArrow(e, ptyIdRef.current)
+      if (arrowResult !== null) return arrowResult
 
       const altResult = handleAltNavigation(e)
       if (altResult !== null) return altResult

@@ -31,9 +31,11 @@ describe('useLayoutKeyboard', () => {
   const onPrevTerminalTab = vi.fn()
   const onExplorerTab = vi.fn()
 
+  const isPanelVisible = vi.fn<(panelId: string) => boolean>().mockReturnValue(true)
+
   const defaultProps = {
     toolbarPanels: ['sidebar', 'explorer', 'fileViewer', 'tutorial', 'settings'],
-    isPanelVisible: vi.fn().mockReturnValue(true) as (panelId: string) => boolean,
+    isPanelVisible,
     panels: {
       sidebar: 'sidebar-content' as ReactNode,
       explorer: 'explorer-content' as ReactNode,
@@ -58,6 +60,7 @@ describe('useLayoutKeyboard', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    isPanelVisible.mockReturnValue(true)
     vi.useFakeTimers()
   })
 
@@ -73,7 +76,7 @@ describe('useLayoutKeyboard', () => {
   })
 
   describe('panel toggle by number keys', () => {
-    it('toggles panel on Cmd+1', () => {
+    it('focuses visible panel on Cmd+1 (focus-or-toggle: visible+unfocused → focus)', () => {
       renderHook(() => useLayoutKeyboard(defaultProps))
 
       act(() => {
@@ -85,10 +88,11 @@ describe('useLayoutKeyboard', () => {
         window.dispatchEvent(event)
       })
 
-      expect(handleToggle).toHaveBeenCalledWith('sidebar')
+      // Panel is visible but not focused → focuses without toggling
+      expect(handleToggle).not.toHaveBeenCalled()
     })
 
-    it('toggles panel on Cmd+2', () => {
+    it('focuses visible panel on Cmd+2 (focus-or-toggle)', () => {
       renderHook(() => useLayoutKeyboard(defaultProps))
 
       act(() => {
@@ -100,11 +104,12 @@ describe('useLayoutKeyboard', () => {
         window.dispatchEvent(event)
       })
 
-      expect(handleToggle).toHaveBeenCalledWith('explorer')
+      expect(handleToggle).not.toHaveBeenCalled()
     })
 
-    it('toggles panel on Cmd+5', () => {
-      renderHook(() => useLayoutKeyboard(defaultProps))
+    it('shows hidden panel on Cmd+5 (focus-or-toggle: hidden → show)', () => {
+      const isPanelVisible = vi.fn((id: string) => id !== 'settings') as (panelId: string) => boolean
+      renderHook(() => useLayoutKeyboard({ ...defaultProps, isPanelVisible }))
 
       act(() => {
         const event = new KeyboardEvent('keydown', {
@@ -118,7 +123,15 @@ describe('useLayoutKeyboard', () => {
       expect(handleToggle).toHaveBeenCalledWith('settings')
     })
 
-    it('toggles panel on Ctrl+number', () => {
+    it('hides visible+focused panel (focus-or-toggle: visible+focused → hide)', () => {
+      // Create a button inside a panel container to simulate focused panel
+      const container = document.createElement('div')
+      container.setAttribute('data-panel-id', 'fileViewer')
+      const btn = document.createElement('button')
+      container.appendChild(btn)
+      document.body.appendChild(container)
+      btn.focus()
+
       renderHook(() => useLayoutKeyboard(defaultProps))
 
       act(() => {
@@ -131,6 +144,7 @@ describe('useLayoutKeyboard', () => {
       })
 
       expect(handleToggle).toHaveBeenCalledWith('fileViewer')
+      document.body.removeChild(container)
     })
 
     it('does not toggle beyond MAX_SHORTCUT_PANELS', () => {
@@ -141,17 +155,17 @@ describe('useLayoutKeyboard', () => {
 
       renderHook(() => useLayoutKeyboard(propsWithMany))
 
-      // Key 5 (index 4) is the max
+      // Key 6 (index 5) is beyond the max of 5
       act(() => {
         const event = new KeyboardEvent('keydown', {
-          key: '5',
+          key: '6',
           metaKey: true,
           bubbles: true,
         })
         window.dispatchEvent(event)
       })
 
-      expect(handleToggle).toHaveBeenCalledWith('e')
+      expect(handleToggle).not.toHaveBeenCalled()
     })
 
     it('ignores key presses in input fields', () => {
@@ -389,14 +403,33 @@ describe('useLayoutKeyboard', () => {
   })
 
   describe('custom toggle event', () => {
-    it('handles app:toggle-panel custom event', () => {
+    afterEach(() => {
+      document.body.innerHTML = ''
+    })
+
+    it('handles app:toggle-panel for hidden panel → shows it', () => {
+      isPanelVisible.mockImplementation((id: string) => id !== 'explorer')
       renderHook(() => useLayoutKeyboard(defaultProps))
 
       act(() => {
-        const event = new CustomEvent('app:toggle-panel', {
-          detail: { key: '2' },
-        })
-        window.dispatchEvent(event)
+        window.dispatchEvent(new CustomEvent('app:toggle-panel', { detail: { key: '2' } }))
+      })
+
+      expect(handleToggle).toHaveBeenCalledWith('explorer')
+    })
+
+    it('handles app:toggle-panel for visible+focused panel → hides it', () => {
+      const container = document.createElement('div')
+      container.setAttribute('data-panel-id', 'explorer')
+      const btn = document.createElement('button')
+      container.appendChild(btn)
+      document.body.appendChild(container)
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        btn.focus()
+        window.dispatchEvent(new CustomEvent('app:toggle-panel', { detail: { key: '2' } }))
       })
 
       expect(handleToggle).toHaveBeenCalledWith('explorer')
@@ -666,6 +699,373 @@ describe('useLayoutKeyboard', () => {
     })
   })
 
+  describe('Cmd+Shift+Left/Right directional panel focus', () => {
+    afterEach(() => {
+      document.body.innerHTML = ''
+    })
+
+    it('Cmd+Shift+Right moves focus to the right', () => {
+      const sidebarDiv = document.createElement('div')
+      sidebarDiv.setAttribute('data-panel-id', 'sidebar')
+      sidebarDiv.tabIndex = -1
+      document.body.appendChild(sidebarDiv)
+
+      const explorerDiv = document.createElement('div')
+      explorerDiv.setAttribute('data-panel-id', 'explorer')
+      const btn = document.createElement('button')
+      explorerDiv.appendChild(btn)
+      document.body.appendChild(explorerDiv)
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        sidebarDiv.focus()
+      })
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowRight', metaKey: true, shiftKey: true, bubbles: true,
+        }))
+      })
+
+      // focusPanel should have focused something inside explorer
+      expect(document.activeElement).toBe(btn)
+    })
+
+    it('Cmd+Shift+Left moves focus to the left', () => {
+      const sidebarDiv = document.createElement('div')
+      sidebarDiv.setAttribute('data-panel-id', 'sidebar')
+      sidebarDiv.tabIndex = -1
+      document.body.appendChild(sidebarDiv)
+
+      const explorerDiv = document.createElement('div')
+      explorerDiv.setAttribute('data-panel-id', 'explorer')
+      explorerDiv.tabIndex = -1
+      document.body.appendChild(explorerDiv)
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        explorerDiv.focus()
+      })
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowLeft', metaKey: true, shiftKey: true, bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(sidebarDiv)
+    })
+
+    it('does not move past left edge', () => {
+      const sidebarDiv = document.createElement('div')
+      sidebarDiv.setAttribute('data-panel-id', 'sidebar')
+      sidebarDiv.tabIndex = -1
+      document.body.appendChild(sidebarDiv)
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        sidebarDiv.focus()
+      })
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowLeft', metaKey: true, shiftKey: true, bubbles: true,
+        }))
+      })
+
+      // Still on sidebar — at left edge
+      expect(document.activeElement).toBe(sidebarDiv)
+    })
+
+    it('app:focus-panel-left custom event works', () => {
+      renderHook(() => useLayoutKeyboard(defaultProps))
+      act(() => {
+        window.dispatchEvent(new CustomEvent('app:focus-panel-left'))
+      })
+      // Should not throw
+    })
+
+    it('app:focus-panel-right custom event works', () => {
+      renderHook(() => useLayoutKeyboard(defaultProps))
+      act(() => {
+        window.dispatchEvent(new CustomEvent('app:focus-panel-right'))
+      })
+      // Should not throw
+    })
+  })
+
+  describe('arrow key navigation within panels', () => {
+    afterEach(() => {
+      document.body.innerHTML = ''
+    })
+
+    it('ArrowDown moves focus to next focusable element within a panel', () => {
+      const panel = document.createElement('div')
+      panel.setAttribute('data-panel-id', 'sidebar')
+      const btn1 = document.createElement('button')
+      btn1.textContent = 'First'
+      const btn2 = document.createElement('button')
+      btn2.textContent = 'Second'
+      panel.appendChild(btn1)
+      panel.appendChild(btn2)
+      document.body.appendChild(panel)
+      btn1.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(btn2)
+    })
+
+    it('ArrowUp moves focus to previous focusable element within a panel', () => {
+      const panel = document.createElement('div')
+      panel.setAttribute('data-panel-id', 'sidebar')
+      const btn1 = document.createElement('button')
+      const btn2 = document.createElement('button')
+      panel.appendChild(btn1)
+      panel.appendChild(btn2)
+      document.body.appendChild(panel)
+      btn2.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowUp', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(btn1)
+    })
+
+    it('stops at edges (no wrap-around)', () => {
+      const panel = document.createElement('div')
+      panel.setAttribute('data-panel-id', 'sidebar')
+      const btn = document.createElement('button')
+      panel.appendChild(btn)
+      document.body.appendChild(panel)
+      btn.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowUp', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(btn)
+    })
+
+    it('works within role="dialog" containers', () => {
+      const dialog = document.createElement('div')
+      dialog.setAttribute('role', 'dialog')
+      const btn1 = document.createElement('button')
+      const btn2 = document.createElement('button')
+      dialog.appendChild(btn1)
+      dialog.appendChild(btn2)
+      document.body.appendChild(dialog)
+      btn1.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(btn2)
+    })
+
+    it('works within role="menu" containers', () => {
+      const menu = document.createElement('div')
+      menu.setAttribute('role', 'menu')
+      const item1 = document.createElement('button')
+      const item2 = document.createElement('button')
+      menu.appendChild(item1)
+      menu.appendChild(item2)
+      document.body.appendChild(menu)
+      item1.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(item2)
+    })
+
+    it('ArrowLeft/Right works in role="menu"', () => {
+      const menu = document.createElement('div')
+      menu.setAttribute('role', 'menu')
+      const item1 = document.createElement('button')
+      const item2 = document.createElement('button')
+      menu.appendChild(item1)
+      menu.appendChild(item2)
+      document.body.appendChild(menu)
+      item1.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowRight', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(item2)
+    })
+
+    it('ArrowLeft/Right blocked in panels without data-arrow-nav="grid"', () => {
+      const panel = document.createElement('div')
+      panel.setAttribute('data-panel-id', 'sidebar')
+      const btn1 = document.createElement('button')
+      const btn2 = document.createElement('button')
+      panel.appendChild(btn1)
+      panel.appendChild(btn2)
+      document.body.appendChild(panel)
+      btn1.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowRight', bubbles: true,
+        }))
+      })
+
+      // Should NOT move — ArrowRight is blocked in regular panels
+      expect(document.activeElement).toBe(btn1)
+    })
+
+    it('does not intercept arrows in xterm', () => {
+      const xterm = document.createElement('div')
+      xterm.classList.add('xterm')
+      xterm.setAttribute('data-panel-id', 'terminal')
+      const textarea = document.createElement('textarea')
+      xterm.appendChild(textarea)
+      document.body.appendChild(xterm)
+      textarea.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown', bubbles: true,
+        }))
+      })
+
+      // Focus should stay on textarea (passthrough)
+      expect(document.activeElement).toBe(textarea)
+    })
+
+    it('does not intercept arrows in text inputs', () => {
+      const panel = document.createElement('div')
+      panel.setAttribute('data-panel-id', 'sidebar')
+      const input = document.createElement('input')
+      input.type = 'text'
+      panel.appendChild(input)
+      document.body.appendChild(panel)
+      input.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(input)
+    })
+
+    it('does not intercept arrows in monaco-editor', () => {
+      const editor = document.createElement('div')
+      editor.classList.add('monaco-editor')
+      editor.setAttribute('data-panel-id', 'fileViewer')
+      const textarea = document.createElement('div')
+      textarea.tabIndex = 0
+      editor.appendChild(textarea)
+      document.body.appendChild(editor)
+      textarea.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(textarea)
+    })
+
+    it('does not intercept arrows in contenteditable', () => {
+      const panel = document.createElement('div')
+      panel.setAttribute('data-panel-id', 'sidebar')
+      const editable = document.createElement('div')
+      editable.setAttribute('contenteditable', 'true')
+      editable.tabIndex = 0
+      panel.appendChild(editable)
+      document.body.appendChild(panel)
+      editable.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(editable)
+    })
+
+    it('does not intercept arrows in select elements', () => {
+      const panel = document.createElement('div')
+      panel.setAttribute('data-panel-id', 'sidebar')
+      const select = document.createElement('select')
+      panel.appendChild(select)
+      document.body.appendChild(panel)
+      select.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(select)
+    })
+
+    it('does nothing when focus is not inside any container', () => {
+      const btn = document.createElement('button')
+      document.body.appendChild(btn)
+      btn.focus()
+
+      renderHook(() => useLayoutKeyboard(defaultProps))
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown', bubbles: true,
+        }))
+      })
+
+      expect(document.activeElement).toBe(btn)
+    })
+  })
+
   describe('select-all scoping', () => {
     beforeEach(() => {
       // jsdom doesn't define execCommand — stub it so we can spy on it
@@ -738,6 +1138,8 @@ describe('useLayoutKeyboard', () => {
       expect(addSpy).toHaveBeenCalledWith('app:prev-terminal-tab', expect.any(Function))
       expect(addSpy).toHaveBeenCalledWith('app:explorer-tab', expect.any(Function))
       expect(addSpy).toHaveBeenCalledWith('app:select-all', expect.any(Function))
+      expect(addSpy).toHaveBeenCalledWith('app:focus-panel-left', expect.any(Function))
+      expect(addSpy).toHaveBeenCalledWith('app:focus-panel-right', expect.any(Function))
 
       unmount()
 
@@ -756,6 +1158,8 @@ describe('useLayoutKeyboard', () => {
       expect(removeSpy).toHaveBeenCalledWith('app:prev-terminal-tab', expect.any(Function))
       expect(removeSpy).toHaveBeenCalledWith('app:explorer-tab', expect.any(Function))
       expect(removeSpy).toHaveBeenCalledWith('app:select-all', expect.any(Function))
+      expect(removeSpy).toHaveBeenCalledWith('app:focus-panel-left', expect.any(Function))
+      expect(removeSpy).toHaveBeenCalledWith('app:focus-panel-right', expect.any(Function))
 
       addSpy.mockRestore()
       removeSpy.mockRestore()
