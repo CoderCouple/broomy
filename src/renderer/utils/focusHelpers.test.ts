@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import '../../test/react-setup'
-import { sendAgentPrompt, focusAgentTerminal, focusActiveTerminal, focusSearchInput, setLastFocusedPanel, getLastFocusedPanel, clearLastFocusedPanel, focusPanel, restoreSessionFocus } from './focusHelpers'
+import { sendAgentPrompt, focusAgentTerminal, focusActiveTerminal, focusSearchInput, setLastFocusedPanel, getLastFocusedPanel, clearLastFocusedPanel, focusPanel, focusAdjacentPanel, restoreSessionFocus } from './focusHelpers'
 import { useSessionStore } from '../store/sessions'
 
 beforeEach(() => {
@@ -242,6 +242,82 @@ describe('restoreSessionFocus', () => {
     rAFs[0](0)
     rAFs[1](0)
     // No error — terminal panel not in DOM so focusPanel is a no-op
+  })
+})
+
+describe('focusAdjacentPanel', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('focuses the next panel to the right', () => {
+    const sidebarDiv = document.createElement('div')
+    sidebarDiv.setAttribute('data-panel-id', 'sidebar')
+    sidebarDiv.tabIndex = -1
+    document.body.appendChild(sidebarDiv)
+
+    const explorerDiv = document.createElement('div')
+    explorerDiv.setAttribute('data-panel-id', 'explorer')
+    const btn = document.createElement('button')
+    explorerDiv.appendChild(btn)
+    document.body.appendChild(explorerDiv)
+
+    sidebarDiv.focus()
+
+    const result = focusAdjacentPanel('right', ['sidebar', 'explorer'], () => 'sidebar')
+    expect(result).toBe('explorer')
+  })
+
+  it('focuses the next panel to the left', () => {
+    const sidebarDiv = document.createElement('div')
+    sidebarDiv.setAttribute('data-panel-id', 'sidebar')
+    sidebarDiv.tabIndex = -1
+    document.body.appendChild(sidebarDiv)
+
+    const explorerDiv = document.createElement('div')
+    explorerDiv.setAttribute('data-panel-id', 'explorer')
+    explorerDiv.tabIndex = -1
+    document.body.appendChild(explorerDiv)
+
+    explorerDiv.focus()
+
+    const result = focusAdjacentPanel('left', ['sidebar', 'explorer'], () => 'explorer')
+    expect(result).toBe('sidebar')
+  })
+
+  it('returns null at left edge', () => {
+    const result = focusAdjacentPanel('left', ['sidebar', 'explorer'], () => 'sidebar')
+    expect(result).toBeNull()
+  })
+
+  it('returns null at right edge', () => {
+    const result = focusAdjacentPanel('right', ['sidebar', 'explorer'], () => 'explorer')
+    expect(result).toBeNull()
+  })
+
+  it('returns null for empty panel list', () => {
+    const result = focusAdjacentPanel('right', [], () => null)
+    expect(result).toBeNull()
+  })
+
+  it('handles no current panel — right focuses first', () => {
+    const sidebarDiv = document.createElement('div')
+    sidebarDiv.setAttribute('data-panel-id', 'sidebar')
+    sidebarDiv.tabIndex = -1
+    document.body.appendChild(sidebarDiv)
+
+    const result = focusAdjacentPanel('right', ['sidebar', 'explorer'], () => null)
+    expect(result).toBe('sidebar')
+  })
+
+  it('handles no current panel — left focuses last', () => {
+    const explorerDiv = document.createElement('div')
+    explorerDiv.setAttribute('data-panel-id', 'explorer')
+    explorerDiv.tabIndex = -1
+    document.body.appendChild(explorerDiv)
+
+    const result = focusAdjacentPanel('left', ['sidebar', 'explorer'], () => null)
+    expect(result).toBe('explorer')
   })
 })
 

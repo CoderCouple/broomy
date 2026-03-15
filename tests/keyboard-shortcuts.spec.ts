@@ -35,11 +35,12 @@ test.describe('Keyboard Shortcuts - Panel Toggles', () => {
     const sidebar = page.locator('[data-panel-id="sidebar"]')
     await expect(sidebar).toBeVisible()
 
-    // Hide sidebar
+    // Focus-or-toggle: first press focuses visible panel, second press hides it
+    await page.keyboard.press('Meta+1')
     await page.keyboard.press('Meta+1')
     await expect(sidebar).not.toBeVisible()
 
-    // Show sidebar
+    // Show sidebar (hidden → show+focus)
     await page.keyboard.press('Meta+1')
     await expect(sidebar).toBeVisible()
   })
@@ -48,11 +49,13 @@ test.describe('Keyboard Shortcuts - Panel Toggles', () => {
     const explorer = page.locator('[data-panel-id="explorer"]')
     await expect(explorer).not.toBeVisible()
 
-    // Show explorer
+    // Show explorer (hidden → show+focus)
     await page.keyboard.press('Meta+2')
     await expect(explorer).toBeVisible()
 
-    // Hide explorer
+    // Focus-or-toggle: press twice to ensure focus then hide
+    // (first press may focus if rAF hasn't completed, second hides)
+    await page.keyboard.press('Meta+2')
     await page.keyboard.press('Meta+2')
     await expect(explorer).not.toBeVisible()
   })

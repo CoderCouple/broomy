@@ -81,15 +81,18 @@ function AddTabMenu({ onAddLocal, onAddContainer, menuRef }: {
   return (
     <div
       ref={menuRef}
+      role="menu"
       className="absolute right-0 top-full mt-0.5 bg-bg-secondary border border-border rounded shadow-lg z-50 min-w-36"
     >
       <button
+        role="menuitem"
         className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
         onClick={onAddLocal}
       >
         Local Terminal
       </button>
       <button
+        role="menuitem"
         className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
         onClick={onAddContainer}
       >

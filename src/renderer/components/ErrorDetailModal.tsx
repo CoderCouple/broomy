@@ -20,6 +20,7 @@ export default function ErrorDetailModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={hideErrorDetail}>
       <div
+        role="dialog"
         className="bg-bg-secondary border border-border rounded-lg shadow-xl p-4 max-w-lg w-full mx-4"
         onClick={(e) => e.stopPropagation()}
       >

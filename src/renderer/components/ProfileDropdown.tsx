@@ -64,6 +64,7 @@ export default function ProfileDropdown({
   return (
     <div
       ref={dropdownRef}
+      role="menu"
       className="absolute top-full left-0 mt-1 w-56 bg-bg-secondary border border-border rounded-lg shadow-lg overflow-hidden z-50"
       style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
     >
@@ -74,6 +75,7 @@ export default function ProfileDropdown({
           className="flex items-center justify-between px-3 py-2 hover:bg-bg-tertiary cursor-pointer group"
         >
           <button
+            role="menuitem"
             className="flex items-center gap-2 flex-1 text-left"
             onClick={() => onSwitchProfile(profile.id)}
           >
@@ -85,6 +87,7 @@ export default function ProfileDropdown({
           </button>
           {profiles.length > 1 && (
             <button
+              role="menuitem"
               className="text-text-tertiary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
               onClick={(e) => {
                 e.stopPropagation()
@@ -109,6 +112,7 @@ export default function ProfileDropdown({
       {/* Edit current profile */}
       {!showEditForm && !showNewForm && (
         <button
+          role="menuitem"
           className="w-full px-3 py-2 text-sm text-text-secondary hover:bg-bg-tertiary text-left"
           onClick={onStartEdit}
         >
@@ -167,6 +171,7 @@ export default function ProfileDropdown({
         <>
           <div className="border-t border-border" />
           <button
+            role="menuitem"
             className="w-full px-3 py-2 text-sm text-text-secondary hover:bg-bg-tertiary text-left"
             onClick={() => {
               setShowNewForm(true)

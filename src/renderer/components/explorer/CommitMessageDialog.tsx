@@ -38,6 +38,7 @@ export function CommitMessageDialog({ onCommit, onClose, hasStagedFiles }: Commi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
+        role="dialog"
         className="bg-bg-secondary rounded-lg shadow-xl border border-border w-full max-w-md mx-4 p-4"
         onClick={(e) => e.stopPropagation()}
       >

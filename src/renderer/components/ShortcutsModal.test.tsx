@@ -30,9 +30,9 @@ describe('ShortcutsModal', () => {
 
   it('renders individual shortcuts', () => {
     render(<ShortcutsModal onClose={vi.fn()} />)
-    expect(screen.getByText('Toggle Sessions')).toBeTruthy()
-    expect(screen.getByText('Toggle Explorer')).toBeTruthy()
-    expect(screen.getByText('Toggle Guide')).toBeTruthy()
+    expect(screen.getByText('Focus/Toggle Sessions')).toBeTruthy()
+    expect(screen.getByText('Focus/Toggle Explorer')).toBeTruthy()
+    expect(screen.getByText('Focus/Toggle Guide')).toBeTruthy()
     expect(screen.getByText('Save File')).toBeTruthy()
     expect(screen.getByText('Search Files')).toBeTruthy()
     expect(screen.getByText('Cycle Panels Forward')).toBeTruthy()

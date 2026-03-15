@@ -3,7 +3,7 @@
  */
 import { ReactNode, useEffect, useState, useCallback, useRef } from 'react'
 import { PANEL_IDS, MAX_SHORTCUT_PANELS } from '../panels'
-import { focusPanel, setLastFocusedPanel } from '../utils/focusHelpers'
+import { focusPanel, focusAdjacentPanel, setLastFocusedPanel } from '../utils/focusHelpers'
 
 interface UseLayoutKeyboardParams {
   toolbarPanels: string[]
@@ -46,6 +46,94 @@ function shortcutKeyNoShift(e: KeyboardEvent): string {
   if (e.altKey) parts.push('alt')
   if (e.metaKey || e.ctrlKey) parts.push('mod')
   return `${parts.join('+')}:${resolveKey(e)}`
+}
+
+/** Check if focus is in a context that should pass through arrow keys. */
+function isArrowPassthrough(el: Element): boolean {
+  if (el.closest('.xterm')) return true
+  if (el.closest('.monaco-editor')) return true
+  if (el.closest('[contenteditable]')) return true
+  if (el instanceof HTMLTextAreaElement) return true
+  if (el instanceof HTMLSelectElement) return true
+  if (el instanceof HTMLInputElement) {
+    const textTypes = ['text', 'search', 'number', 'url', 'email', 'tel', 'password']
+    return textTypes.includes(el.type)
+  }
+  return false
+}
+
+/** Handle arrow key navigation within panels and modals. Returns true if handled. */
+function handleArrowNavigation(e: KeyboardEvent): boolean {
+  const activeEl = document.activeElement
+  if (!activeEl || isArrowPassthrough(activeEl)) return false
+
+  const isHorizontal = e.key === 'ArrowLeft' || e.key === 'ArrowRight'
+
+  // Find the nearest navigable container
+  const container =
+    activeEl.closest('[role="dialog"]') ??
+    activeEl.closest('[role="menu"]') ??
+    activeEl.closest('[data-panel-id]')
+  if (!container) return false
+
+  // Horizontal arrows only within grid-nav containers, menus, and dialogs
+  if (isHorizontal) {
+    const isGridNav = container.getAttribute('data-arrow-nav') === 'grid'
+    const role = container.getAttribute('role')
+    if (!isGridNav && role !== 'menu' && role !== 'dialog') return false
+  }
+
+  // Query all focusable elements within the container
+  const focusables = Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex="0"]'
+    )
+  )
+  if (focusables.length === 0) return false
+
+  const currentIndex = focusables.indexOf(activeEl as HTMLElement)
+  if (currentIndex === -1) return false
+
+  const forward = e.key === 'ArrowDown' || e.key === 'ArrowRight'
+  const nextIndex = forward ? currentIndex + 1 : currentIndex - 1
+
+  // No wrap-around — stop at edges
+  if (nextIndex < 0 || nextIndex >= focusables.length) return false
+
+  e.preventDefault()
+  e.stopImmediatePropagation()
+  focusables[nextIndex].focus()
+  return true
+}
+
+/** Build the app-wide shortcut map from the provided callbacks. */
+function buildAppWideShortcuts(cbs: {
+  onNewSession?: () => void; onFocusSessionList?: () => void
+  onFocusSessionSearch?: () => void; onArchiveSession?: () => void
+  onToggleSettings?: () => void; onShowShortcuts?: () => void
+  onPrevSession?: () => void; onNextSession?: () => void
+  onNextTerminalTab?: () => void; onPrevTerminalTab?: () => void
+  onExplorerTab?: (filter: string) => void
+}): Map<string, () => void> {
+  const m = new Map<string, () => void>()
+  if (cbs.onNewSession) m.set('mod:n', cbs.onNewSession)
+  if (cbs.onFocusSessionList) m.set('mod:j', cbs.onFocusSessionList)
+  if (cbs.onFocusSessionSearch) m.set('shift+mod:f', cbs.onFocusSessionSearch)
+  if (cbs.onArchiveSession) m.set('shift+mod:a', cbs.onArchiveSession)
+  if (cbs.onToggleSettings) m.set('mod:,', cbs.onToggleSettings)
+  if (cbs.onShowShortcuts) m.set('mod:/', cbs.onShowShortcuts)
+  if (cbs.onPrevSession) m.set('alt:arrowup', cbs.onPrevSession)
+  if (cbs.onNextSession) m.set('alt:arrowdown', cbs.onNextSession)
+  if (cbs.onNextTerminalTab) m.set('shift+mod:]', cbs.onNextTerminalTab)
+  if (cbs.onPrevTerminalTab) m.set('shift+mod:[', cbs.onPrevTerminalTab)
+  if (cbs.onExplorerTab) {
+    const filters = ['files', 'source-control', 'search', 'recent', 'review']
+    for (let i = 0; i < filters.length; i++) {
+      const filter = filters[i]
+      m.set(`alt+mod:${i + 1}`, () => cbs.onExplorerTab!(filter))
+    }
+  }
+  return m
 }
 
 export function useLayoutKeyboard({
@@ -96,8 +184,9 @@ export function useLayoutKeyboard({
 
   const lastCyclePanelRef = useRef<string | null>(null)
 
-  const handleCyclePanel = useCallback((reverse: boolean) => {
-    const visiblePanels = toolbarPanels.filter(id => {
+  /** Build the ordered list of currently visible panels (including terminal). */
+  const getVisiblePanels = useCallback(() => {
+    const result = toolbarPanels.filter(id => {
       if (!isPanelVisible(id)) return false
       if (id === PANEL_IDS.SETTINGS) return false
       return !!panels[id]
@@ -105,10 +194,21 @@ export function useLayoutKeyboard({
 
     // Terminal is always visible but not in toolbarPanels — insert after file viewer
     if (panels.terminal) {
-      const insertAfter = visiblePanels.indexOf(PANEL_IDS.FILE_VIEWER)
-      visiblePanels.splice(insertAfter !== -1 ? insertAfter + 1 : visiblePanels.length, 0, 'terminal')
+      const insertAfter = result.indexOf(PANEL_IDS.FILE_VIEWER)
+      result.splice(insertAfter !== -1 ? insertAfter + 1 : result.length, 0, 'terminal')
     }
 
+    return result
+  }, [toolbarPanels, isPanelVisible, panels])
+
+  const flashPanel = useCallback((panelId: string) => {
+    setFlashedPanel(panelId)
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current)
+    flashTimeoutRef.current = setTimeout(() => setFlashedPanel(null), 250)
+  }, [])
+
+  const handleCyclePanel = useCallback((reverse: boolean) => {
+    const visiblePanels = getVisiblePanels()
     if (visiblePanels.length === 0) return
 
     const current = getCurrentPanel() || lastCyclePanelRef.current
@@ -127,44 +227,49 @@ export function useLayoutKeyboard({
     lastCyclePanelRef.current = targetPanel
 
     focusPanel(targetPanel)
+    flashPanel(targetPanel)
+  }, [getVisiblePanels, getCurrentPanel, flashPanel])
 
-    setFlashedPanel(targetPanel)
-    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current)
-    flashTimeoutRef.current = setTimeout(() => setFlashedPanel(null), 250)
-  }, [toolbarPanels, isPanelVisible, panels, getCurrentPanel])
+  const handleDirectionalFocus = useCallback((direction: 'left' | 'right') => {
+    const visiblePanels = getVisiblePanels()
+    const targetPanel = focusAdjacentPanel(direction, visiblePanels, getCurrentPanel)
+    if (targetPanel) flashPanel(targetPanel)
+  }, [getVisiblePanels, getCurrentPanel, flashPanel])
 
   const handleToggleByKey = useCallback((key: string) => {
     const index = parseInt(key, 10) - 1
     if (index >= 0 && index < toolbarPanels.length && index < MAX_SHORTCUT_PANELS) {
       const panelId = toolbarPanels[index]
-      handleToggle(panelId)
-    }
-  }, [toolbarPanels, handleToggle])
 
-  useEffect(() => {
-    // App-wide shortcuts: exact match (including shift state)
-    const appWideShortcuts = new Map<string, () => void>()
-    if (onNewSession) appWideShortcuts.set('mod:n', onNewSession)
-    if (onFocusSessionList) appWideShortcuts.set('mod:j', onFocusSessionList)
-    if (onFocusSessionSearch) appWideShortcuts.set('shift+mod:f', onFocusSessionSearch)
-    if (onArchiveSession) appWideShortcuts.set('shift+mod:a', onArchiveSession)
-    if (onToggleSettings) appWideShortcuts.set('mod:,', onToggleSettings)
-    if (onShowShortcuts) appWideShortcuts.set('mod:/', onShowShortcuts)
-    if (onPrevSession) appWideShortcuts.set('alt:arrowup', onPrevSession)
-    if (onNextSession) appWideShortcuts.set('alt:arrowdown', onNextSession)
-    if (onNextTerminalTab) appWideShortcuts.set('shift+mod:]', onNextTerminalTab)
-    if (onPrevTerminalTab) appWideShortcuts.set('shift+mod:[', onPrevTerminalTab)
-
-    // Explorer tab shortcuts: Cmd+Alt+1-5
-    if (onExplorerTab) {
-      const explorerFilters = ['files', 'source-control', 'search', 'recent', 'review']
-      for (let i = 0; i < explorerFilters.length; i++) {
-        const filter = explorerFilters[i]
-        appWideShortcuts.set(`alt+mod:${i + 1}`, () => onExplorerTab(filter))
+      // Focus-or-toggle: hidden → show+focus, visible+unfocused → focus, visible+focused → hide
+      if (isPanelVisible(panelId)) {
+        const currentPanel = getCurrentPanel()
+        if (currentPanel === panelId) {
+          handleToggle(panelId) // hide it
+        } else {
+          focusPanel(panelId) // focus it without hiding
+          flashPanel(panelId)
+        }
+      } else {
+        handleToggle(panelId) // show it
+        // Focus after React renders
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            focusPanel(panelId)
+            flashPanel(panelId)
+          })
+        })
       }
     }
+  }, [toolbarPanels, isPanelVisible, getCurrentPanel, handleToggle, flashPanel])
 
-    // Shift-insensitive shortcuts (Cmd+P works as Cmd+Shift+P too)
+  useEffect(() => {
+    const appWideShortcuts = buildAppWideShortcuts({
+      onNewSession, onFocusSessionList, onFocusSessionSearch, onArchiveSession,
+      onToggleSettings, onShowShortcuts, onPrevSession, onNextSession,
+      onNextTerminalTab, onPrevTerminalTab, onExplorerTab,
+    })
+
     const shiftInsensitiveShortcuts = new Map<string, () => void>()
     if (onSearchFiles) shiftInsensitiveShortcuts.set('mod:p', onSearchFiles)
 
@@ -173,6 +278,14 @@ export function useLayoutKeyboard({
         e.preventDefault()
         e.stopImmediatePropagation()
         handleCyclePanel(e.shiftKey)
+        return
+      }
+
+      // Cmd+Shift+Left/Right: directional panel focus
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        handleDirectionalFocus(e.key === 'ArrowLeft' ? 'left' : 'right')
         return
       }
 
@@ -196,11 +309,15 @@ export function useLayoutKeyboard({
         return
       }
 
-      // Below here: skip if in input/textarea, require Cmd/Ctrl
-      if (!(e.metaKey || e.ctrlKey)) return
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      // Global arrow key navigation within panels/modals
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey &&
+          (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        const handled = handleArrowNavigation(e)
+        if (handled) return
+      }
 
-      if (['1', '2', '3', '4', '5'].includes(e.key)) {
+      // Panel toggle shortcuts: Cmd/Ctrl+1-5 (work from any context including Monaco)
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && ['1', '2', '3', '4', '5'].includes(e.key)) {
         e.preventDefault()
         e.stopPropagation()
         handleToggleByKey(e.key)
@@ -209,70 +326,46 @@ export function useLayoutKeyboard({
 
     // Custom events from Terminal (xterm may block normal event bubbling)
     const handleCustomToggle = (e: Event) => {
-      const customEvent = e as CustomEvent<{ key: string }>
-      handleToggleByKey(customEvent.detail.key)
+      handleToggleByKey((e as CustomEvent<{ key: string }>).detail.key)
     }
-
-    const handleCustomNewSession = () => onNewSession?.()
-    const handleCustomNextSession = () => onNextSession?.()
-    const handleCustomPrevSession = () => onPrevSession?.()
-    const handleCustomFocusSessions = () => onFocusSessionList?.()
-    const handleCustomFocusSessionSearch = () => onFocusSessionSearch?.()
-    const handleCustomArchiveSession = () => onArchiveSession?.()
-    const handleCustomToggleSettings = () => onToggleSettings?.()
-    const handleCustomShowShortcuts = () => onShowShortcuts?.()
-    const handleCustomNextTerminalTab = () => onNextTerminalTab?.()
-    const handleCustomPrevTerminalTab = () => onPrevTerminalTab?.()
     const handleCustomExplorerTab = (e: Event) => {
-      const detail = (e as CustomEvent<{ filter: string }>).detail
-      onExplorerTab?.(detail.filter)
+      onExplorerTab?.((e as CustomEvent<{ filter: string }>).detail.filter)
     }
 
-    // Select-all scoping: for non-terminal focused elements (Monaco, inputs, textareas),
-    // use execCommand('selectAll') which correctly scopes to the focused editable element.
-    // Terminal.tsx handles its own select-all via the same app:select-all event.
+    // Select-all scoping: for non-terminal focused elements
     const handleSelectAll = () => {
       const active = document.activeElement
-      if (!active) return
-      // Skip if focus is inside a terminal (xterm) — Terminal.tsx handles it
-      if (active.closest('.xterm')) return
-      // For Monaco editor, input, textarea, or contentEditable elements.
-      // No modern replacement for execCommand('selectAll') on arbitrary focused elements.
+      if (!active || active.closest('.xterm')) return
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       document.execCommand('selectAll')
     }
 
+    // Register all custom event listeners with a table-driven approach
+    const customEvents: [string, EventListener][] = [
+      ['app:toggle-panel', handleCustomToggle],
+      ['app:new-session', () => onNewSession?.()],
+      ['app:next-session', () => onNextSession?.()],
+      ['app:prev-session', () => onPrevSession?.()],
+      ['app:focus-sessions', () => onFocusSessionList?.()],
+      ['app:focus-session-search', () => onFocusSessionSearch?.()],
+      ['app:archive-session', () => onArchiveSession?.()],
+      ['app:toggle-settings', () => onToggleSettings?.()],
+      ['app:show-shortcuts', () => onShowShortcuts?.()],
+      ['app:next-terminal-tab', () => onNextTerminalTab?.()],
+      ['app:prev-terminal-tab', () => onPrevTerminalTab?.()],
+      ['app:explorer-tab', handleCustomExplorerTab],
+      ['app:select-all', handleSelectAll],
+      ['app:focus-panel-left', () => handleDirectionalFocus('left')],
+      ['app:focus-panel-right', () => handleDirectionalFocus('right')],
+    ]
+
     window.addEventListener('keydown', handleKeyDown, true)
-    window.addEventListener('app:toggle-panel', handleCustomToggle)
-    window.addEventListener('app:new-session', handleCustomNewSession)
-    window.addEventListener('app:next-session', handleCustomNextSession)
-    window.addEventListener('app:prev-session', handleCustomPrevSession)
-    window.addEventListener('app:focus-sessions', handleCustomFocusSessions)
-    window.addEventListener('app:focus-session-search', handleCustomFocusSessionSearch)
-    window.addEventListener('app:archive-session', handleCustomArchiveSession)
-    window.addEventListener('app:toggle-settings', handleCustomToggleSettings)
-    window.addEventListener('app:show-shortcuts', handleCustomShowShortcuts)
-    window.addEventListener('app:next-terminal-tab', handleCustomNextTerminalTab)
-    window.addEventListener('app:prev-terminal-tab', handleCustomPrevTerminalTab)
-    window.addEventListener('app:explorer-tab', handleCustomExplorerTab)
-    window.addEventListener('app:select-all', handleSelectAll)
+    for (const [name, handler] of customEvents) window.addEventListener(name, handler)
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true)
-      window.removeEventListener('app:toggle-panel', handleCustomToggle)
-      window.removeEventListener('app:new-session', handleCustomNewSession)
-      window.removeEventListener('app:next-session', handleCustomNextSession)
-      window.removeEventListener('app:prev-session', handleCustomPrevSession)
-      window.removeEventListener('app:focus-sessions', handleCustomFocusSessions)
-      window.removeEventListener('app:focus-session-search', handleCustomFocusSessionSearch)
-      window.removeEventListener('app:archive-session', handleCustomArchiveSession)
-      window.removeEventListener('app:toggle-settings', handleCustomToggleSettings)
-      window.removeEventListener('app:show-shortcuts', handleCustomShowShortcuts)
-      window.removeEventListener('app:next-terminal-tab', handleCustomNextTerminalTab)
-      window.removeEventListener('app:prev-terminal-tab', handleCustomPrevTerminalTab)
-      window.removeEventListener('app:explorer-tab', handleCustomExplorerTab)
-      window.removeEventListener('app:select-all', handleSelectAll)
+      for (const [name, handler] of customEvents) window.removeEventListener(name, handler)
     }
-  }, [handleToggleByKey, handleCyclePanel, onSearchFiles, onNewSession, onNextSession, onPrevSession, onFocusSessionList, onFocusSessionSearch, onArchiveSession, onToggleSettings, onShowShortcuts, onNextTerminalTab, onPrevTerminalTab, onExplorerTab])
+  }, [handleToggleByKey, handleCyclePanel, handleDirectionalFocus, onSearchFiles, onNewSession, onNextSession, onPrevSession, onFocusSessionList, onFocusSessionSearch, onArchiveSession, onToggleSettings, onShowShortcuts, onNextTerminalTab, onPrevTerminalTab, onExplorerTab])
 
   return {
     flashedPanel,
