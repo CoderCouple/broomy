@@ -195,6 +195,13 @@ test.describe('Layout', () => {
 
 test.describe('Explorer Panel', () => {
   test('should toggle Explorer panel', async () => {
+    // Dismiss any modal dialog left over from prior tests
+    const cancelBtn = page.locator('.fixed.inset-0.z-50 button:has-text("Cancel")')
+    if (await cancelBtn.isVisible({ timeout: 500 }).catch(() => false)) {
+      await cancelBtn.click()
+      await expect(page.locator('.fixed.inset-0.z-50')).not.toBeVisible()
+    }
+
     const explorerButton = page.locator('button:has-text("Explorer")')
 
     // Open the Explorer panel
