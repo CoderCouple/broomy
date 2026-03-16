@@ -143,7 +143,7 @@ function AppContent() {
     loadSessions, addSession, addInitializingSession, finalizeSession, failSession, removeSession,
     setActiveSession, togglePanel, toggleGlobalPanel, setSidebarWidth, setToolbarPanels,
     selectFile, setExplorerFilter, setFileViewerPosition, updateLayoutSize, markSessionRead,
-    markHasHadCommits, updateBranchStatus, updatePrState, updateReviewStatus, archiveSession,
+    markHasHadCommits, clearHasHadCommits, updateBranchStatus, updatePrState, updateReviewStatus, archiveSession,
     unarchiveSession, setPanelVisibility, updateSessionBranch, closeCommandsEditor,
   } = useMemo(() => useSessionStore.getState(), [])
 
@@ -159,7 +159,7 @@ function AppContent() {
   const [duplicateSessionInfo, setDuplicateSessionInfo] = useState<{ name: string; wasArchived: boolean } | null>(null)
   const [appError, setAppError] = useState<string | null>(null)
   const { activeSessionGitStatus, activeSessionGitStatusResult, selectedFileStatus, fetchGitStatus } =
-    useGitPolling({ sessions, activeSession, repos, markHasHadCommits, updateBranchStatus, updatePrState })
+    useGitPolling({ sessions, activeSession, repos, markHasHadCommits, clearHasHadCommits, updateBranchStatus, updatePrState })
 
   const {
     openFileInDiffMode, scrollToLine, searchHighlight, diffBaseRef, diffCurrentRef, diffLabel,
