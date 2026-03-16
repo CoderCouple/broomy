@@ -13,6 +13,7 @@ export function useGitPolling({
   activeSession,
   repos,
   markHasHadCommits,
+  clearHasHadCommits,
   updateBranchStatus,
   updatePrState,
 }: {
@@ -20,6 +21,7 @@ export function useGitPolling({
   activeSession: Session | undefined
   repos: ManagedRepo[]
   markHasHadCommits: (sessionId: string) => void
+  clearHasHadCommits: (sessionId: string) => void
   updateBranchStatus: (sessionId: string, status: BranchStatus) => void
   updatePrState: (sessionId: string, prState: import('../store/sessions').PrState, prNumber?: number, prUrl?: string) => void
 }) {
@@ -103,11 +105,14 @@ export function useGitPolling({
 
       // Clear stale PR state when new work is detected on a previously merged/closed branch.
       // This prevents the branch from snapping back to 'merged' after pushing new commits.
+      // Also reset hasHadCommits so the git-native merge check (rule 3) doesn't re-assert
+      // 'merged' — the branch starts a fresh lifecycle after moving beyond the old PR.
       if (
         (session.lastKnownPrState === 'MERGED' || session.lastKnownPrState === 'CLOSED') &&
         (gitStatus.ahead > 0 || gitStatus.files.length > 0)
       ) {
         updatePrState(session.id, null)
+        clearHasHadCommits(session.id)
       }
     }
   }, [gitStatusBySession, isMergedBySession, sessions, updateBranchStatus])

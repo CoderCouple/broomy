@@ -68,6 +68,7 @@ function makeRepo(overrides: Partial<ManagedRepo> = {}): ManagedRepo {
 
 describe('useGitPolling', () => {
   const markHasHadCommits: (sessionId: string) => void = vi.fn()
+  const clearHasHadCommits: (sessionId: string) => void = vi.fn()
   const updateBranchStatus: (sessionId: string, status: BranchStatus) => void = vi.fn()
   const updatePrState = vi.fn()
 
@@ -94,6 +95,7 @@ describe('useGitPolling', () => {
     activeSession,
     repos: [makeRepo()],
     markHasHadCommits,
+    clearHasHadCommits,
     updateBranchStatus,
     updatePrState,
   }

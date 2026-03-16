@@ -56,7 +56,11 @@ export function SCPrBanner({
       <div className="px-3 py-2 border-b border-border bg-bg-secondary">
         {isPrLoading ? (
           <div className="text-xs text-text-secondary">Loading PR status...</div>
-        ) : prStatus?.number && prStatus.url ? (
+        ) : prStatus?.number && prStatus.url && !(
+          // Don't show stale MERGED/CLOSED PR when the branch has moved on with new work
+          (prStatus.state === 'MERGED' || prStatus.state === 'CLOSED') &&
+          (branchStatus === 'in-progress' || branchStatus === 'pushed')
+        ) ? (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${prStateBadgeClass(prStatus.state)}`}>

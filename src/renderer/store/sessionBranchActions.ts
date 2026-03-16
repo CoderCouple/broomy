@@ -26,6 +26,17 @@ export function createBranchActions(get: StoreGet, set: StoreSet) {
       debouncedSave()
     },
 
+    clearHasHadCommits: (sessionId: string) => {
+      const { sessions } = get()
+      const session = sessions.find((s) => s.id === sessionId)
+      if (!session?.hasHadCommits) return
+      const updatedSessions = sessions.map((s) =>
+        s.id === sessionId ? { ...s, hasHadCommits: false } : s
+      )
+      set({ sessions: updatedSessions })
+      debouncedSave()
+    },
+
     updateBranchStatus: (sessionId: string, status: BranchStatus) => {
       const { sessions } = get()
       const updatedSessions = sessions.map((s) =>

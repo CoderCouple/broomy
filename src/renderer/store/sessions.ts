@@ -170,6 +170,7 @@ interface SessionStore {
   setAgentPtyId: (sessionId: string, ptyId: string) => void
   // Branch status actions
   markHasHadCommits: (sessionId: string) => void
+  clearHasHadCommits: (sessionId: string) => void
   updateBranchStatus: (sessionId: string, status: BranchStatus) => void
   updatePrState: (sessionId: string, prState: PrState, prNumber?: number, prUrl?: string) => void
   updateReviewStatus: (sessionId: string, reviewStatus: 'pending' | 'reviewed') => void

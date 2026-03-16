@@ -80,6 +80,29 @@ describe('sessionBranchActions', () => {
     })
   })
 
+  describe('clearHasHadCommits', () => {
+    it('clears hasHadCommits flag', () => {
+      addTestSession()
+      useSessionStore.getState().markHasHadCommits('test-session')
+      expect(useSessionStore.getState().sessions[0].hasHadCommits).toBe(true)
+      useSessionStore.getState().clearHasHadCommits('test-session')
+      expect(useSessionStore.getState().sessions[0].hasHadCommits).toBe(false)
+    })
+
+    it('is a no-op if not marked', () => {
+      addTestSession()
+      useSessionStore.getState().clearHasHadCommits('test-session')
+      expect(useSessionStore.getState().sessions[0].hasHadCommits).toBeUndefined()
+    })
+
+    it('is a no-op for non-existent session', () => {
+      addTestSession()
+      useSessionStore.getState().markHasHadCommits('test-session')
+      useSessionStore.getState().clearHasHadCommits('nonexistent')
+      expect(useSessionStore.getState().sessions[0].hasHadCommits).toBe(true)
+    })
+  })
+
   describe('updateBranchStatus', () => {
     it('updates branch status for session', () => {
       addTestSession()

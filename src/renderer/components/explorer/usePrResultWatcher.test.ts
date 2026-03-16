@@ -15,13 +15,19 @@ describe('usePrResultWatcher', () => {
     setPrStatus: vi.fn(),
   }
 
-  it('sets up watcher on .broomy/output directory', () => {
+  it('ensures .broomy/output exists and sets up watcher', async () => {
     renderHook(() => usePrResultWatcher(defaultConfig))
 
-    expect(window.fs.watch).toHaveBeenCalledWith(
-      'pr-result-/repos/project',
-      '/repos/project/.broomy/output',
-    )
+    // mkdir is called first to ensure the directory exists
+    expect(window.fs.mkdir).toHaveBeenCalledWith('/repos/project/.broomy/output')
+
+    // After mkdir resolves, watch is set up
+    await vi.waitFor(() => {
+      expect(window.fs.watch).toHaveBeenCalledWith(
+        'pr-result-/repos/project',
+        '/repos/project/.broomy/output',
+      )
+    })
     expect(window.fs.onChange).toHaveBeenCalledWith(
       'pr-result-/repos/project',
       expect.any(Function),
@@ -171,7 +177,7 @@ describe('usePrResultWatcher', () => {
     vi.useRealTimers()
   })
 
-  it('recreates watcher when directory changes', () => {
+  it('recreates watcher when directory changes', async () => {
     const removeListener = vi.fn()
     vi.mocked(window.fs.onChange).mockReturnValue(removeListener)
 
@@ -187,10 +193,12 @@ describe('usePrResultWatcher', () => {
     expect(removeListener).toHaveBeenCalled()
     expect(window.fs.unwatch).toHaveBeenCalledWith('pr-result-/repos/project')
 
-    // New watcher set up
-    expect(window.fs.watch).toHaveBeenCalledWith(
-      'pr-result-/repos/other',
-      '/repos/other/.broomy/output',
-    )
+    // New watcher set up (after mkdir resolves)
+    await vi.waitFor(() => {
+      expect(window.fs.watch).toHaveBeenCalledWith(
+        'pr-result-/repos/other',
+        '/repos/other/.broomy/output',
+      )
+    })
   })
 })
